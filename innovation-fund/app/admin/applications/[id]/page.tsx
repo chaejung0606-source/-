@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
@@ -13,8 +13,8 @@ const REVIEW_STATUSES: ReviewStatus[] = ["received", "reviewing", "supplement", 
 const PAYMENT_STATUSES: PaymentStatus[] = ["waiting", "processing", "completed", "hold", "refund"];
 
 export default function ApplicationDetailPage() {
-  const { id } = useParams() as { id: string };
-  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const [app, setApp] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,15 +39,22 @@ export default function ApplicationDetailPage() {
     await fetch(`/api/applications/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) }),
+      body: JSON.stringify({
+        reviewStatus,
+        paymentStatus,
+        adminMemo,
+        approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount),
+      }),
     });
     setSaving(false);
     alert("저장되었습니다.");
   };
 
-  if (loading || !app) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
+  if (loading || !app) {
+    return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
+  }
 
-  const getDetail = () => {
+  const getDetail = (): [string, string][] => {
     if (app.programDetail) return [
       ["프로그램명", app.programDetail.programName],
       ["유형", app.programDetail.programType],
@@ -91,10 +98,20 @@ export default function ApplicationDetailPage() {
     return [];
   };
 
+  const basicRows: [string, string][] = [
+    ["이름", app.name], ["학번", app.studentId],
+    ["소속 대학", app.university], ["학과", app.department],
+    ["학년", app.grade], ["학적 상태", app.academicStatus],
+    ["연락처", app.phone], ["이메일", app.email],
+    ["신청일", app.applicationDate], ["신청 유형", APPLICATION_TYPE_LABELS[app.applicationType]],
+  ];
+
   return (
     <AdminLayout>
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/admin/applications" className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></Link>
+        <Link href="/admin/applications" className="text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
         <div>
           <div className="text-sm text-gray-500">접수번호 {app.receiptNumber}</div>
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
@@ -102,19 +119,11 @@ export default function ApplicationDetailPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* 왼쪽: 신청 내용 */}
         <div className="lg:col-span-2 space-y-4">
-          {/* 기본 정보 */}
           <div className="card">
             <h2 className="section-title">기본 정보</h2>
             <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-              {[
-                ["이름", app.name], ["학번", app.studentId],
-                ["소속 대학", app.university], ["학과", app.department],
-                ["학년", app.grade], ["학적 상태", app.academicStatus],
-                ["연락처", app.phone], ["이메일", app.email],
-                ["신청일", app.applicationDate], ["신청 유형", APPLICATION_TYPE_LABELS[app.applicationType]],
-              ].map(([k, v]) => (
+              {basicRows.map(([k, v]) => (
                 <div key={k} className="flex gap-2">
                   <dt className="text-gray-500 min-w-[80px] flex-shrink-0">{k}</dt>
                   <dd className="font-medium">{v}</dd>
@@ -123,17 +132,15 @@ export default function ApplicationDetailPage() {
             </dl>
           </div>
 
-          {/* 계좌 정보 */}
           <div className="card">
             <h2 className="section-title">계좌 정보</h2>
             <dl className="grid sm:grid-cols-3 gap-3 text-sm">
-              {[["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]].map(([k, v]) => (
+              {([["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]] as [string, string][]).map(([k, v]) => (
                 <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
               ))}
             </dl>
           </div>
 
-          {/* 유형별 상세 */}
           <div className="card">
             <h2 className="section-title">신청 상세 내용</h2>
             <dl className="space-y-2 text-sm">
@@ -145,13 +152,23 @@ export default function ApplicationDetailPage() {
               ))}
             </dl>
             <div className="mt-4 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
-              <div><dt className="text-gray-500">신청 금액</dt><dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd></div>
-              <div><dt className="text-gray-500">자동 산정 금액</dt><dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd></div>
-              {app.approvedAmount !== undefined && <div><dt className="text-gray-500">최종 승인 금액</dt><dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd></div>}
+              <div>
+                <dt className="text-gray-500">신청 금액</dt>
+                <dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">자동 산정 금액</dt>
+                <dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd>
+              </div>
+              {app.approvedAmount !== undefined && (
+                <div>
+                  <dt className="text-gray-500">최종 승인 금액</dt>
+                  <dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* 첨부파일 */}
           <div className="card">
             <h2 className="section-title">첨부파일</h2>
             {app.files.length === 0 ? (
@@ -171,7 +188,6 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
 
-        {/* 오른쪽: 관리자 액션 */}
         <div className="space-y-4">
           <div className="card">
             <h2 className="section-title">상태 관리</h2>
@@ -214,7 +230,6 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
 
-          {/* 메모 예시 */}
           <div className="card bg-gray-50">
             <h3 className="font-medium text-gray-600 text-sm mb-2">메모 예시</h3>
             {["증빙자료 부족", "심의위원회 검토 필요", "지급 가능", "지출 완료", "계좌 정보 확인 필요"].map((m) => (
