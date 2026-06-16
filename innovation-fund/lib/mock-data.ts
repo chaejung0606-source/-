@@ -192,7 +192,7 @@ export const mockApplications: Application[] = [
   },
 ];
 
-let applications = [...mockApplications];
+const applications = [...mockApplications];
 let nextId = applications.length + 1;
 
 export function getApplications(): Application[] {
