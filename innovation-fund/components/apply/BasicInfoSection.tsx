@@ -134,6 +134,11 @@ export default function BasicInfoSection({ values, onChange }: Props) {
             <input className="input-field" value={values.accountHolder} onChange={(e) => set("accountHolder", e.target.value)} placeholder="홍길동" />
           </div>
         </div>
+        {values.name && values.accountHolder && values.name.replace(/\s/g, "") !== values.accountHolder.replace(/\s/g, "") && (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl p-3 text-sm text-red-700" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+            <span>⚠️ <strong>예금주({values.accountHolder})와 신청자 성명({values.name})이 다릅니다.</strong> 혁신인재지원금은 <u>본인 명의 계좌로만</u> 지급됩니다. 제출하는 통장 사본의 예금주가 본인과 동일한지 다시 확인해주세요. (불일치 시 지급 보류될 수 있습니다.)</div>
+          </div>
+        )}
       </div>
 
       {/* 개인정보 수집·이용 동의 */}

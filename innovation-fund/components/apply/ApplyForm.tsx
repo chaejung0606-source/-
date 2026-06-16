@@ -141,6 +141,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         truthConsent: consent.truth,
         accountConsent: consent.account,
         signature,
+        accountMismatch: basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
         requestAmount: getRequestAmount(),
         calculatedAmount: getCalculatedAmount(),
       };

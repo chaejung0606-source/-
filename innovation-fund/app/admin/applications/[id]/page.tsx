@@ -153,6 +153,11 @@ export default function ApplicationDetailPage() {
                 <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
               ))}
             </dl>
+            {app.accountMismatch && (
+              <div className="mt-3 flex items-start gap-2 rounded-2xl p-3 text-sm text-red-700" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                ⚠️ <span><strong>예금주({app.bankInfo.accountHolder})와 신청자 성명({app.name})이 다릅니다.</strong> 본인 명의 계좌 여부 및 통장 사본을 반드시 확인하세요.</span>
+              </div>
+            )}
           </div>
 
           <div className="card">

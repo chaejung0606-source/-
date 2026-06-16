@@ -173,7 +173,7 @@ export default function ApplicationsPage() {
                 </td>
                 <td className="font-mono text-xs">{app.receiptNumber}</td>
                 <td className="whitespace-nowrap">{app.applicationDate}</td>
-                <td className="font-medium">{app.name}</td>
+                <td className="font-medium whitespace-nowrap">{app.name}{app.accountMismatch && <span title="예금주 불일치 (본인명의 확인 필요)" className="ml-1 text-red-500">⚠️</span>}</td>
                 <td className="font-mono text-xs">{app.studentId}</td>
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
                 <td className="text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>

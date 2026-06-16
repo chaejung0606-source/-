@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Shield, FileText, Users, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle } from "lucide-react";
+import { Shield, FileText, Users, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin } from "lucide-react";
 
 const fundTypes = [
   {
@@ -168,13 +168,56 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 푸터 */}
+        {/* 바로가기 링크 */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <Globe className="w-6 h-6 text-indigo-500" /> 바로가기
+          </h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="https://sducoss.ac.kr/ko/index" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
+              <Globe className="w-6 h-6 text-[#4f8cff]" /> <span className="font-semibold text-sm">사업단 홈페이지</span>
+            </a>
+            <a href="https://lms.sducoss.ac.kr/login.php" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
+              <BookOpen className="w-6 h-6 text-[#2dd4bf]" /> <span className="font-semibold text-sm">LMS 학습 사이트</span>
+            </a>
+            <a href="https://iruri.kangwon.ac.kr" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
+              <GraduationCap className="w-6 h-6 text-[#a78bfa]" /> <span className="font-semibold text-sm">강원대 이루리 로그인</span>
+            </a>
+            <a href="http://pf.kakao.com/_YnXnn/friend" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
+              <MessageCircle className="w-6 h-6 text-[#fbbf24]" /> <span className="font-semibold text-sm">카카오톡 채널 추가</span>
+            </a>
+          </div>
+        </section>
+      </div>
+
+      {/* 푸터 (엔드바) */}
       <footer className="glass-header py-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm">
-          <p className="font-bold holo-text mb-1 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
-          <p className="text-gray-500">문의사항이 있으시면 사업단 사무실로 연락해주세요.</p>
+          <p className="font-bold holo-text mb-3 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-gray-500">
+            <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+              <Mail className="w-4 h-4" /> sducoss@kangwon.ac.kr
+            </a>
+            <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+              <Phone className="w-4 h-4" /> 033-250-7879
+            </a>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4" /> 강원대학교 한빛관 1층 105호
+            </span>
+          </div>
         </div>
       </footer>
+
+      {/* 플로팅 카카오톡 문의 버튼 */}
+      <a
+        href="http://pf.kakao.com/_YnXnn/chat"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-full font-bold text-[#3c1e1e] shadow-lg hover:scale-105 transition-transform"
+        style={{ background: "#FEE500", boxShadow: "0 10px 30px rgba(0,0,0,0.18)" }}
+      >
+        <MessageCircle className="w-5 h-5" /> 카톡 문의
+      </a>
     </div>
   );
 }

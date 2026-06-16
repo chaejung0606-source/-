@@ -169,6 +169,9 @@ export interface Application {
   // 학생 서명 (base64 이미지)
   signature?: string;
 
+  // 계좌 예금주 ≠ 신청자 성명 (본인명의 확인 필요)
+  accountMismatch?: boolean;
+
   // 관리자 필드
   reviewStatus: ReviewStatus;
   paymentStatus: PaymentStatus;

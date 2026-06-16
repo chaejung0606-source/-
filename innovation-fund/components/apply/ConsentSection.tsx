@@ -51,7 +51,7 @@ export default function ConsentSection({ values, onChange, signature, onSignatur
           {[
             { key: "privacy" as const, label: "개인정보 수집·이용에 동의합니다." },
             { key: "truth" as const, label: "제출한 자료가 사실과 다를 경우 지급 취소 및 환수 조치가 가능함을 확인했습니다." },
-            { key: "account" as const, label: "본인 명의 계좌로만 지급 가능함을 확인했습니다." },
+            { key: "account" as const, label: "본인 명의 계좌로만 지급 가능하며, 입력한 예금주와 제출하는 통장 사본의 예금주가 동일함을 확인했습니다." },
           ].map((item) => (
             <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 transition-colors">
               <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${values[item.key] ? "bg-primary-600 border-primary-600" : "border-gray-300"}`}>
