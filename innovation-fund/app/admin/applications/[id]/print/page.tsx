@@ -76,12 +76,13 @@ function PrintContent() {
         .doc-sub { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
         table.form { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         table.form th, table.form td { border: 1px solid #333; padding: 7px 9px; text-align: left; vertical-align: top; }
-        table.form th { background: #f0f2f8; width: 130px; font-weight: 600; white-space: nowrap; }
+        table.form th { background: #ccd5e8; width: 130px; font-weight: 700; white-space: nowrap; color: #1e293b; }
+        table.form td { background: #ffffff; }
         .sec { font-weight: 700; font-size: 14px; margin: 16px 0 6px; border-left: 4px solid #2563eb; padding-left: 8px; }
-        .ev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .ev-box { border: 1px solid #333; border-radius: 6px; padding: 8px; }
-        .ev-label { font-weight: 600; font-size: 12px; margin-bottom: 6px; }
-        .ev-img { width: 100%; height: 200px; object-fit: contain; border: 1px dashed #bbb; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px; }
+        .ev-page { page-break-after: always; min-height: 90vh; }
+        .ev-page:last-child { page-break-after: auto; }
+        .ev-head { border: 1px solid #333; background: #ccd5e8; font-weight: 700; padding: 8px 10px; border-radius: 6px 6px 0 0; }
+        .ev-img { width: 100%; height: 75vh; object-fit: contain; border: 1px solid #333; border-top: none; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
         .ev-img img { max-width: 100%; max-height: 100%; }
         .btn-bar { text-align: center; margin-bottom: 20px; }
         .btn-bar button { background: #2563eb; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 0 4px; }
@@ -156,16 +157,14 @@ function PrintContent() {
           {app.files.length === 0 ? (
             <p style={{ textAlign: "center", color: "#999", padding: 40 }}>첨부된 증빙서류가 없습니다.</p>
           ) : (
-            <div className="ev-grid">
-              {app.files.map((f) => (
-                <div className="ev-box" key={f.id}>
-                  <div className="ev-label">{DOCUMENT_TYPE_LABELS[f.type]} — {f.name}</div>
-                  <div className="ev-img">
-                    {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
-                  </div>
+            app.files.map((f) => (
+              <div className="ev-page" key={f.id}>
+                <div className="ev-head">{DOCUMENT_TYPE_LABELS[f.type]} — {f.name}</div>
+                <div className="ev-img">
+                  {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </>
       )}

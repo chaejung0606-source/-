@@ -33,6 +33,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     academicStatus: "재학", phone: "", email: "", applicationDate: new Date().toISOString().split("T")[0],
     bankName: "", accountNumber: "", accountHolder: "",
     gradCompletion: "재학", completedYears: "", currentSemester: "",
+    privacyAgree: "",
   });
 
   // 유형별 상세
@@ -233,6 +234,11 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
                   alert("계좌 정보를 모두 입력해주세요.");
                   return;
                 }
+                if (basicInfo.privacyAgree !== "동의") {
+                  alert("개인정보 수집·이용에 동의해야 신청을 진행할 수 있습니다.");
+                  return;
+                }
+                setConsent((c) => ({ ...c, privacy: true }));
               }
               setStep(step + 1);
             }}
