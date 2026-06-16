@@ -102,7 +102,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-3">
             {steps.map((step, i) => (
               <div key={i} className="flex-1 card flex flex-col items-center py-5">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-sm mb-3" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899)", boxShadow: "0 4px 14px rgba(139,92,246,0.4)" }}>
+                <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-sm mb-3" style={{ background: "linear-gradient(135deg, #5eead4, #60a5fa, #a78bfa)", boxShadow: "0 4px 14px rgba(96,165,250,0.4)" }}>
                   {i + 1}
                 </div>
                 <div className="text-center text-sm font-semibold text-gray-700">{step}</div>
@@ -123,7 +123,7 @@ export default function Home() {
                 <h3 className="font-bold text-gray-800 mb-2">{type.title}</h3>
                 <p className="text-sm text-gray-600 mb-3">{type.desc}</p>
                 {type.note && (
-                  <p className="text-xs font-semibold text-indigo-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(139,92,246,0.1)" }}>{type.note}</p>
+                  <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{type.note}</p>
                 )}
               </div>
             ))}
