@@ -89,9 +89,10 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
         </div>
 
         {files.length === 0 ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-400">
-            <FileText className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">업로드된 파일이 없습니다.</p>
+          <div className="upload-card p-8 text-center text-gray-400 flex flex-col items-center justify-center" style={{ minHeight: 160 }}>
+            <Upload className="w-10 h-10 mx-auto mb-2 text-[#4f8cff] opacity-60" />
+            <p className="text-sm">자료 유형을 선택하고 파일을 업로드해주세요.</p>
+            <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · XLSX</p>
           </div>
         ) : (
           <div className="space-y-2">

@@ -137,28 +137,28 @@ export default function ApplicationsPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="card p-0 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="overflow-x-auto rounded-[32px]">
+        <table className="table-glass text-sm">
+          <thead>
             <tr>
-              <th className="p-3 text-left w-10">
-                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-primary-600" />
+              <th className="w-10">
+                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#4f8cff]" />
               </th>
-              <th className="p-3 text-left whitespace-nowrap">접수번호</th>
-              <th className="p-3 text-left whitespace-nowrap">신청일</th>
-              <th className="p-3 text-left whitespace-nowrap">이름</th>
-              <th className="p-3 text-left whitespace-nowrap">학번</th>
-              <th className="p-3 text-left whitespace-nowrap">학과</th>
-              <th className="p-3 text-left whitespace-nowrap">신청 유형</th>
-              <th className="p-3 text-right whitespace-nowrap">신청 금액</th>
-              <th className="p-3 text-right whitespace-nowrap">산정 금액</th>
-              <th className="p-3 text-center whitespace-nowrap">검토 상태</th>
-              <th className="p-3 text-center whitespace-nowrap">지급 상태</th>
-              <th className="p-3 text-left whitespace-nowrap">첨부</th>
-              <th className="p-3 text-center whitespace-nowrap">상세</th>
+              <th className="whitespace-nowrap">접수번호</th>
+              <th className="whitespace-nowrap">신청일</th>
+              <th className="whitespace-nowrap">이름</th>
+              <th className="whitespace-nowrap">학번</th>
+              <th className="whitespace-nowrap">학과</th>
+              <th className="whitespace-nowrap">신청 유형</th>
+              <th className="text-right whitespace-nowrap">신청 금액</th>
+              <th className="text-right whitespace-nowrap">산정 금액</th>
+              <th className="text-center whitespace-nowrap">검토 상태</th>
+              <th className="text-center whitespace-nowrap">지급 상태</th>
+              <th className="whitespace-nowrap">첨부</th>
+              <th className="text-center whitespace-nowrap">상세</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={13} className="text-center py-12 text-gray-400">
@@ -167,27 +167,27 @@ export default function ApplicationsPage() {
                 </td>
               </tr>
             ) : filtered.map((app) => (
-              <tr key={app.id} className={`hover:bg-gray-50 transition-colors ${selected.has(app.id) ? "bg-primary-50" : ""}`}>
-                <td className="p-3">
-                  <input type="checkbox" checked={selected.has(app.id)} onChange={() => toggleSelect(app.id)} className="accent-primary-600" />
+              <tr key={app.id} style={selected.has(app.id) ? { background: "rgba(79,140,255,0.08)" } : undefined}>
+                <td>
+                  <input type="checkbox" checked={selected.has(app.id)} onChange={() => toggleSelect(app.id)} className="accent-[#4f8cff]" />
                 </td>
-                <td className="p-3 font-mono text-xs">{app.receiptNumber}</td>
-                <td className="p-3 whitespace-nowrap">{app.applicationDate}</td>
-                <td className="p-3 font-medium">{app.name}</td>
-                <td className="p-3 font-mono text-xs">{app.studentId}</td>
-                <td className="p-3 text-gray-600 max-w-[120px] truncate">{app.department}</td>
-                <td className="p-3 text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
-                <td className="p-3 text-right font-mono">{app.requestAmount.toLocaleString()}</td>
-                <td className="p-3 text-right font-mono text-primary-600">{app.calculatedAmount.toLocaleString()}</td>
-                <td className="p-3 text-center">
+                <td className="font-mono text-xs">{app.receiptNumber}</td>
+                <td className="whitespace-nowrap">{app.applicationDate}</td>
+                <td className="font-medium">{app.name}</td>
+                <td className="font-mono text-xs">{app.studentId}</td>
+                <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
+                <td className="text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
+                <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
+                <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
+                <td className="text-center">
                   <span className={`badge ${reviewColors[app.reviewStatus]}`}>{REVIEW_STATUS_LABELS[app.reviewStatus]}</span>
                 </td>
-                <td className="p-3 text-center">
+                <td className="text-center">
                   <span className={`badge ${payColors[app.paymentStatus]}`}>{PAYMENT_STATUS_LABELS[app.paymentStatus]}</span>
                 </td>
-                <td className="p-3 text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
-                <td className="p-3 text-center">
-                  <Link href={`/admin/applications/${app.id}`} className="text-primary-600 hover:underline text-xs">상세</Link>
+                <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
+                <td className="text-center">
+                  <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>
                 </td>
               </tr>
             ))}
