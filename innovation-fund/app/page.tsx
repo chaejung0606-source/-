@@ -167,26 +167,6 @@ export default function Home() {
           <p className="text-sm text-gray-500 mt-3">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
 
-        {/* 바로가기 링크 */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <Globe className="w-6 h-6 text-indigo-500" /> 바로가기
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <a href="https://sducoss.ac.kr/ko/index" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
-              <Globe className="w-6 h-6 text-[#4f8cff]" /> <span className="font-semibold text-sm">사업단 홈페이지</span>
-            </a>
-            <a href="https://lms.sducoss.ac.kr/login.php" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
-              <BookOpen className="w-6 h-6 text-[#2dd4bf]" /> <span className="font-semibold text-sm">LMS 학습 사이트</span>
-            </a>
-            <a href="https://iruri.kangwon.ac.kr" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
-              <GraduationCap className="w-6 h-6 text-[#a78bfa]" /> <span className="font-semibold text-sm">강원대 이루리 로그인</span>
-            </a>
-            <a href="http://pf.kakao.com/_YnXnn/friend" target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 hover:-translate-y-1 transition-transform">
-              <MessageCircle className="w-6 h-6 text-[#fbbf24]" /> <span className="font-semibold text-sm">카카오톡 채널 추가</span>
-            </a>
-          </div>
-        </section>
       </div>
 
       {/* 푸터 (엔드바) */}
@@ -207,16 +187,41 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* 플로팅 카카오톡 문의 버튼 */}
-      <a
-        href="http://pf.kakao.com/_YnXnn/chat"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-full font-bold text-[#3c1e1e] shadow-lg hover:scale-105 transition-transform"
-        style={{ background: "#FEE500", boxShadow: "0 10px 30px rgba(0,0,0,0.18)" }}
-      >
-        <MessageCircle className="w-5 h-5" /> 카톡 문의
-      </a>
+      {/* 바로가기 플로팅 사이드바 */}
+      <aside className="fixed right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
+        {[
+          { href: "https://sducoss.ac.kr/ko/index", label: "사업단\n홈페이지", icon: Globe, color: "#4f8cff" },
+          { href: "https://lms.sducoss.ac.kr/login.php", label: "LMS\n사이트", icon: BookOpen, color: "#2dd4bf" },
+          { href: "https://iruri.kangwon.ac.kr", label: "이루리\n로그인", icon: GraduationCap, color: "#a78bfa" },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <a
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={item.label.replace("\n", " ")}
+              className="glass-pill w-14 h-14 flex flex-col items-center justify-center gap-0.5 hover:scale-105 transition-transform"
+            >
+              <Icon className="w-5 h-5" style={{ color: item.color }} />
+              <span className="text-[9px] font-semibold text-gray-600 leading-none text-center whitespace-pre-line">{item.label}</span>
+            </a>
+          );
+        })}
+        {/* 카카오톡 문의하기 */}
+        <a
+          href="http://pf.kakao.com/_YnXnn/chat"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="카카오톡으로 문의하기"
+          className="w-14 h-14 flex flex-col items-center justify-center gap-0.5 rounded-full font-bold text-[#3c1e1e] hover:scale-105 transition-transform"
+          style={{ background: "#FEE500", boxShadow: "0 10px 24px rgba(0,0,0,0.16)" }}
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-[9px] leading-none text-center">카톡<br />문의</span>
+        </a>
+      </aside>
     </div>
   );
 }

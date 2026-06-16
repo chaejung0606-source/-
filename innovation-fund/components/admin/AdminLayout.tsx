@@ -51,7 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="text-[11px] font-semibold text-gray-400 px-4 mb-1.5">바로가기 / 문의</div>
         <a href="https://sducoss.ac.kr/ko/index" target="_blank" rel="noopener noreferrer" className="sidebar-item"><Globe className="w-[18px] h-[18px]" /> 사업단 홈페이지</a>
         <a href="https://lms.sducoss.ac.kr/login.php" target="_blank" rel="noopener noreferrer" className="sidebar-item"><BookOpen className="w-[18px] h-[18px]" /> LMS 사이트</a>
-        <a href="http://pf.kakao.com/_YnXnn/chat" target="_blank" rel="noopener noreferrer" className="sidebar-item"><MessageCircle className="w-[18px] h-[18px]" /> 카카오톡 문의</a>
+        <a href="http://pf.kakao.com/_YnXnn/chat" target="_blank" rel="noopener noreferrer" className="sidebar-item"><MessageCircle className="w-[18px] h-[18px]" /> 카카오톡으로 문의하기</a>
         <div className="px-4 mt-3 space-y-1 text-[11px] text-gray-400">
           <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#4f8cff]"><Mail className="w-3 h-3" /> sducoss@kangwon.ac.kr</a>
           <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#4f8cff]"><Phone className="w-3 h-3" /> 033-250-7879</a>
