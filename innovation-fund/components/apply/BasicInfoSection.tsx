@@ -1,0 +1,99 @@
+"use client";
+
+interface BasicInfo {
+  name: string; studentId: string; university: string; department: string;
+  grade: string; academicStatus: string; phone: string; email: string;
+  applicationDate: string; bankName: string; accountNumber: string; accountHolder: string;
+}
+
+interface Props {
+  values: BasicInfo;
+  onChange: (v: BasicInfo) => void;
+}
+
+const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학교", "연세대학교(미래)", "상지대학교", "가톨릭관동대학교", "경동대학교"];
+const GRADES = ["1", "2", "3", "4", "대학원"];
+const STATUSES = ["재학", "수료"];
+const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
+
+export default function BasicInfoSection({ values, onChange }: Props) {
+  const set = (key: keyof BasicInfo, val: string) => onChange({ ...values, [key]: val });
+
+  return (
+    <div className="space-y-6">
+      {/* 기본 정보 */}
+      <div className="card">
+        <h2 className="section-title">기본 정보</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">이름 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.name} onChange={(e) => set("name", e.target.value)} placeholder="홍길동" />
+          </div>
+          <div>
+            <label className="label">학번 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.studentId} onChange={(e) => set("studentId", e.target.value)} placeholder="2021xxxxxxx" />
+          </div>
+          <div>
+            <label className="label">소속 대학 <span className="text-red-500">*</span></label>
+            <select className="input-field" value={values.university} onChange={(e) => set("university", e.target.value)}>
+              {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">학과/전공 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.department} onChange={(e) => set("department", e.target.value)} placeholder="컴퓨터공학과" />
+          </div>
+          <div>
+            <label className="label">학년</label>
+            <select className="input-field" value={values.grade} onChange={(e) => set("grade", e.target.value)}>
+              {GRADES.map((g) => <option key={g} value={g}>{g === "대학원" ? "대학원" : `${g}학년`}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">학적 상태</label>
+            <select className="input-field" value={values.academicStatus} onChange={(e) => set("academicStatus", e.target.value)}>
+              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">연락처 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.phone} onChange={(e) => set("phone", e.target.value)} placeholder="010-0000-0000" />
+          </div>
+          <div>
+            <label className="label">이메일 <span className="text-red-500">*</span></label>
+            <input className="input-field" type="email" value={values.email} onChange={(e) => set("email", e.target.value)} placeholder="example@kangwon.ac.kr" />
+          </div>
+          <div>
+            <label className="label">신청일</label>
+            <input className="input-field" type="date" value={values.applicationDate} onChange={(e) => set("applicationDate", e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* 계좌 정보 */}
+      <div className="card">
+        <h2 className="section-title">본인 명의 계좌 정보</h2>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-4">
+          ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label className="label">은행명 <span className="text-red-500">*</span></label>
+            <select className="input-field" value={values.bankName} onChange={(e) => set("bankName", e.target.value)}>
+              <option value="">선택</option>
+              {BANKS.map((b) => <option key={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">계좌번호 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.accountNumber} onChange={(e) => set("accountNumber", e.target.value)} placeholder="000000-00-000000" />
+          </div>
+          <div>
+            <label className="label">예금주 <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.accountHolder} onChange={(e) => set("accountHolder", e.target.value)} placeholder="홍길동" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

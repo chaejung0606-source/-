@@ -1,0 +1,228 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, FileText, Save } from "lucide-react";
+import type { Application, ReviewStatus, PaymentStatus } from "@/types";
+import {
+  APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
+} from "@/types";
+import { AdminLayout } from "../../dashboard/page";
+
+const REVIEW_STATUSES: ReviewStatus[] = ["received", "reviewing", "supplement", "committee", "approved", "rejected"];
+const PAYMENT_STATUSES: PaymentStatus[] = ["waiting", "processing", "completed", "hold", "refund"];
+
+export default function ApplicationDetailPage() {
+  const { id } = useParams() as { id: string };
+  const router = useRouter();
+  const [app, setApp] = useState<Application | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<ReviewStatus>("received");
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("waiting");
+  const [adminMemo, setAdminMemo] = useState("");
+  const [approvedAmount, setApprovedAmount] = useState<number | "">("");
+
+  useEffect(() => {
+    fetch(`/api/applications/${id}`).then((r) => r.json()).then((d: Application) => {
+      setApp(d);
+      setReviewStatus(d.reviewStatus);
+      setPaymentStatus(d.paymentStatus);
+      setAdminMemo(d.adminMemo);
+      setApprovedAmount(d.approvedAmount ?? "");
+      setLoading(false);
+    });
+  }, [id]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await fetch(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) }),
+    });
+    setSaving(false);
+    alert("저장되었습니다.");
+  };
+
+  if (loading || !app) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
+
+  const getDetail = () => {
+    if (app.programDetail) return [
+      ["프로그램명", app.programDetail.programName],
+      ["유형", app.programDetail.programType],
+      ["참여 기간", app.programDetail.participationPeriod],
+      ["지도교수", app.programDetail.supervisorName],
+      ["참여 내용", app.programDetail.participationContent],
+    ];
+    if (app.staffDetail) return [
+      ["프로그램명", app.staffDetail.programName],
+      ["근무 기간", app.staffDetail.workPeriod],
+      ["근무 일자", app.staffDetail.workDates],
+      ["총 근무 시간", `${app.staffDetail.totalHours}시간`],
+      ["학생 구분", app.staffDetail.studentType === "graduate" ? "대학원생" : "대학생"],
+      ["담당 업무", app.staffDetail.taskDescription],
+    ];
+    if (app.gradeDetail) return [
+      ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[app.gradeDetail.subType]],
+      ["이수 과정명", app.gradeDetail.courseName],
+      ["이수 학점", String(app.gradeDetail.credits)],
+      ["평점 평균", String(app.gradeDetail.gpa)],
+    ];
+    if (app.contestDetail) return [
+      ["대회명", app.contestDetail.contestName],
+      ["주제", app.contestDetail.contestTheme],
+      ["개최기관", app.contestDetail.organizer],
+      ["규모", `${app.contestDetail.scale}규모`],
+      ["개인/팀", app.contestDetail.isTeam ? "팀" : "개인"],
+      ["시상 등급", { grand: "대상/최우수", silver: "은상/우수", bronze: "동상/장려", participation: "입상" }[app.contestDetail.awardLevel]],
+      ["수상일", app.contestDetail.awardDate],
+      ["상금 수령", app.contestDetail.hasMonetaryPrize ? "있음" : "없음"],
+      ["분야 적합성", app.contestDetail.relevanceDescription],
+    ];
+    if (app.certificateDetail) return [
+      ["자격증명", app.certificateDetail.certName],
+      ["발급기관", app.certificateDetail.issuingOrg],
+      ["취득일", app.certificateDetail.acquisitionDate],
+      ["분야", app.certificateDetail.certField],
+      ["난이도", { high: "상", mid: "중", low: "하", review: "심의필요" }[app.certificateDetail.difficulty]],
+      ["미래융합가상학과", app.certificateDetail.isMirae ? "해당" : "미해당"],
+    ];
+    return [];
+  };
+
+  return (
+    <AdminLayout>
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/admin/applications" className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></Link>
+        <div>
+          <div className="text-sm text-gray-500">접수번호 {app.receiptNumber}</div>
+          <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* 왼쪽: 신청 내용 */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* 기본 정보 */}
+          <div className="card">
+            <h2 className="section-title">기본 정보</h2>
+            <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+              {[
+                ["이름", app.name], ["학번", app.studentId],
+                ["소속 대학", app.university], ["학과", app.department],
+                ["학년", app.grade], ["학적 상태", app.academicStatus],
+                ["연락처", app.phone], ["이메일", app.email],
+                ["신청일", app.applicationDate], ["신청 유형", APPLICATION_TYPE_LABELS[app.applicationType]],
+              ].map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-gray-500 min-w-[80px] flex-shrink-0">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          {/* 계좌 정보 */}
+          <div className="card">
+            <h2 className="section-title">계좌 정보</h2>
+            <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+              {[["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]].map(([k, v]) => (
+                <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
+              ))}
+            </dl>
+          </div>
+
+          {/* 유형별 상세 */}
+          <div className="card">
+            <h2 className="section-title">신청 상세 내용</h2>
+            <dl className="space-y-2 text-sm">
+              {getDetail().map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-gray-500 min-w-[100px] flex-shrink-0">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
+              <div><dt className="text-gray-500">신청 금액</dt><dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd></div>
+              <div><dt className="text-gray-500">자동 산정 금액</dt><dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd></div>
+              {app.approvedAmount !== undefined && <div><dt className="text-gray-500">최종 승인 금액</dt><dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd></div>}
+            </div>
+          </div>
+
+          {/* 첨부파일 */}
+          <div className="card">
+            <h2 className="section-title">첨부파일</h2>
+            {app.files.length === 0 ? (
+              <p className="text-gray-400 text-sm">첨부파일 없음</p>
+            ) : (
+              <ul className="space-y-2">
+                {app.files.map((f) => (
+                  <li key={f.id} className="flex items-center gap-3 text-sm">
+                    <FileText className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                    <span className="font-medium">{f.name}</span>
+                    <span className="text-gray-400 text-xs">{DOCUMENT_TYPE_LABELS[f.type]}</span>
+                    <span className="text-gray-400 text-xs ml-auto">{(f.size / 1024).toFixed(0)} KB</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* 오른쪽: 관리자 액션 */}
+        <div className="space-y-4">
+          <div className="card">
+            <h2 className="section-title">상태 관리</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="label">검토 상태</label>
+                <select className="input-field" value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value as ReviewStatus)}>
+                  {REVIEW_STATUSES.map((s) => <option key={s} value={s}>{REVIEW_STATUS_LABELS[s]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">지급 상태</label>
+                <select className="input-field" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}>
+                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_LABELS[s]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">최종 승인 금액 (원)</label>
+                <input
+                  className="input-field"
+                  type="number"
+                  value={approvedAmount}
+                  onChange={(e) => setApprovedAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder={String(app.calculatedAmount)}
+                />
+              </div>
+              <div>
+                <label className="label">관리자 메모</label>
+                <textarea
+                  className="input-field h-28 resize-none"
+                  value={adminMemo}
+                  onChange={(e) => setAdminMemo(e.target.value)}
+                  placeholder="내부 검토 메모 (학생에게 노출되지 않음)"
+                />
+              </div>
+              <button onClick={handleSave} disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" />
+                {saving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
+
+          {/* 메모 예시 */}
+          <div className="card bg-gray-50">
+            <h3 className="font-medium text-gray-600 text-sm mb-2">메모 예시</h3>
+            {["증빙자료 부족", "심의위원회 검토 필요", "지급 가능", "지출 완료", "계좌 정보 확인 필요"].map((m) => (
+              <button key={m} onClick={() => setAdminMemo(m)} className="block text-xs text-primary-600 hover:underline mb-1">{m}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+}
