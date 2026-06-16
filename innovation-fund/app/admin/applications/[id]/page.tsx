@@ -4,13 +4,14 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
+import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from "@/types";
 import {
-  APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
-} from "@/types";
+  REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
+} from "@/config/status";
 import AdminLayout from "@/components/admin/AdminLayout";
 
-const REVIEW_STATUSES: ReviewStatus[] = ["received", "reviewing", "supplement", "committee", "approved", "rejected"];
-const PAYMENT_STATUSES: PaymentStatus[] = ["waiting", "processing", "completed", "hold", "refund"];
+const REVIEW_STATUSES = REVIEW_STATUS_ORDER;
+const PAYMENT_STATUSES = PAYMENT_STATUS_ORDER;
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -228,13 +229,13 @@ export default function ApplicationDetailPage() {
               <div>
                 <label className="label">검토 상태</label>
                 <select className="input-field" value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value as ReviewStatus)}>
-                  {REVIEW_STATUSES.map((s) => <option key={s} value={s}>{REVIEW_STATUS_LABELS[s]}</option>)}
+                  {REVIEW_STATUSES.map((s) => <option key={s} value={s}>{REVIEW_STATUS_META[s].label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="label">지급 상태</label>
                 <select className="input-field" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}>
-                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_LABELS[s]}</option>)}
+                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_META[s].label}</option>)}
                 </select>
               </div>
               <div>

@@ -1,29 +1,12 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Download, Search, Filter, FileText } from "lucide-react";
+import { Download, Search, FileText } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
-import {
-  APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS,
-} from "@/types";
+import { APPLICATION_TYPE_LABELS } from "@/types";
+import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
+import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
-
-const reviewColors: Record<ReviewStatus, string> = {
-  received: "bg-blue-100 text-blue-700",
-  reviewing: "bg-yellow-100 text-yellow-700",
-  supplement: "bg-orange-100 text-orange-700",
-  committee: "bg-purple-100 text-purple-700",
-  approved: "bg-green-100 text-green-700",
-  rejected: "bg-red-100 text-red-700",
-};
-
-const payColors: Record<PaymentStatus, string> = {
-  waiting: "bg-gray-100 text-gray-600",
-  processing: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  hold: "bg-orange-100 text-orange-700",
-  refund: "bg-red-100 text-red-700",
-};
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<Application[]>([]);
@@ -116,14 +99,14 @@ export default function ApplicationsPage() {
           </select>
           <select className="input-field" value={reviewFilter} onChange={(e) => setReviewFilter(e.target.value as ReviewStatus | "")}>
             <option value="">검토 상태 전체</option>
-            {(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((k) => (
-              <option key={k} value={k}>{REVIEW_STATUS_LABELS[k]}</option>
+            {(Object.keys(REVIEW_STATUS_META) as ReviewStatus[]).map((k) => (
+              <option key={k} value={k}>{REVIEW_STATUS_META[k].label}</option>
             ))}
           </select>
           <select className="input-field" value={payFilter} onChange={(e) => setPayFilter(e.target.value as PaymentStatus | "")}>
             <option value="">지급 상태 전체</option>
-            {(Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]).map((k) => (
-              <option key={k} value={k}>{PAYMENT_STATUS_LABELS[k]}</option>
+            {(Object.keys(PAYMENT_STATUS_META) as PaymentStatus[]).map((k) => (
+              <option key={k} value={k}>{PAYMENT_STATUS_META[k].label}</option>
             ))}
           </select>
         </div>
@@ -179,12 +162,8 @@ export default function ApplicationsPage() {
                 <td className="text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
-                <td className="text-center">
-                  <span className={`badge ${reviewColors[app.reviewStatus]}`}>{REVIEW_STATUS_LABELS[app.reviewStatus]}</span>
-                </td>
-                <td className="text-center">
-                  <span className={`badge ${payColors[app.paymentStatus]}`}>{PAYMENT_STATUS_LABELS[app.paymentStatus]}</span>
-                </td>
+                <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
+                <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
                 <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
                 <td className="text-center">
                   <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>

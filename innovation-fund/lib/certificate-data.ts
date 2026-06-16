@@ -125,9 +125,5 @@ export function checkUnsupported(input: string): boolean {
   });
 }
 
-export const CERT_DIFFICULTY_AMOUNT: Record<CertDifficulty, number> = {
-  high: 700000,
-  mid: 400000,
-  low: 100000,
-  review: 0,
-};
+// 난이도별 지급액은 config/payment 단일 소스를 재export
+export { CERT_AMOUNT as CERT_DIFFICULTY_AMOUNT } from "@/config/payment";
