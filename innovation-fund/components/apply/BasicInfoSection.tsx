@@ -4,6 +4,7 @@ interface BasicInfo {
   name: string; studentId: string; university: string; department: string;
   grade: string; academicStatus: string; phone: string; email: string;
   applicationDate: string; bankName: string; accountNumber: string; accountHolder: string;
+  gradCompletion: string; completedYears: string; currentSemester: string;
 }
 
 interface Props {
@@ -55,6 +56,45 @@ export default function BasicInfoSection({ values, onChange }: Props) {
               {STATUSES.map((s) => <option key={s}>{s}</option>)}
             </select>
           </div>
+
+          {/* 대학원생 전용 추가 필드 */}
+          {values.grade === "대학원" && (
+            <div className="sm:col-span-2 rounded-2xl p-4 space-y-4" style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
+              <p className="text-sm font-semibold text-indigo-700">대학원생 추가 정보</p>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="label">재학/수료 여부</label>
+                  <select className="input-field" value={values.gradCompletion} onChange={(e) => set("gradCompletion", e.target.value)}>
+                    <option value="재학">재학</option>
+                    <option value="수료">수료</option>
+                  </select>
+                </div>
+                {values.gradCompletion === "수료" && (
+                  <div>
+                    <label className="label">수료 후 경과</label>
+                    <select className="input-field" value={values.completedYears} onChange={(e) => set("completedYears", e.target.value)}>
+                      <option value="">선택</option>
+                      <option value="1년 이내">1년 이내</option>
+                      <option value="2년 이내">2년 이내</option>
+                      <option value="2년 초과">2년 초과</option>
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="label">현재 학기</label>
+                  <select className="input-field" value={values.currentSemester} onChange={(e) => set("currentSemester", e.target.value)}>
+                    <option value="">선택</option>
+                    {["1학기", "2학기", "3학기", "4학기", "5학기 이상"].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              {values.gradCompletion === "수료" && values.completedYears === "2년 초과" && (
+                <div className="flex items-start gap-2 text-sm text-red-700 rounded-xl p-3" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                  <span>⚠️ 대학원 수료생은 <strong>수료 후 2년 이내</strong>만 지원 가능합니다. 지원 자격을 확인해주세요.</span>
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <label className="label">연락처 <span className="text-red-500">*</span></label>
             <input className="input-field" value={values.phone} onChange={(e) => set("phone", e.target.value)} placeholder="010-0000-0000" />

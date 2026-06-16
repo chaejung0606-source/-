@@ -121,6 +121,9 @@ export interface Application {
   department: string;
   grade: string;
   academicStatus: string;
+  gradCompletion?: string;   // 대학원생: 재학/수료
+  completedYears?: string;   // 대학원생: 수료 후 경과 연차
+  currentSemester?: string;  // 대학원생: 현재 학기
   phone: string;
   email: string;
   applicationDate: string;

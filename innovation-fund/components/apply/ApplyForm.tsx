@@ -31,6 +31,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     name: "", studentId: "", university: "강원대학교", department: "", grade: "1",
     academicStatus: "재학", phone: "", email: "", applicationDate: new Date().toISOString().split("T")[0],
     bankName: "", accountNumber: "", accountHolder: "",
+    gradCompletion: "재학", completedYears: "", currentSemester: "",
   });
 
   // 유형별 상세
@@ -87,6 +88,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       const payload = {
         name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
         department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
+        gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationType,

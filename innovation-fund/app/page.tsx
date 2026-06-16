@@ -66,13 +66,13 @@ export default function Home() {
             <div className="glass-pill w-11 h-11 flex items-center justify-center">
               <Shield className="w-6 h-6 text-indigo-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
-              <div className="font-bold text-lg leading-tight holo-text">혁신인재지원금 신청 플랫폼</div>
+              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">혁신인재지원금 신청 플랫폼</div>
             </div>
           </div>
-          <Link href="/admin/login" className="text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors">
-            관리자 로그인 →
+          <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
+            관리자 <span className="hidden sm:inline">로그인</span> →
           </Link>
         </div>
       </header>
