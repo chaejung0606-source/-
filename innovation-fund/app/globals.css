@@ -12,18 +12,27 @@
 }
 
 @layer components {
-  /* === 글래스모피즘 카드 (두꺼운 유리 블록) === */
+  /* === 글래스모피즘 카드 (떠있는 리퀴드 글래스) === */
   .card {
-    @apply rounded-3xl p-6 relative;
-    background: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.45) 100%);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 2px solid rgba(255, 255, 255, 0.75);
+    @apply rounded-3xl p-6 relative transition-all duration-300;
+    background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.38) 100%);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
     box-shadow:
-      0 10px 36px rgba(99, 102, 241, 0.14),
-      0 2px 8px rgba(236, 72, 153, 0.08),
-      inset 0 2px 3px rgba(255, 255, 255, 0.9),
-      inset 0 -2px 6px rgba(139, 92, 246, 0.06);
+      0 24px 50px -16px rgba(99, 102, 241, 0.32),
+      0 12px 24px -12px rgba(236, 72, 153, 0.18),
+      0 2px 4px rgba(0, 0, 0, 0.03),
+      inset 0 2px 4px rgba(255, 255, 255, 0.95),
+      inset 0 -3px 10px rgba(139, 92, 246, 0.07);
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 32px 64px -16px rgba(99, 102, 241, 0.4),
+      0 16px 30px -12px rgba(236, 72, 153, 0.22),
+      inset 0 2px 4px rgba(255, 255, 255, 0.95),
+      inset 0 -3px 10px rgba(139, 92, 246, 0.08);
   }
   /* 무지개빛 가장자리 하이라이트 */
   .card::before {

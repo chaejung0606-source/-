@@ -76,6 +76,9 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   // 동의
   const [consent, setConsent] = useState({ privacy: false, truth: false, account: false });
 
+  // 학생 서명 (base64)
+  const [signature, setSignature] = useState<string>("");
+
   // 계산 금액
   const getCalculatedAmount = (): number => {
     if (applicationType === "staff") return calcStaffAmount(staffDetail.totalHours, staffDetail.studentType);
@@ -137,6 +140,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         privacyConsent: consent.privacy,
         truthConsent: consent.truth,
         accountConsent: consent.account,
+        signature,
         requestAmount: getRequestAmount(),
         calculatedAmount: getCalculatedAmount(),
       };
@@ -206,6 +210,8 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         <ConsentSection
           values={consent}
           onChange={setConsent}
+          signature={signature}
+          onSignatureChange={setSignature}
           summary={{
             name: basicInfo.name,
             type: APPLICATION_TYPE_LABELS[applicationType],

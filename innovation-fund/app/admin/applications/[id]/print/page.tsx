@@ -49,6 +49,13 @@ function typeDetailRows(app: Application): [string, string][] {
   return [];
 }
 
+const DOC_TITLE: Record<string, string> = {
+  form: "혁신인재지원금 지급신청서",
+  evidence: "공통 증빙서류",
+  review: "혁신인재지원금 심의요청서",
+  payment: "혁신인재지원금 지출자료",
+};
+
 function PrintContent() {
   const { id } = useParams() as { id: string };
   const params = useSearchParams();
@@ -56,11 +63,13 @@ function PrintContent() {
   const [app, setApp] = useState<Application | null>(null);
 
   useEffect(() => {
-    fetch(`/api/applications/${id}`).then((r) => r.json()).then((d) => {
+    fetch(`/api/applications/${id}`).then((r) => r.json()).then((d: Application) => {
       setApp(d);
-      setTimeout(() => window.print(), 600);
+      // 인쇄 시 기본 저장 파일명 지정
+      const label = DOC_TITLE[doc] || "혁신인재지원금";
+      document.title = `${d.receiptNumber} ${label}_(${d.name}_${d.studentId})`;
     });
-  }, [id]);
+  }, [id, doc]);
 
   if (!app) return <div className="p-10 text-center text-gray-400">불러오는 중...</div>;
 
@@ -70,6 +79,7 @@ function PrintContent() {
         @media print {
           @page { size: A4; margin: 16mm; }
           .no-print { display: none !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
         .print-page { max-width: 800px; margin: 0 auto; padding: 24px; color: #111; font-size: 13px; }
         .doc-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
@@ -84,73 +94,71 @@ function PrintContent() {
         .ev-head { border: 1px solid #333; background: #ccd5e8; font-weight: 700; padding: 8px 10px; border-radius: 6px 6px 0 0; }
         .ev-img { width: 100%; height: 75vh; object-fit: contain; border: 1px solid #333; border-top: none; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
         .ev-img img { max-width: 100%; max-height: 100%; }
-        .btn-bar { text-align: center; margin-bottom: 20px; }
-        .btn-bar button { background: #2563eb; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 0 4px; }
+        .sign-row { margin-top: 30px; text-align: right; font-size: 13px; }
+        .sign-img { display: inline-block; height: 46px; vertical-align: middle; margin: 0 6px; }
+        .total-row th, .total-row td { background: #eef2ff !important; font-weight: 800; font-size: 15px; }
+        .btn-bar button { background: #2563eb; color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 0 4px; }
       `}</style>
 
-      <div className="btn-bar no-print">
-        <button onClick={() => window.print()}>PDF로 저장 / 인쇄</button>
+      <div className="btn-bar no-print" style={{ textAlign: "center", marginBottom: 20 }}>
+        <button onClick={() => window.print()}>📄 PDF로 저장 / 인쇄</button>
         <button onClick={() => window.close()} style={{ background: "#888" }}>닫기</button>
+        <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
+          저장 파일명: <b>{app.receiptNumber} {DOC_TITLE[doc]}_({app.name}_{app.studentId})</b><br />
+          인쇄 대화상자에서 &quot;PDF로 저장&quot;을 선택하면 위 파일명으로 저장됩니다.
+        </p>
       </div>
 
-      {doc === "form" ? (
+      {/* === 신청서 === */}
+      {doc === "form" && (
         <>
           <div className="doc-title">혁신인재지원금 지급신청서</div>
           <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
 
           <div className="sec">1. 기본 정보</div>
-          <table className="form">
-            <tbody>
-              <tr><th>접수번호</th><td>{app.receiptNumber}</td><th>신청일시</th><td>{new Date(app.createdAt).toLocaleString("ko-KR")}</td></tr>
-              <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
-            </tbody>
-          </table>
+          <table className="form"><tbody>
+            <tr><th>접수번호</th><td>{app.receiptNumber}</td><th>신청일시</th><td>{new Date(app.createdAt).toLocaleString("ko-KR")}</td></tr>
+            <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
+          </tbody></table>
 
           <div className="sec">2. 신청자 정보</div>
-          <table className="form">
-            <tbody>
-              <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
-              <tr><th>대학</th><td>{app.university}</td><th>학과/전공</th><td>{app.department}</td></tr>
-              <tr><th>학위/학년</th><td>{app.grade}</td><th>학적상태</th><td>{app.academicStatus}{app.gradCompletion && app.grade === "대학원" ? ` (${app.gradCompletion}${app.completedYears ? `, ${app.completedYears}` : ""}${app.currentSemester ? `, ${app.currentSemester}` : ""})` : ""}</td></tr>
-              <tr><th>연락처</th><td>{app.phone}</td><th>이메일</th><td>{app.email}</td></tr>
-            </tbody>
-          </table>
+          <table className="form"><tbody>
+            <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
+            <tr><th>대학</th><td>{app.university}</td><th>학과/전공</th><td>{app.department}</td></tr>
+            <tr><th>학위/학년</th><td>{app.grade}</td><th>학적상태</th><td>{app.academicStatus}{app.gradCompletion && app.grade === "대학원" ? ` (${app.gradCompletion}${app.completedYears ? `, ${app.completedYears}` : ""}${app.currentSemester ? `, ${app.currentSemester}` : ""})` : ""}</td></tr>
+            <tr><th>연락처</th><td>{app.phone}</td><th>이메일</th><td>{app.email}</td></tr>
+          </tbody></table>
 
           <div className="sec">3. 계좌 정보 (본인 명의)</div>
-          <table className="form">
-            <tbody>
-              <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
-              <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
-            </tbody>
-          </table>
+          <table className="form"><tbody>
+            <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
+          </tbody></table>
 
           <div className="sec">4. 신청 상세 내용</div>
-          <table className="form">
-            <tbody>
-              {typeDetailRows(app).map(([k, v]) => (
-                <tr key={k}><th>{k}</th><td colSpan={3}>{v}</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <table className="form"><tbody>
+            {typeDetailRows(app).map(([k, v]) => (<tr key={k}><th>{k}</th><td colSpan={3}>{v}</td></tr>))}
+          </tbody></table>
 
           <div className="sec">5. 금액 및 심사</div>
-          <table className="form">
-            <tbody>
-              <tr><th>신청 금액</th><td>{app.requestAmount.toLocaleString()}원</td><th>자동 산정액</th><td>{app.calculatedAmount.toLocaleString()}원</td></tr>
-              <tr><th>최종 승인액</th><td>{app.approvedAmount != null ? app.approvedAmount.toLocaleString() + "원" : "-"}</td><th>검토 상태</th><td>{REVIEW_STATUS_LABELS[app.reviewStatus]}</td></tr>
-              <tr><th>지급 상태</th><td>{PAYMENT_STATUS_LABELS[app.paymentStatus]}</td><th>관리자 메모</th><td>{app.adminMemo || "-"}</td></tr>
-            </tbody>
-          </table>
+          <table className="form"><tbody>
+            <tr><th>신청 금액</th><td>{app.requestAmount.toLocaleString()}원</td><th>자동 산정액</th><td>{app.calculatedAmount.toLocaleString()}원</td></tr>
+            <tr><th>최종 승인액</th><td>{app.approvedAmount != null ? app.approvedAmount.toLocaleString() + "원" : "-"}</td><th>검토 상태</th><td>{REVIEW_STATUS_LABELS[app.reviewStatus]}</td></tr>
+          </tbody></table>
 
           <p style={{ marginTop: 24, fontSize: 12, lineHeight: 1.7 }}>
             위와 같이 혁신인재지원금을 신청하며, 제출한 내용과 증빙서류가 사실과 다름없음을 확인합니다.<br />
             허위 신청 또는 부적격 사유 확인 시 지급이 취소되거나 환수될 수 있음에 동의합니다.
           </p>
-          <p style={{ marginTop: 30, textAlign: "right", fontSize: 13 }}>
-            신청일: {app.applicationDate} &nbsp;&nbsp;&nbsp; 신청인: {app.name} (서명)
-          </p>
+          <div className="sign-row">
+            신청일: {app.applicationDate} &nbsp;&nbsp;&nbsp; 신청인: {app.name}
+            {app.signature ? <img src={app.signature} alt="서명" className="sign-img" /> : " (서명)"}
+          </div>
         </>
-      ) : (
+      )}
+
+      {/* === 증빙서류 (서류별 1페이지) === */}
+      {doc === "evidence" && (
         <>
           <div className="doc-title">양식1. 공통 증빙서류</div>
           <div className="doc-sub">접수번호 {app.receiptNumber} · {app.name} ({app.studentId})</div>
@@ -166,6 +174,69 @@ function PrintContent() {
               </div>
             ))
           )}
+        </>
+      )}
+
+      {/* === 심의요청서 === */}
+      {doc === "review" && (
+        <>
+          <div className="doc-title">혁신인재지원금 심의요청서</div>
+          <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
+
+          <div className="sec">학생 정보</div>
+          <table className="form"><tbody>
+            <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
+            <tr><th>학과/전공</th><td>{app.department}</td><th>학위/학년</th><td>{app.grade}</td></tr>
+            <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
+          </tbody></table>
+
+          <div className="sec">심의 대상 내용</div>
+          <table className="form"><tbody>
+            {typeDetailRows(app).map(([k, v]) => (<tr key={k}><th>{k}</th><td colSpan={3}>{v}</td></tr>))}
+            <tr><th>자동 산정액</th><td colSpan={3}>{app.calculatedAmount.toLocaleString()}원</td></tr>
+          </tbody></table>
+
+          <div className="sec">심의 의견</div>
+          <table className="form"><tbody>
+            <tr><th>심의 결과</th><td colSpan={3} style={{ height: 40 }}>□ 적격 &nbsp;&nbsp; □ 보완 &nbsp;&nbsp; □ 부적격</td></tr>
+            <tr><th>심의 의견</th><td colSpan={3} style={{ height: 90 }}></td></tr>
+          </tbody></table>
+
+          <div className="sign-row">
+            심의일: 20&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;. &nbsp;&nbsp;&nbsp; 심의자(교수): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (서명)
+          </div>
+        </>
+      )}
+
+      {/* === 지출자료 === */}
+      {doc === "payment" && (
+        <>
+          <div className="doc-title">혁신인재지원금 지출자료</div>
+          <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
+
+          <div className="sec">지급 대상자</div>
+          <table className="form"><tbody>
+            <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
+            <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
+          </tbody></table>
+
+          <div className="sec">계좌 정보 (본인 명의)</div>
+          <table className="form"><tbody>
+            <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
+          </tbody></table>
+
+          <div className="sec">지급 내역</div>
+          <table className="form"><tbody>
+            {typeDetailRows(app).filter(([k]) => ["자격증명", "MD 과정", "전공명", "대회명", "프로그램명"].includes(k)).map(([k, v]) => (
+              <tr key={k}><th>{k}</th><td colSpan={3}>{v}</td></tr>
+            ))}
+            <tr><th>지급 상태</th><td colSpan={3}>{PAYMENT_STATUS_LABELS[app.paymentStatus]}</td></tr>
+            <tr><th>지급액</th><td colSpan={3}>{(app.approvedAmount ?? app.calculatedAmount).toLocaleString()}원</td></tr>
+            <tr className="total-row"><th>합계</th><td colSpan={3}>{(app.approvedAmount ?? app.calculatedAmount).toLocaleString()}원</td></tr>
+          </tbody></table>
+
+          <p style={{ marginTop: 20, fontSize: 12, color: "#555" }}>※ 위 금액을 신청인 본인 명의 계좌로 지급함.</p>
         </>
       )}
     </div>

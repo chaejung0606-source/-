@@ -5,11 +5,21 @@ interface ConsentValues { privacy: boolean; truth: boolean; account: boolean; }
 interface Props {
   values: ConsentValues;
   onChange: (v: ConsentValues) => void;
+  signature: string;
+  onSignatureChange: (s: string) => void;
   summary: { name: string; type: string; amount: number; calculatedAmount: number; };
 }
 
-export default function ConsentSection({ values, onChange, summary }: Props) {
+export default function ConsentSection({ values, onChange, signature, onSignatureChange, summary }: Props) {
   const set = (k: keyof ConsentValues, v: boolean) => onChange({ ...values, [k]: v });
+
+  const handleSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onSignatureChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="space-y-4">
@@ -56,6 +66,24 @@ export default function ConsentSection({ values, onChange, summary }: Props) {
         {(!values.privacy || !values.truth || !values.account) && (
           <p className="text-red-500 text-sm mt-3">모든 항목에 동의해야 신청을 제출할 수 있습니다.</p>
         )}
+      </div>
+
+      {/* 학생 서명 */}
+      <div className="card">
+        <h2 className="section-title">신청인 서명</h2>
+        <p className="text-sm text-gray-500 mb-3">서명 이미지를 업로드하면 지급신청서 서명란에 자동 삽입됩니다. (선택)</p>
+        <div className="flex items-center gap-4">
+          <label className="btn-secondary cursor-pointer text-sm">
+            서명 이미지 업로드
+            <input type="file" accept="image/*" className="hidden" onChange={handleSignature} />
+          </label>
+          {signature && (
+            <div className="flex items-center gap-2">
+              <img src={signature} alt="서명" className="h-14 border border-gray-200 rounded-lg bg-white px-2" />
+              <button onClick={() => onSignatureChange("")} className="text-xs text-red-500 hover:underline">삭제</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

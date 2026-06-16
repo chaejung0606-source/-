@@ -166,6 +166,9 @@ export interface Application {
   truthConsent: boolean;
   accountConsent: boolean;
 
+  // 학생 서명 (base64 이미지)
+  signature?: string;
+
   // 관리자 필드
   reviewStatus: ReviewStatus;
   paymentStatus: PaymentStatus;
