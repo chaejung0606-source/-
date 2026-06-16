@@ -12,57 +12,51 @@
 }
 
 @layer components {
-  /* === 글래스모피즘 카드 (떠있는 리퀴드 글래스) === */
+  /* === 리퀴드 글래스 카드 (일관된 광원 · 절제된 가장자리) ===
+     원칙: edge separation > blur, 위→아래 단일 광원, 통제된 투명도 */
   .card {
     @apply rounded-3xl p-6 relative transition-all duration-300;
-    background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.38) 100%);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1.5px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
     box-shadow:
-      0 24px 50px -16px rgba(99, 102, 241, 0.32),
-      0 12px 24px -12px rgba(236, 72, 153, 0.18),
-      0 2px 4px rgba(0, 0, 0, 0.03),
-      inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -3px 10px rgba(139, 92, 246, 0.07);
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),      /* 상단 엣지 라이트 (광원: 위) */
+      inset 0 -1px 0 rgba(148, 163, 184, 0.12),    /* 하단 미세 음영 */
+      0 14px 34px -16px rgba(30, 41, 59, 0.28),     /* 드롭 섀도 (중립) */
+      0 3px 8px -6px rgba(30, 41, 59, 0.12);
   }
   .card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow:
-      0 32px 64px -16px rgba(99, 102, 241, 0.4),
-      0 16px 30px -12px rgba(236, 72, 153, 0.22),
-      inset 0 2px 4px rgba(255, 255, 255, 0.95),
-      inset 0 -3px 10px rgba(139, 92, 246, 0.08);
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(148, 163, 184, 0.12),
+      0 22px 44px -16px rgba(30, 41, 59, 0.34),
+      0 5px 12px -6px rgba(30, 41, 59, 0.14);
   }
-  /* 무지개빛 가장자리 하이라이트 */
+  /* 상단 스페큘러 하이라이트 밴드 (단일 광원 표현) */
   .card::before {
     content: "";
     position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(236,72,153,0.25), rgba(6,182,212,0.3));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    top: 0; left: 8%; right: 8%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
     pointer-events: none;
-    opacity: 0.5;
   }
 
   /* === 기본 버튼 (홀로그래픽 그라데이션) === */
   .btn-primary {
     @apply text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 relative overflow-hidden;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+    background: linear-gradient(180deg, #7c8af0 0%, #6366f1 45%, #5b54e6 100%);
     box-shadow:
-      0 4px 20px rgba(139, 92, 246, 0.4),
-      inset 0 1px 1px rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 8px 20px -8px rgba(79, 70, 229, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.25);
   }
   .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow:
-      0 8px 28px rgba(139, 92, 246, 0.55),
-      inset 0 1px 1px rgba(255, 255, 255, 0.6);
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      0 14px 28px -10px rgba(79, 70, 229, 0.6);
   }
   .btn-primary:disabled {
     @apply opacity-50 cursor-not-allowed;
@@ -92,22 +86,22 @@
     box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   }
 
-  /* === 입력 필드 (유리 질감) === */
+  /* === 입력 필드 (안정된 콘텐츠 플레이트) === */
   .input-field {
     @apply w-full rounded-2xl px-4 py-3 text-sm transition-all duration-200;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: inset 0 1px 2px rgba(99, 102, 241, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    box-shadow: inset 0 1px 2px rgba(30, 41, 59, 0.06);
   }
   .input-field:focus {
     @apply outline-none;
-    border-color: rgba(139, 92, 246, 0.5);
+    border-color: rgba(99, 102, 241, 0.55);
     box-shadow:
-      0 0 0 3px rgba(139, 92, 246, 0.15),
-      inset 0 1px 2px rgba(99, 102, 241, 0.08);
-    background: rgba(255, 255, 255, 0.8);
+      0 0 0 3px rgba(99, 102, 241, 0.15),
+      inset 0 1px 2px rgba(30, 41, 59, 0.05);
+    background: rgba(255, 255, 255, 0.92);
   }
 
   .label {
