@@ -108,13 +108,21 @@ export default function ApplicationDetailPage() {
 
   return (
     <AdminLayout>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <Link href="/admin/applications" className="text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-sm text-gray-500">접수번호 {app.receiptNumber}</div>
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=form`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+            <FileText className="w-4 h-4" /> 신청서 PDF
+          </button>
+          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=evidence`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+            <FileText className="w-4 h-4" /> 증빙서류 PDF
+          </button>
         </div>
       </div>
 
