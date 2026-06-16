@@ -76,6 +76,12 @@ export interface StaffDetail {
   taskDescription: string;
 }
 
+export interface MDCourseGrade {
+  name: string;
+  grade: string;
+  isBase: boolean;
+}
+
 export interface GradeDetail {
   subType: GradeSubType;
   courseName: string;
@@ -83,6 +89,14 @@ export interface GradeDetail {
   gpa: number;
   microDegreeCompleted: boolean;
   calculatedAmount: number;
+  // 마이크로디그리 전용
+  mdDepartment?: string;
+  mdProgramId?: string;
+  mdProgramName?: string;
+  mdCourses?: MDCourseGrade[];
+  // 부전공/복수전공 전용
+  minorMajorName?: string;     // 전공명
+  minorMajorCredits?: number;  // 이수 학점
 }
 
 export interface ContestDetail {

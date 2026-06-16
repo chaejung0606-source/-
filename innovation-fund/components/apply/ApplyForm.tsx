@@ -7,6 +7,7 @@ import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
+import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
 import StaffDetailSection from "./StaffDetailSection";
@@ -43,9 +44,17 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     programName: "", workPeriod: "", workDates: "", totalHours: 0,
     studentType: "undergraduate" as "undergraduate" | "graduate", taskDescription: "",
   });
-  const [gradeDetail, setGradeDetail] = useState({
-    subType: "microdegree" as "microdegree" | "minor" | "double",
+  const [gradeDetail, setGradeDetail] = useState<{
+    subType: "microdegree" | "minor" | "double";
+    courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;
+    mdDepartment: string; mdProgramId: string; mdProgramName: string;
+    mdCourses: { name: string; grade: string; isBase: boolean }[];
+    minorMajorName: string; minorMajorCredits: number;
+  }>({
+    subType: "microdegree",
     courseName: "", credits: 0, gpa: 0, microDegreeCompleted: false,
+    mdDepartment: "", mdProgramId: "", mdProgramName: "", mdCourses: [],
+    minorMajorName: "", minorMajorCredits: 0,
   });
   const [contestDetail, setContestDetail] = useState({
     contestName: "", contestTheme: "", relevanceDescription: "", organizer: "",
@@ -82,6 +91,19 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     if (!consent.privacy || !consent.truth || !consent.account) {
       alert("모든 동의 항목에 체크해주세요.");
       return;
+    }
+    // 마이크로디그리 이수조건 검증
+    if (applicationType === "grade" && gradeDetail.subType === "microdegree") {
+      const program = gradeDetail.mdProgramId ? getProgramById(gradeDetail.mdProgramId) : undefined;
+      if (!program) {
+        alert("마이크로디그리 학과와 과정을 선택해주세요.");
+        return;
+      }
+      const v = validateMD(program, gradeDetail.mdCourses.map((c) => ({ ...c, grade: c.grade as GradeValue })));
+      if (!v.ok) {
+        alert("이수조건을 충족하지 않아 제출할 수 없습니다.\n\n" + v.reasons.join("\n"));
+        return;
+      }
     }
     setSubmitting(true);
     try {

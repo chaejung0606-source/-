@@ -10,16 +10,27 @@ interface Props {
   applicationType: ApplicationType;
 }
 
+// 공통 제출서류 (외부 발급)
 const COMMON_DOC_TYPES: DocumentType[] = [
-  "application_form", "privacy_consent", "id_card", "bankbook", "enrollment_certificate", "other",
+  "id_card", "bankbook", "enrollment_certificate", "other",
 ];
 
+// 유형별 추가 제출서류 (외부 발급)
 const TYPE_SPECIFIC: Record<ApplicationType, DocumentType[]> = {
   program: ["participation_proof", "achievement_proof"],
   staff: ["work_log"],
   grade: ["transcript", "completion_proof"],
   contest: ["award_certificate", "contest_notice", "achievement_proof"],
   certificate: ["certificate_copy", "achievement_proof"],
+};
+
+// 유형별 제출서류 안내 문구
+const DOC_GUIDE: Record<ApplicationType, string[]> = {
+  program: ["신분증 사본", "통장 사본", "재학증명서", "프로그램 참여 증빙자료 (참여확인서 등)"],
+  staff: ["신분증 사본", "통장 사본", "재학증명서", "근무상황부 (담당자 확인)"],
+  grade: ["신분증 사본", "통장 사본", "재학증명서", "성적증명서", "이수증빙자료 (해당 시)"],
+  contest: ["신분증 사본", "통장 사본", "재학증명서", "상장 사본", "대회 공고문", "기타 수상 증빙"],
+  certificate: ["신분증 사본", "통장 사본", "재학증명서", "자격증 사본", "취득 증빙자료"],
 };
 
 export default function FileUploadSection({ files, onChange, applicationType }: Props) {
@@ -87,16 +98,16 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
         )}
       </div>
 
-      {/* 제출 서류 안내 */}
-      <div className="card bg-gray-50">
-        <h3 className="font-semibold text-gray-700 mb-3">제출 서류 안내</h3>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>✓ 지급신청서 (서명 필수)</li>
-          <li>✓ 개인정보 수집·이용 동의서</li>
-          <li>✓ 신분증 사본</li>
-          <li>✓ 본인 명의 통장 사본</li>
-          <li>✓ 재학증명서</li>
-          <li>✓ 성과 증빙자료 (유형별 해당 서류)</li>
+      {/* 제출 서류 안내 (유형별) */}
+      <div className="card">
+        <h3 className="font-bold text-gray-700 mb-2">이 신청 유형의 제출 서류</h3>
+        <p className="text-xs text-gray-500 mb-3">지급신청서·개인정보 동의서는 온라인으로 작성되므로, 아래 외부 발급 서류만 업로드하면 됩니다.</p>
+        <ul className="text-sm text-gray-600 space-y-1.5">
+          {DOC_GUIDE[applicationType].map((doc) => (
+            <li key={doc} className="flex items-center gap-2">
+              <span className="text-indigo-500">✓</span> {doc}
+            </li>
+          ))}
         </ul>
       </div>
     </div>
