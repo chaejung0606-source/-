@@ -166,7 +166,6 @@ export default function Home() {
           </Link>
           <p className="text-sm text-gray-500 mt-3">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
-      </div>
 
         {/* 바로가기 링크 */}
         <section>
