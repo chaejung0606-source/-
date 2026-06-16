@@ -125,12 +125,12 @@ export function getProgramById(id: string): MDProgram | undefined {
 }
 
 // === 성적 등급 → 평점 (4.5 만점, 0.5 간격, D0 = 1.0) ===
-export const GRADE_OPTIONS = ["A+", "A0", "B+", "B0", "C+", "C0", "D+", "D0"] as const;
+export const GRADE_OPTIONS = ["A+", "A0", "B+", "B0", "C+", "C0", "D+", "D0", "F"] as const;
 export type GradeValue = (typeof GRADE_OPTIONS)[number];
 
 export const GRADE_TO_POINT: Record<GradeValue, number> = {
   "A+": 4.5, "A0": 4.0, "B+": 3.5, "B0": 3.0,
-  "C+": 2.5, "C0": 2.0, "D+": 1.5, "D0": 1.0,
+  "C+": 2.5, "C0": 2.0, "D+": 1.5, "D0": 1.0, "F": 0.0,
 };
 
 export interface CourseGrade {

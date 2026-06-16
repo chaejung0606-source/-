@@ -50,11 +50,13 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     mdDepartment: string; mdProgramId: string; mdProgramName: string;
     mdCourses: { name: string; grade: string; isBase: boolean }[];
     minorMajorName: string; minorMajorCredits: number;
+    minorIsMirae: boolean; minorMdCompleted: boolean; minorMdName: string;
   }>({
     subType: "microdegree",
     courseName: "", credits: 0, gpa: 0, microDegreeCompleted: false,
     mdDepartment: "", mdProgramId: "", mdProgramName: "", mdCourses: [],
     minorMajorName: "", minorMajorCredits: 0,
+    minorIsMirae: false, minorMdCompleted: false, minorMdName: "",
   });
   const [contestDetail, setContestDetail] = useState({
     contestName: "", contestTheme: "", relevanceDescription: "", organizer: "",
@@ -102,6 +104,17 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       const v = validateMD(program, gradeDetail.mdCourses.map((c) => ({ ...c, grade: c.grade as GradeValue })));
       if (!v.ok) {
         alert("이수조건을 충족하지 않아 제출할 수 없습니다.\n\n" + v.reasons.join("\n"));
+        return;
+      }
+    }
+    // 부전공/복수전공 자격 검증
+    if (applicationType === "grade" && (gradeDetail.subType === "minor" || gradeDetail.subType === "double")) {
+      const reasons: string[] = [];
+      if (!gradeDetail.minorIsMirae) reasons.push("• 미래융합가상학과 이수(예정)자 확인이 필요합니다.");
+      if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
+      if (!gradeDetail.minorMdCompleted) reasons.push("• 마이크로디그리(MD)를 1개 이상 이수해야 합니다.");
+      if (reasons.length > 0) {
+        alert("지원 자격을 충족하지 않아 제출할 수 없습니다.\n\n" + reasons.join("\n"));
         return;
       }
     }

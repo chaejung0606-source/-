@@ -97,6 +97,9 @@ export interface GradeDetail {
   // 부전공/복수전공 전용
   minorMajorName?: string;     // 전공명
   minorMajorCredits?: number;  // 이수 학점
+  minorIsMirae?: boolean;      // 미래융합가상학과 이수(예정)자
+  minorMdCompleted?: boolean;  // MD 1개 이상 이수
+  minorMdName?: string;        // 이수한 MD 과정명
 }
 
 export interface ContestDetail {

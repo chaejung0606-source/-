@@ -13,6 +13,7 @@ interface GradeDetail {
   mdDepartment: string; mdProgramId: string; mdProgramName: string;
   mdCourses: MDCourseGrade[];
   minorMajorName: string; minorMajorCredits: number;
+  minorIsMirae: boolean; minorMdCompleted: boolean; minorMdName: string;
 }
 
 interface Props { values: GradeDetail; onChange: (v: GradeDetail) => void; calculatedAmount: number; }
@@ -188,23 +189,41 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
       )}
 
       {/* === 부전공 / 복수전공 === */}
-      {(values.subType === "minor" || values.subType === "double") && (
+      {(values.subType === "minor" || values.subType === "double") && (() => {
+        const isMinor = values.subType === "minor";
+        const reqCredits = isMinor ? 21 : 36;
+        const conditions = [
+          { ok: values.minorIsMirae, label: `미래융합가상학과 ${isMinor ? "부전공" : "복수전공"} 이수(예정)자` },
+          { ok: values.gpa >= 3.0, label: "이수 교과목 평점 평균 3.0 이상 (4.5 만점)" },
+          { ok: values.minorMdCompleted, label: "마이크로디그리(MD) 1개 이상 이수" },
+        ];
+        const allOk = conditions.every((c) => c.ok);
+        return (
         <div className="space-y-4">
           <div className="rounded-2xl p-3 text-sm text-blue-700 space-y-1" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)" }}>
-            <p>• {values.subType === "minor" ? "부전공" : "복수전공"} 이수자에게 지급됩니다. (평점 평균 3.0 이상)</p>
-            <p>• 세부 지원 조건은 사업단 계획안 및 세부지침에 따라 심의됩니다.</p>
+            <p className="font-semibold">{isMinor ? "부전공" : "복수전공"} 성적우수 지원 조건 (세부지침 제7조)</p>
+            <p>• 미래융합가상학과 {isMinor ? "부전공" : "복수전공"} 이수(예정)자</p>
+            <p>• 이수 교과목 평점 평균 3.0 이상 (4.5 만점)</p>
+            <p>• 마이크로디그리(MD) 1개 이상 이수</p>
+            <p>• 지원금액: {isMinor ? "100만원 (21학점)" : "150만원 (36학점)"}</p>
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2.5" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+            <input type="checkbox" checked={values.minorIsMirae} onChange={(e) => set("minorIsMirae", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+            <span className="text-sm">미래융합가상학과 {isMinor ? "부전공" : "복수전공"} 이수(예정)자임을 확인합니다</span>
+          </label>
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="label">{values.subType === "minor" ? "부전공" : "복수전공"} 전공명 <span className="text-red-500">*</span></label>
-              <input className="input-field" value={values.minorMajorName} onChange={(e) => set("minorMajorName", e.target.value)} placeholder="예: 사이버보안" />
+              <label className="label">{isMinor ? "부전공" : "복수전공"} 전공명 <span className="text-red-500">*</span></label>
+              <input className="input-field" value={values.minorMajorName} onChange={(e) => set("minorMajorName", e.target.value)} placeholder="예: 사이버보안융합학과" />
             </div>
             <div>
-              <label className="label">이수 학점</label>
-              <input className="input-field" type="number" min="0" value={values.minorMajorCredits || ""} onChange={(e) => set("minorMajorCredits", Number(e.target.value))} placeholder="0" />
+              <label className="label">이수 학점 (기준 {reqCredits}학점)</label>
+              <input className="input-field" type="number" min="0" value={values.minorMajorCredits || ""} onChange={(e) => set("minorMajorCredits", Number(e.target.value))} placeholder={String(reqCredits)} />
             </div>
             <div>
-              <label className="label">평점 평균 (4.5 만점)</label>
+              <label className="label">이수 교과목 평점 평균 (4.5 만점) <span className="text-red-500">*</span></label>
               <input className="input-field" type="number" min="0" max="4.5" step="0.01" value={values.gpa || ""} onChange={(e) => set("gpa", Number(e.target.value))} placeholder="0.00" />
               {values.gpa > 0 && values.gpa < 3.0 && (
                 <p className="text-xs text-red-500 mt-1">⚠️ 평점 평균 3.0 이상이어야 지원 가능합니다.</p>
@@ -215,8 +234,31 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               <div className="input-field font-bold text-indigo-700">{calculatedAmount.toLocaleString()}원</div>
             </div>
           </div>
+
+          {/* MD 이수 확인 */}
+          <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={values.minorMdCompleted} onChange={(e) => set("minorMdCompleted", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+              <span className="text-sm font-medium">마이크로디그리(MD)를 1개 이상 이수했습니다</span>
+            </label>
+            {values.minorMdCompleted && (
+              <input className="input-field" value={values.minorMdName} onChange={(e) => set("minorMdName", e.target.value)} placeholder="이수한 MD 과정명 (예: 사이버보안기술)" />
+            )}
+          </div>
+
+          {/* 자격 요건 체크리스트 */}
+          <div className="rounded-2xl p-3 space-y-1.5" style={{ background: allOk ? "rgba(34,197,94,0.1)" : "rgba(251,191,36,0.1)", border: `1px solid ${allOk ? "rgba(34,197,94,0.3)" : "rgba(251,191,36,0.3)"}` }}>
+            <div className="text-xs font-bold text-gray-600 mb-1">지원 자격 확인</div>
+            {conditions.map((c, i) => (
+              <div key={i} className={`flex items-center gap-2 text-sm ${c.ok ? "text-green-700" : "text-gray-500"}`}>
+                {c.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                {c.label}
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
