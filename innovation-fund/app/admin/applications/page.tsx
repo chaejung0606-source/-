@@ -6,7 +6,7 @@ import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "
 import {
   APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS,
 } from "@/types";
-import { AdminLayout } from "../dashboard/page";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 const reviewColors: Record<ReviewStatus, string> = {
   received: "bg-blue-100 text-blue-700",

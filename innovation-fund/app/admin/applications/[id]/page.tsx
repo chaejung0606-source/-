@@ -7,7 +7,7 @@ import type { Application, ReviewStatus, PaymentStatus } from "@/types";
 import {
   APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
 } from "@/types";
-import { AdminLayout } from "../../dashboard/page";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 const REVIEW_STATUSES: ReviewStatus[] = ["received", "reviewing", "supplement", "committee", "approved", "rejected"];
 const PAYMENT_STATUSES: PaymentStatus[] = ["waiting", "processing", "completed", "hold", "refund"];
