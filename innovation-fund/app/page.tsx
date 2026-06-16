@@ -170,7 +170,7 @@ export default function Home() {
       </div>
 
       {/* 푸터 (엔드바) */}
-      <footer className="glass-header py-8 mt-12">
+      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm">
           <p className="font-bold holo-text mb-3 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-gray-500">
@@ -187,8 +187,10 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* 바로가기 플로팅 사이드바 */}
-      <aside className="fixed right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
+      {/* 바로가기 플로팅 바 — 데스크톱: 우측 세로 / 모바일: 하단 가로 */}
+      <aside className="fixed z-50 flex gap-2.5
+        bottom-3 left-1/2 -translate-x-1/2 flex-row
+        sm:bottom-auto sm:left-auto sm:translate-x-0 sm:right-5 sm:top-1/2 sm:-translate-y-1/2 sm:flex-col sm:gap-3">
         {[
           { href: "https://sducoss.ac.kr/ko/index", label: "사업단\n홈페이지", icon: Globe, color: "#4f8cff" },
           { href: "https://lms.sducoss.ac.kr/login.php", label: "LMS\n사이트", icon: BookOpen, color: "#2dd4bf" },
@@ -202,10 +204,10 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               title={item.label.replace("\n", " ")}
-              className="glass-pill w-14 h-14 flex flex-col items-center justify-center gap-0.5 hover:scale-105 transition-transform"
+              className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform"
             >
-              <Icon className="w-5 h-5" style={{ color: item.color }} />
-              <span className="text-[9px] font-semibold text-gray-600 leading-none text-center whitespace-pre-line">{item.label}</span>
+              <Icon className="w-7 h-7" style={{ color: item.color }} />
+              <span className="text-[10px] font-semibold text-gray-700 leading-tight text-center whitespace-pre-line">{item.label}</span>
             </a>
           );
         })}
@@ -215,11 +217,11 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
           title="카카오톡으로 문의하기"
-          className="w-14 h-14 flex flex-col items-center justify-center gap-0.5 rounded-full font-bold text-[#3c1e1e] hover:scale-105 transition-transform"
-          style={{ background: "#FEE500", boxShadow: "0 10px 24px rgba(0,0,0,0.16)" }}
+          className="w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 rounded-3xl font-bold text-[#3c1e1e] hover:scale-105 transition-transform"
+          style={{ background: "#FEE500", boxShadow: "0 12px 28px rgba(0,0,0,0.18)" }}
         >
-          <MessageCircle className="w-5 h-5" />
-          <span className="text-[9px] leading-none text-center">카톡<br />문의</span>
+          <MessageCircle className="w-7 h-7" />
+          <span className="text-[10px] leading-tight text-center">카톡<br />문의</span>
         </a>
       </aside>
     </div>
