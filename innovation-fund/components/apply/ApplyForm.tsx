@@ -132,7 +132,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       {/* 진행 단계 표시 */}
       <div className="flex gap-1">
         {["기본 정보", "신청 내용", "서류 업로드", "동의 및 제출"].map((s, i) => (
-          <div key={i} className={`flex-1 h-1.5 rounded-full ${step > i ? "bg-primary-600" : "bg-gray-200"}`} />
+          <div key={i} className="flex-1 h-2 rounded-full" style={{ background: step > i ? "linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899)" : "rgba(255,255,255,0.5)" }} />
         ))}
       </div>
 

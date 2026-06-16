@@ -30,14 +30,14 @@ export default function ApplyPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary-800 text-white">
+    <div className="min-h-screen">
+      <header className="glass-header sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-primary-200 hover:text-white">
+          <Link href="/" className="text-indigo-500 hover:text-indigo-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <Shield className="w-6 h-6" />
-          <span className="font-bold">혁신인재지원금 신청</span>
+          <Shield className="w-6 h-6 text-indigo-600" />
+          <span className="font-bold holo-text">혁신인재지원금 신청</span>
         </div>
       </header>
 
@@ -45,7 +45,7 @@ export default function ApplyPage() {
         {!selectedType ? (
           <>
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">신청 유형 선택</h1>
+              <h1 className="text-3xl font-extrabold holo-text mb-2">신청 유형 선택</h1>
               <p className="text-gray-600">해당하는 지원금 유형을 선택해주세요.</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -53,7 +53,7 @@ export default function ApplyPage() {
                 <button
                   key={type}
                   onClick={() => setSelectedType(type)}
-                  className="card text-left hover:border-primary-400 hover:shadow-md transition-all cursor-pointer border-2 border-transparent"
+                  className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
                 >
                   <div className="text-2xl mb-2">{typeIcons[type]}</div>
                   <h3 className="font-bold text-gray-800 mb-1">{APPLICATION_TYPE_LABELS[type]}</h3>

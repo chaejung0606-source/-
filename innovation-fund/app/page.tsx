@@ -58,33 +58,35 @@ const ineligibleList = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 헤더 */}
-      <header className="bg-primary-800 text-white shadow-md">
+      <header className="glass-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8" />
+            <div className="glass-pill w-11 h-11 flex items-center justify-center">
+              <Shield className="w-6 h-6 text-indigo-600" />
+            </div>
             <div>
-              <div className="text-xs text-primary-200 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
-              <div className="font-bold text-lg leading-tight">혁신인재지원금 신청 플랫폼</div>
+              <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
+              <div className="font-bold text-lg leading-tight holo-text">혁신인재지원금 신청 플랫폼</div>
             </div>
           </div>
-          <Link href="/admin/login" className="text-sm text-primary-200 hover:text-white transition-colors">
+          <Link href="/admin/login" className="text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors">
             관리자 로그인 →
           </Link>
         </div>
       </header>
 
       {/* 히어로 */}
-      <section className="bg-gradient-to-br from-primary-700 to-primary-900 text-white py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">혁신인재지원금 신청</h1>
-          <p className="text-primary-100 text-lg mb-8">
+      <section className="py-20 px-4 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신인재지원금 신청</h1>
+          <p className="text-gray-600 text-lg mb-10">
             강원대학교 혁신융합대학 사업단이 우수 학생의 성장을 지원합니다.
           </p>
           <Link
             href="/apply"
-            className="inline-flex items-center gap-2 bg-white text-primary-800 px-8 py-3.5 rounded-xl font-bold text-lg hover:bg-primary-50 transition-colors shadow-lg"
+            className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
           >
             지금 신청하기 <ChevronRight className="w-5 h-5" />
           </Link>
@@ -95,18 +97,15 @@ export default function Home() {
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary-600" /> 운영 절차
+            <FileText className="w-6 h-6 text-indigo-500" /> 운영 절차
           </h2>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-3">
             {steps.map((step, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-primary-700 text-white flex items-center justify-center font-bold text-sm mb-2">
+              <div key={i} className="flex-1 card flex flex-col items-center py-5">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-sm mb-3" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899)", boxShadow: "0 4px 14px rgba(139,92,246,0.4)" }}>
                   {i + 1}
                 </div>
-                <div className="text-center text-sm font-medium text-gray-700">{step}</div>
-                {i < steps.length - 1 && (
-                  <ChevronRight className="hidden sm:block text-gray-400 mt-2 rotate-0 sm:rotate-0" />
-                )}
+                <div className="text-center text-sm font-semibold text-gray-700">{step}</div>
               </div>
             ))}
           </div>
@@ -115,16 +114,16 @@ export default function Home() {
         {/* 지원금 유형 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <Award className="w-6 h-6 text-primary-600" /> 지원금 유형
+            <Award className="w-6 h-6 text-indigo-500" /> 지원금 유형
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {fundTypes.map((type) => (
-              <div key={type.id} className="card hover:shadow-md transition-shadow">
+              <div key={type.id} className="card hover:-translate-y-1 transition-transform duration-300">
                 <div className="text-3xl mb-3">{type.icon}</div>
                 <h3 className="font-bold text-gray-800 mb-2">{type.title}</h3>
-                <p className="text-sm text-gray-600 mb-2">{type.desc}</p>
+                <p className="text-sm text-gray-600 mb-3">{type.desc}</p>
                 {type.note && (
-                  <p className="text-xs text-primary-600 font-medium bg-primary-50 px-2 py-1 rounded">{type.note}</p>
+                  <p className="text-xs font-semibold text-indigo-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(139,92,246,0.1)" }}>{type.note}</p>
                 )}
               </div>
             ))}
@@ -170,10 +169,10 @@ export default function Home() {
       </div>
 
       {/* 푸터 */}
-      <footer className="bg-gray-800 text-gray-300 py-8 mt-12">
+      <footer className="glass-header py-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm">
-          <p className="font-medium text-white mb-1">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
-          <p>문의사항이 있으시면 사업단 사무실로 연락해주세요.</p>
+          <p className="font-bold holo-text mb-1 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
+          <p className="text-gray-500">문의사항이 있으시면 사업단 사무실로 연락해주세요.</p>
         </div>
       </footer>
     </div>
