@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex gap-4 sm:gap-5 text-xs sm:text-sm font-medium">
             <Link href="/admin/dashboard" className="text-indigo-500 hover:text-indigo-700 whitespace-nowrap">대시보드</Link>
             <Link href="/admin/applications" className="text-indigo-500 hover:text-indigo-700 whitespace-nowrap">신청 목록</Link>
+            <Link href="/admin/settings" className="text-indigo-500 hover:text-indigo-700 whitespace-nowrap">설정</Link>
             <Link href="/" className="text-indigo-500 hover:text-indigo-700 whitespace-nowrap">메인 사이트</Link>
           </nav>
         </div>

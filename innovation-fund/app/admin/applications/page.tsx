@@ -37,6 +37,7 @@ export default function ApplicationsPage() {
   const [payFilter, setPayFilter] = useState<PaymentStatus | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [reviewMonth, setReviewMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
@@ -74,9 +75,9 @@ export default function ApplicationsPage() {
 
   return (
     <AdminLayout>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">신청 목록</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => handleExport(selected.size > 0 ? apps.filter((a) => selected.has(a.id)) : filtered)} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" />
             {selected.size > 0 ? `선택(${selected.size}) 다운로드` : "엑셀 다운로드"}
@@ -85,6 +86,19 @@ export default function ApplicationsPage() {
             <Download className="w-4 h-4" /> 전체 다운로드
           </button>
         </div>
+      </div>
+
+      {/* 월별 심의요청서 */}
+      <div className="card mb-4 flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-semibold text-gray-700">월별 심의요청서</span>
+        <input type="month" className="input-field w-auto" value={reviewMonth} onChange={(e) => setReviewMonth(e.target.value)} />
+        <button
+          onClick={() => window.open(`/admin/review-print?month=${reviewMonth}`, "_blank")}
+          className="btn-primary text-sm py-2"
+        >
+          심의요청서 내보내기 (PDF)
+        </button>
+        <span className="text-xs text-gray-400">선택한 월의 &apos;심의필요&apos; 상태 건만 포함됩니다.</span>
       </div>
 
       {/* 필터 */}

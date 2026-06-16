@@ -6,6 +6,7 @@ import type { Application } from "@/types";
 import {
   APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
 } from "@/types";
+import { buildFilename } from "@/lib/export-settings";
 
 function subTypeName(app: Application): string {
   if (app.gradeDetail) {
@@ -67,7 +68,15 @@ function PrintContent() {
       setApp(d);
       // 인쇄 시 기본 저장 파일명 지정
       const label = DOC_TITLE[doc] || "혁신인재지원금";
-      document.title = `${d.receiptNumber} ${label}_(${d.name}_${d.studentId})`;
+      const vars = {
+        접수번호: d.receiptNumber, 이름: d.name, 학번: d.studentId,
+        유형: APPLICATION_TYPE_LABELS[d.applicationType], 날짜: d.applicationDate,
+      };
+      if (doc === "form") {
+        document.title = buildFilename(d.applicationType, vars);
+      } else {
+        document.title = `${d.receiptNumber} ${label}_(${d.name}_${d.studentId})`;
+      }
     });
   }, [id, doc]);
 

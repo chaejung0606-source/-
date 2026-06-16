@@ -188,16 +188,30 @@ export default function ApplicationDetailPage() {
             {app.files.length === 0 ? (
               <p className="text-gray-400 text-sm">첨부파일 없음</p>
             ) : (
-              <ul className="space-y-2">
-                {app.files.map((f) => (
-                  <li key={f.id} className="flex items-center gap-3 text-sm">
-                    <FileText className="w-4 h-4 text-primary-500 flex-shrink-0" />
-                    <span className="font-medium">{f.name}</span>
-                    <span className="text-gray-400 text-xs">{DOCUMENT_TYPE_LABELS[f.type]}</span>
-                    <span className="text-gray-400 text-xs ml-auto">{(f.size / 1024).toFixed(0)} KB</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {app.files.map((f) => {
+                  const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
+                  const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
+                  return (
+                    <div key={f.id} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+                      <div className="flex items-center gap-2 px-3 py-2 text-xs">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                        <span className="font-medium truncate flex-1">{f.name}</span>
+                        <span className="text-gray-400">{DOCUMENT_TYPE_LABELS[f.type]}</span>
+                      </div>
+                      <div className="bg-white/60 flex items-center justify-center" style={{ height: 160 }}>
+                        {f.url && isImage ? (
+                          <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
+                        ) : f.url && isPdf ? (
+                          <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">PDF 새 창에서 보기</a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">{f.url ? "미리보기 불가" : "미리보기 없음"}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

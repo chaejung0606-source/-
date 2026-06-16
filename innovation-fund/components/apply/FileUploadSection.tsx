@@ -37,14 +37,27 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
   const [selectedType, setSelectedType] = useState<DocumentType>("other");
   const docTypes = [...(TYPE_SPECIFIC[applicationType] || []), ...COMMON_DOC_TYPES];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || []);
-    const uploaded: UploadedFile[] = newFiles.map((f) => ({
-      id: `${Date.now()}-${Math.random()}`,
-      name: f.name,
-      type: selectedType,
-      size: f.size,
-    }));
+    const uploaded: UploadedFile[] = await Promise.all(
+      newFiles.map(
+        (f) =>
+          new Promise<UploadedFile>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({
+                id: `${Date.now()}-${Math.random()}`,
+                name: f.name,
+                type: selectedType,
+                size: f.size,
+                url: reader.result as string, // base64 (미리보기/내보내기용)
+              });
+            reader.onerror = () =>
+              resolve({ id: `${Date.now()}-${Math.random()}`, name: f.name, type: selectedType, size: f.size });
+            reader.readAsDataURL(f);
+          })
+      )
+    );
     onChange([...files, ...uploaded]);
     e.target.value = "";
   };
