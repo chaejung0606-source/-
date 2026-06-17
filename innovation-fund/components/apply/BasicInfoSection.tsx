@@ -60,8 +60,8 @@ export default function BasicInfoSection({ values, onChange }: Props) {
 
           {/* 대학원생 전용 추가 필드 */}
           {values.grade === "대학원" && (
-            <div className="sm:col-span-2 rounded-2xl p-4 space-y-4" style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
-              <p className="text-sm font-semibold text-indigo-700">대학원생 추가 정보</p>
+            <div className="sm:col-span-2 rounded-2xl p-4 space-y-4" style={{ background: "rgba(154,166,242,0.1)", border: "1px solid rgba(154,166,242,0.28)" }}>
+              <p className="text-sm font-semibold text-primary-700">대학원생 추가 정보</p>
               <div className="grid sm:grid-cols-3 gap-4">
                 <div>
                   <label className="label">재학/수료 여부</label>

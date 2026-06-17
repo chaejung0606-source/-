@@ -68,7 +68,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
     <div className="space-y-4">
       <div className="card">
         <h2 className="section-title">서류 업로드</h2>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-4">
+        <div className="callout-info p-3 text-sm mb-4">
           여러 파일을 개별로 업로드하고 자료 유형을 선택해주세요. (PDF, 이미지, 엑셀 등 가능)
         </div>
         <div className="flex gap-3 mb-4">
@@ -90,14 +90,14 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
 
         {files.length === 0 ? (
           <div className="upload-card p-8 text-center text-gray-400 flex flex-col items-center justify-center" style={{ minHeight: 160 }}>
-            <Upload className="w-10 h-10 mx-auto mb-2 text-[#4f8cff] opacity-60" />
+            <Upload className="w-10 h-10 mx-auto mb-2 text-primary-400 opacity-70" />
             <p className="text-sm">자료 유형을 선택하고 파일을 업로드해주세요.</p>
             <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · XLSX</p>
           </div>
         ) : (
           <div className="space-y-2">
             {files.map((file) => (
-              <div key={file.id} className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-3">
+              <div key={file.id} className="flex items-center gap-3 glass-panel px-4 py-3">
                 <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{file.name}</div>
@@ -119,7 +119,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
         <ul className="text-sm text-gray-600 space-y-1.5">
           {DOC_GUIDE[applicationType].map((doc) => (
             <li key={doc} className="flex items-center gap-2">
-              <span className="text-indigo-500">✓</span> {doc}
+              <span className="text-primary-500">✓</span> {doc}
             </li>
           ))}
         </ul>

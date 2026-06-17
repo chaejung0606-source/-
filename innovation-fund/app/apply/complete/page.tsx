@@ -12,14 +12,14 @@ function CompleteContent() {
   const amount = params.get("amount") || "0";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="max-w-xl w-full">
         <div className="card text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">신청이 정상 접수되었습니다</h1>
           <p className="text-gray-500 mb-8">검토 후 지급 여부가 결정됩니다.</p>
 
-          <div className="bg-gray-50 rounded-xl p-6 text-left space-y-3 mb-6">
+          <div className="glass-panel p-6 text-left space-y-3 mb-6">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">접수번호</span>
               <span className="font-bold text-primary-700">{receiptNumber}</span>

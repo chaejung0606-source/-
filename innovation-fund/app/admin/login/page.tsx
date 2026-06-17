@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="glass-pill w-16 h-16 flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-indigo-600" />
+            <Shield className="w-8 h-8 text-primary-500" />
           </div>
           <h1 className="text-2xl font-extrabold holo-text">관리자 로그인</h1>
           <p className="text-gray-500 text-sm mt-1">혁신인재지원금 관리 시스템</p>

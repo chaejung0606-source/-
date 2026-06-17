@@ -35,12 +35,12 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-2">내보내기 설정</h1>
       <p className="text-gray-500 text-sm mb-6">혁신인재지원금 유형별로 PDF 저장 파일명과 보관 경로(메모)를 설정할 수 있습니다.</p>
 
-      <div className="card mb-4 flex items-start gap-2 text-sm text-blue-700" style={{ background: "rgba(59,130,246,0.08)" }}>
-        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      <div className="callout-info mb-4 flex items-start gap-2 text-sm p-4">
+        <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary-500" />
         <div>
-          <p className="font-semibold mb-1">사용 가능한 변수</p>
+          <p className="font-semibold mb-1 text-gray-700">사용 가능한 변수</p>
           <p><code>{"{접수번호}"}</code> <code>{"{이름}"}</code> <code>{"{학번}"}</code> <code>{"{유형}"}</code> <code>{"{날짜}"}</code></p>
-          <p className="mt-1 text-blue-600">※ 브라우저 보안상 폴더에 자동 저장은 불가합니다. 경로는 관리자용 보관 안내(메모)로 사용되며, 저장 시 파일명이 자동으로 채워집니다.</p>
+          <p className="mt-1 text-gray-500">※ 브라우저 보안상 폴더에 자동 저장은 불가합니다. 경로는 관리자용 보관 안내(메모)로 사용되며, 저장 시 파일명이 자동으로 채워집니다.</p>
         </div>
       </div>
 

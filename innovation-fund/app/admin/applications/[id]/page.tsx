@@ -201,7 +201,7 @@ export default function ApplicationDetailPage() {
                   return (
                     <div key={f.id} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
                       <div className="flex items-center gap-2 px-3 py-2 text-xs">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                        <FileText className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" />
                         <span className="font-medium truncate flex-1">{f.name}</span>
                         <span className="text-gray-400">{DOCUMENT_TYPE_LABELS[f.type]}</span>
                       </div>
@@ -209,7 +209,7 @@ export default function ApplicationDetailPage() {
                         {f.url && isImage ? (
                           <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
                         ) : f.url && isPdf ? (
-                          <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">PDF 새 창에서 보기</a>
+                          <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-primary-600 text-sm underline">PDF 새 창에서 보기</a>
                         ) : (
                           <span className="text-gray-400 text-xs">{f.url ? "미리보기 불가" : "미리보기 없음"}</span>
                         )}

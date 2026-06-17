@@ -125,7 +125,7 @@ export default function ApplicationsPage() {
           <thead>
             <tr>
               <th className="w-10">
-                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#4f8cff]" />
+                <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-primary-400" />
               </th>
               <th className="whitespace-nowrap">접수번호</th>
               <th className="whitespace-nowrap">신청일</th>
@@ -150,9 +150,9 @@ export default function ApplicationsPage() {
                 </td>
               </tr>
             ) : filtered.map((app) => (
-              <tr key={app.id} style={selected.has(app.id) ? { background: "rgba(79,140,255,0.08)" } : undefined}>
+              <tr key={app.id} style={selected.has(app.id) ? { background: "rgba(154,166,242,0.1)" } : undefined}>
                 <td>
-                  <input type="checkbox" checked={selected.has(app.id)} onChange={() => toggleSelect(app.id)} className="accent-[#4f8cff]" />
+                  <input type="checkbox" checked={selected.has(app.id)} onChange={() => toggleSelect(app.id)} className="accent-primary-400" />
                 </td>
                 <td className="font-mono text-xs">{app.receiptNumber}</td>
                 <td className="whitespace-nowrap">{app.applicationDate}</td>
@@ -161,12 +161,12 @@ export default function ApplicationsPage() {
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
                 <td className="text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
-                <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
+                <td className="text-right font-mono text-primary-600">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
                 <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
                 <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
                 <td className="text-center">
-                  <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>
+                  <Link href={`/admin/applications/${app.id}`} className="text-primary-600 hover:underline text-xs font-medium">상세</Link>
                 </td>
               </tr>
             ))}

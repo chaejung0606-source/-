@@ -15,7 +15,7 @@ export default function ProgramDetailSection({ values, onChange }: Props) {
   return (
     <div className="card space-y-4">
       <h2 className="section-title">프로그램 참여지원비 신청 정보</h2>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+      <div className="callout-info p-3 text-sm">
         프로그램 참여지원비는 사업단이 승인한 교과·비교과, 실험실습, 현장실습, 인턴십, 기업체 연계 방문·프로젝트, 학회 참석 등에 참여하는 학생에게 지급됩니다.
       </div>
       <div className="grid sm:grid-cols-2 gap-4">

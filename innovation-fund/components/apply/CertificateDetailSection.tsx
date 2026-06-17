@@ -97,7 +97,7 @@ export default function CertificateDetailSection({ values, onChange, calculatedA
 
           {values.certName && isListSelected && (
             <div className="rounded-2xl p-3 text-sm font-medium" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)" }}>
-              선택됨: <span className="text-indigo-700 font-bold">{values.certName}</span>
+              선택됨: <span className="text-primary-700 font-bold">{values.certName}</span>
               <span className="ml-2 text-xs text-gray-500">({DIFF_LABEL[values.difficulty]})</span>
             </div>
           )}
@@ -115,7 +115,7 @@ export default function CertificateDetailSection({ values, onChange, calculatedA
                     className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-all ${values.certName === cert.name ? "btn-primary" : "glass hover:bg-white"}`}
                   >
                     <span className="font-medium">{cert.name}</span>
-                    <span className={`ml-2 text-xs ${values.certName === cert.name ? "text-white/80" : "text-gray-400"}`}>{DIFF_LABEL[cert.difficulty]}</span>
+                    <span className={`ml-2 text-xs ${values.certName === cert.name ? "text-[#44405e]/70" : "text-gray-400"}`}>{DIFF_LABEL[cert.difficulty]}</span>
                   </button>
                 ))}
                 {filteredSupported.length === 0 && <p className="text-xs text-gray-400 px-3">검색 결과 없음</p>}
@@ -133,7 +133,7 @@ export default function CertificateDetailSection({ values, onChange, calculatedA
                     className={`w-full text-left rounded-xl px-3 py-2 text-sm transition-all ${values.certName === cert.name ? "btn-primary" : "glass hover:bg-white"}`}
                   >
                     <span className="font-medium">{cert.name}</span>
-                    <span className={`ml-2 text-xs ${values.certName === cert.name ? "text-white/80" : "text-gray-400"}`}>심의대상</span>
+                    <span className={`ml-2 text-xs ${values.certName === cert.name ? "text-[#44405e]/70" : "text-gray-400"}`}>심의대상</span>
                   </button>
                 ))}
                 {filteredReview.length === 0 && <p className="text-xs text-gray-400 px-3">검색 결과 없음</p>}
@@ -177,12 +177,12 @@ export default function CertificateDetailSection({ values, onChange, calculatedA
         </div>
         <div>
           <label className="label">지급 예정액 (자동 계산)</label>
-          <div className="input-field font-bold text-indigo-700">
+          <div className="input-field font-bold text-primary-700">
             {values.difficulty === "review" ? "심의 후 결정" : `${calculatedAmount.toLocaleString()}원`}
           </div>
         </div>
         <div className="flex items-center gap-2 mt-7">
-          <input type="checkbox" id="mirae" checked={values.isMirae} onChange={(e) => set("isMirae", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+          <input type="checkbox" id="mirae" checked={values.isMirae} onChange={(e) => set("isMirae", e.target.checked)} className="w-4 h-4 accent-primary-500" />
           <label htmlFor="mirae" className="text-sm text-gray-700">미래융합가상학과 소속임을 확인합니다</label>
         </div>
       </div>
