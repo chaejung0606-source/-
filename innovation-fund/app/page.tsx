@@ -64,14 +64,14 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="glass-pill w-11 h-11 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-indigo-600" />
+              <Shield className="w-6 h-6" style={{ color: "#9aa6f2" }} />
             </div>
             <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
               <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">혁신인재지원금 신청 플랫폼</div>
             </div>
           </div>
-          <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
+          <Link href="/admin/login" className="text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0" style={{ color: "#9aa6f2" }}>
             관리자 <span className="hidden sm:inline">로그인</span> →
           </Link>
         </div>
@@ -97,12 +97,12 @@ export default function Home() {
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-500" /> 운영 절차
+            <FileText className="w-6 h-6" style={{ color: "#9aa6f2" }} /> 운영 절차
           </h2>
           <div className="flex flex-col sm:flex-row gap-3">
             {steps.map((step, i) => (
               <div key={i} className="flex-1 card flex flex-col items-center py-5">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-sm mb-3" style={{ background: "linear-gradient(135deg, #5eead4, #60a5fa, #a78bfa)", boxShadow: "0 4px 14px rgba(96,165,250,0.4)" }}>
+                <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm mb-3" style={{ color: "#4a3d57", background: "linear-gradient(135deg, #f3c0dd, #c9b8f3, #bfe3e6)", boxShadow: "0 4px 14px rgba(201,184,243,0.45)" }}>
                   {i + 1}
                 </div>
                 <div className="text-center text-sm font-semibold text-gray-700">{step}</div>
@@ -114,7 +114,7 @@ export default function Home() {
         {/* 지원금 유형 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <Award className="w-6 h-6 text-indigo-500" /> 지원금 유형
+            <Award className="w-6 h-6" style={{ color: "#9aa6f2" }} /> 지원금 유형
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {fundTypes.map((type) => (
@@ -123,7 +123,7 @@ export default function Home() {
                 <h3 className="font-bold text-gray-800 mb-2">{type.title}</h3>
                 <p className="text-sm text-gray-600 mb-3">{type.desc}</p>
                 {type.note && (
-                  <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{type.note}</p>
+                  <p className="text-xs font-semibold px-3 py-1.5 rounded-xl" style={{ color: "#7a6da8", background: "rgba(201,184,243,0.16)" }}>{type.note}</p>
                 )}
               </div>
             ))}
@@ -174,10 +174,10 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 text-center text-sm">
           <p className="font-bold holo-text mb-3 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-gray-500">
-            <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+            <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#9aa6f2]">
               <Mail className="w-4 h-4" /> sducoss@kangwon.ac.kr
             </a>
-            <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+            <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#9aa6f2]">
               <Phone className="w-4 h-4" /> 033-250-7879
             </a>
             <span className="flex items-center gap-1.5">
@@ -192,9 +192,9 @@ export default function Home() {
         bottom-3 left-1/2 -translate-x-1/2 flex-row
         sm:bottom-auto sm:left-auto sm:translate-x-0 sm:right-5 sm:top-1/2 sm:-translate-y-1/2 sm:flex-col sm:gap-3">
         {[
-          { href: "https://sducoss.ac.kr/ko/index", label: "사업단\n홈페이지", icon: Globe, color: "#4f8cff" },
-          { href: "https://lms.sducoss.ac.kr/login.php", label: "LMS\n사이트", icon: BookOpen, color: "#2dd4bf" },
-          { href: "https://iruri.kangwon.ac.kr", label: "이루리\n로그인", icon: GraduationCap, color: "#a78bfa" },
+          { href: "https://sducoss.ac.kr/ko/index", label: "사업단\n홈페이지", icon: Globe, color: "#9aa6f2" },
+          { href: "https://lms.sducoss.ac.kr/login.php", label: "LMS\n사이트", icon: BookOpen, color: "#7bc6c9" },
+          { href: "https://iruri.kangwon.ac.kr", label: "이루리\n로그인", icon: GraduationCap, color: "#c9a8e0" },
         ].map((item) => {
           const Icon = item.icon;
           return (

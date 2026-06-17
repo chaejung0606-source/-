@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <>
       <div className="flex items-center gap-2.5 px-3 py-2 mb-6">
         <div className="glass-pill w-10 h-10 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-[#4f8cff]" />
+          <Shield className="w-5 h-5" style={{ color: "#9aa6f2" }} />
         </div>
         <div>
           <div className="text-[11px] text-gray-400 leading-none mb-0.5">혁신융합대학사업단</div>
@@ -53,8 +53,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <a href="https://lms.sducoss.ac.kr/login.php" target="_blank" rel="noopener noreferrer" className="sidebar-item"><BookOpen className="w-[18px] h-[18px]" /> LMS 사이트</a>
         <a href="http://pf.kakao.com/_YnXnn/chat" target="_blank" rel="noopener noreferrer" className="sidebar-item"><MessageCircle className="w-[18px] h-[18px]" /> 카카오톡으로 문의하기</a>
         <div className="px-4 mt-3 space-y-1 text-[11px] text-gray-400">
-          <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#4f8cff]"><Mail className="w-3 h-3" /> sducoss@kangwon.ac.kr</a>
-          <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#4f8cff]"><Phone className="w-3 h-3" /> 033-250-7879</a>
+          <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#9aa6f2]"><Mail className="w-3 h-3" /> sducoss@kangwon.ac.kr</a>
+          <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#9aa6f2]"><Phone className="w-3 h-3" /> 033-250-7879</a>
         </div>
       </div>
     </>

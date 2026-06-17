@@ -33,10 +33,10 @@ export default function ApplyPage() {
     <div className="min-h-screen">
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-indigo-500 hover:text-indigo-700">
+          <Link href="/" style={{ color: "#9aa6f2" }}>
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <Shield className="w-6 h-6 text-indigo-600" />
+          <Shield className="w-6 h-6" style={{ color: "#9aa6f2" }} />
           <span className="font-bold holo-text">혁신인재지원금 신청</span>
         </div>
       </header>
