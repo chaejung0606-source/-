@@ -1,14 +1,13 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowLeft, User, Lock } from "lucide-react";
 import { login, register } from "@/lib/auth";
+import { formatPhone } from "@/lib/validation";
 
 function LoginInner() {
   const router = useRouter();
-  const params = useSearchParams();
-  const next = params.get("next") || "/apply";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
 
@@ -28,7 +27,7 @@ function LoginInner() {
     setError(""); setLoading(true);
     const r = await login(loginId, loginPw);
     setLoading(false);
-    if (r.ok) router.push(next);
+    if (r.ok) router.push("/");
     else setError(r.error || "로그인 실패");
   };
 
@@ -40,7 +39,7 @@ function LoginInner() {
     setLoading(true);
     const r = await register(reg);
     setLoading(false);
-    if (r.ok) router.push(next);
+    if (r.ok) router.push("/");
     else setError(r.error || "회원가입 실패");
   };
 
@@ -96,7 +95,7 @@ function LoginInner() {
               </div>
               <div><label className="label">학과</label><input className="input-field" value={reg.department} onChange={(e) => setR("department", e.target.value)} /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", e.target.value)} placeholder="010-0000-0000" /></div>
+                <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>
                 <div><label className="label">이메일</label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
               </div>
 
@@ -116,6 +115,11 @@ function LoginInner() {
               <button type="submit" disabled={loading} className="btn-primary w-full mt-2">{loading ? "처리 중..." : "회원가입 후 시작하기"}</button>
             </form>
           )}
+        </div>
+        <div className="text-center mt-5">
+          <Link href="/admin/login" className="text-sm font-medium text-gray-500 hover:text-indigo-600 inline-flex items-center gap-1.5">
+            <Shield className="w-4 h-4" /> 관리자 로그인
+          </Link>
         </div>
         <p className="text-center text-xs text-gray-400 mt-4">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
       </div>

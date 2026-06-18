@@ -1,4 +1,5 @@
 "use client";
+import { formatPhone } from "@/lib/validation";
 
 interface BasicInfo {
   name: string; studentId: string; university: string; department: string;
@@ -98,7 +99,7 @@ export default function BasicInfoSection({ values, onChange }: Props) {
           )}
           <div>
             <label className="label">연락처 <span className="text-red-500">*</span></label>
-            <input className="input-field" value={values.phone} onChange={(e) => set("phone", e.target.value)} placeholder="010-0000-0000" />
+            <input className="input-field" value={values.phone} onChange={(e) => set("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" />
           </div>
           <div>
             <label className="label">이메일 <span className="text-red-500">*</span></label>

@@ -14,6 +14,14 @@ export const rePhone = /^01[016789]-\d{3,4}-\d{4}$/;
 export const reEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const reAccount = /^[0-9-]{6,}$/;
 
+// 입력하는 대로 하이픈 자동 삽입 (010-1234-5678)
+export function formatPhone(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length < 4) return d;
+  if (d.length < 8) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
+
 export function isDate(v: string) { return reDate.test(v.trim()); }
 export function isTime(v: string) { return reTime.test(v.trim()); }
 export function isPhone(v: string) { return rePhone.test(v.trim()); }

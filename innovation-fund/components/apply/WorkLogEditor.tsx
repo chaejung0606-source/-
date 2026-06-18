@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus, Trash2, CalendarPlus, X } from "lucide-react";
+import { Plus, Trash2, CalendarPlus, CalendarClock, X } from "lucide-react";
 import type { WorkLogEntry } from "@/types";
 
 interface Props {
@@ -35,12 +35,17 @@ function datesInRange(from: string, to: string): string[] {
   return out;
 }
 
-// 정렬 후 반영
 function sortEntries(list: WorkLogEntry[]): WorkLogEntry[] {
   return [...list].sort((a, b) => (a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date)));
 }
 
 export default function WorkLogEditor({ entries, onChange, withDetail, hint }: Props) {
+  // 개별 등록
+  const [iDate, setIDate] = useState("");
+  const [iStart, setIStart] = useState("09:00");
+  const [iEnd, setIEnd] = useState("18:00");
+  const [iDetail, setIDetail] = useState("");
+  // 일괄 등록
   const [bStart, setBStart] = useState("09:00");
   const [bEnd, setBEnd] = useState("18:00");
   const [bDetail, setBDetail] = useState("");
@@ -49,9 +54,23 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
   const [rangeTo, setRangeTo] = useState("");
   const [pendingDates, setPendingDates] = useState<string[]>([]);
 
-  const batchHours = diffHours(bStart, bEnd);
+  const iHours = diffHours(iStart, iEnd);
+  const bHours = diffHours(bStart, bEnd);
   const totalHours = Math.round(entries.reduce((s, e) => s + e.hours, 0) * 10) / 10;
 
+  const exists = (date: string, s: string, e: string) =>
+    entries.some((x) => x.date === date && x.startTime === s && x.endTime === e);
+
+  // 개별 등록: 날짜 1개 + 시간
+  const addIndividual = () => {
+    if (!iDate) { alert("날짜를 선택해주세요."); return; }
+    if (iHours <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
+    if (exists(iDate, iStart, iEnd)) { alert("이미 동일한 일시의 기록이 있습니다."); return; }
+    onChange(sortEntries([...entries, { date: iDate, startTime: iStart, endTime: iEnd, hours: iHours, detail: withDetail ? iDetail : undefined }]));
+    setIDate(""); setIDetail("");
+  };
+
+  // 일괄 등록: 같은 시간으로 여러 날짜
   const addPendingDate = (d: string) => { if (d && !pendingDates.includes(d)) setPendingDates((p) => [...p, d].sort()); };
   const addRange = () => {
     const r = datesInRange(rangeFrom, rangeTo);
@@ -59,14 +78,12 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
     setPendingDates((p) => Array.from(new Set([...p, ...r])).sort());
     setRangeFrom(""); setRangeTo("");
   };
-
   const applyBatch = () => {
     if (pendingDates.length === 0) { alert("등록할 날짜를 한 개 이상 추가해주세요."); return; }
-    if (batchHours <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
-    const keys = new Set(entries.map((e) => `${e.date}|${e.startTime}|${e.endTime}`));
+    if (bHours <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
     const adds: WorkLogEntry[] = pendingDates
-      .filter((d) => !keys.has(`${d}|${bStart}|${bEnd}`))
-      .map((d) => ({ date: d, startTime: bStart, endTime: bEnd, hours: batchHours, detail: withDetail ? bDetail : undefined }));
+      .filter((d) => !exists(d, bStart, bEnd))
+      .map((d) => ({ date: d, startTime: bStart, endTime: bEnd, hours: bHours, detail: withDetail ? bDetail : undefined }));
     onChange(sortEntries([...entries, ...adds]));
     setPendingDates([]);
   };
@@ -82,18 +99,36 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
       </div>
       {hint && <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3">{hint}</div>}
 
-      {/* 일괄 등록 */}
-      <div className="rounded-xl p-3 mb-3 bg-blue-50/70 border border-blue-100 space-y-3">
-        <p className="text-xs font-semibold text-blue-700 flex items-center gap-1"><CalendarPlus className="w-4 h-4" /> 일괄 등록 — 같은 시간으로 여러 날짜를 한 번에 추가</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <div><label className="text-xs text-gray-500">시작 시간</label><input type="time" className="input-field" value={bStart} onChange={(e) => setBStart(e.target.value)} /></div>
-          <div><label className="text-xs text-gray-500">종료 시간</label><input type="time" className="input-field" value={bEnd} onChange={(e) => setBEnd(e.target.value)} /></div>
-          <div><label className="text-xs text-gray-500">1일 근무</label><div className="input-field flex items-center font-semibold text-primary-700">{batchHours}시간</div></div>
+      <div className="grid md:grid-cols-2 gap-3 mb-3">
+        {/* 개별 등록 */}
+        <div className="rounded-xl p-3 bg-emerald-50/70 border border-emerald-100 space-y-2">
+          <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1"><CalendarClock className="w-4 h-4" /> 개별 등록 — 하루씩 일시 입력</p>
+          <div>
+            <label className="text-xs text-gray-500">날짜</label>
+            <input type="date" className="input-field" value={iDate} onChange={(e) => setIDate(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className="text-xs text-gray-500">시작</label><input type="time" className="input-field" value={iStart} onChange={(e) => setIStart(e.target.value)} /></div>
+            <div><label className="text-xs text-gray-500">종료</label><input type="time" className="input-field" value={iEnd} onChange={(e) => setIEnd(e.target.value)} /></div>
+            <div><label className="text-xs text-gray-500">시간</label><div className="input-field flex items-center font-semibold text-primary-700">{iHours}h</div></div>
+          </div>
+          {withDetail && (
+            <div><label className="text-xs text-gray-500">상세내역</label><input className="input-field" value={iDetail} onChange={(e) => setIDetail(e.target.value)} placeholder="예: 강의실 환경 개선" /></div>
+          )}
+          <button type="button" onClick={addIndividual} className="btn-secondary w-full text-sm flex items-center justify-center gap-1"><Plus className="w-4 h-4" /> 이 날짜 추가</button>
         </div>
-        {withDetail && (
-          <div><label className="text-xs text-gray-500">근로 상세내역 (공통 적용)</label><input className="input-field" value={bDetail} onChange={(e) => setBDetail(e.target.value)} placeholder="예: 강의실 환경 개선" /></div>
-        )}
-        <div className="grid sm:grid-cols-2 gap-2">
+
+        {/* 일괄 등록 */}
+        <div className="rounded-xl p-3 bg-blue-50/70 border border-blue-100 space-y-2">
+          <p className="text-xs font-semibold text-blue-700 flex items-center gap-1"><CalendarPlus className="w-4 h-4" /> 일괄 등록 — 같은 시간으로 여러 날짜</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className="text-xs text-gray-500">시작</label><input type="time" className="input-field" value={bStart} onChange={(e) => setBStart(e.target.value)} /></div>
+            <div><label className="text-xs text-gray-500">종료</label><input type="time" className="input-field" value={bEnd} onChange={(e) => setBEnd(e.target.value)} /></div>
+            <div><label className="text-xs text-gray-500">1일</label><div className="input-field flex items-center font-semibold text-primary-700">{bHours}h</div></div>
+          </div>
+          {withDetail && (
+            <div><label className="text-xs text-gray-500">상세내역(공통)</label><input className="input-field" value={bDetail} onChange={(e) => setBDetail(e.target.value)} placeholder="예: 강의실 환경 개선" /></div>
+          )}
           <div className="flex items-end gap-2">
             <div className="flex-1"><label className="text-xs text-gray-500">날짜 추가</label><input type="date" className="input-field" value={oneDate} onChange={(e) => setOneDate(e.target.value)} /></div>
             <button type="button" onClick={() => { addPendingDate(oneDate); setOneDate(""); }} className="btn-secondary h-[52px] px-3"><Plus className="w-4 h-4" /></button>
@@ -103,20 +138,20 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
               <div><label className="text-xs text-gray-500">기간 시작</label><input type="date" className="input-field" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} /></div>
               <div><label className="text-xs text-gray-500">기간 끝</label><input type="date" className="input-field" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} /></div>
             </div>
-            <button type="button" onClick={addRange} className="btn-secondary h-[52px] px-3 whitespace-nowrap text-xs">기간추가</button>
+            <button type="button" onClick={addRange} className="btn-secondary h-[52px] px-2 whitespace-nowrap text-xs">기간추가</button>
           </div>
+          {pendingDates.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {pendingDates.map((d) => (
+                <span key={d} className="inline-flex items-center gap-1 text-xs bg-white rounded-full px-2.5 py-1 border border-blue-200">
+                  {d}({weekday(d)})
+                  <button type="button" onClick={() => setPendingDates((p) => p.filter((x) => x !== d))}><X className="w-3 h-3 text-gray-400 hover:text-red-500" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={applyBatch} className="btn-primary w-full text-sm">선택한 {pendingDates.length}일 일괄 등록</button>
         </div>
-        {pendingDates.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {pendingDates.map((d) => (
-              <span key={d} className="inline-flex items-center gap-1 text-xs bg-white rounded-full px-2.5 py-1 border border-blue-200">
-                {d}({weekday(d)})
-                <button type="button" onClick={() => setPendingDates((p) => p.filter((x) => x !== d))}><X className="w-3 h-3 text-gray-400 hover:text-red-500" /></button>
-              </span>
-            ))}
-          </div>
-        )}
-        <button type="button" onClick={applyBatch} className="btn-primary w-full text-sm">선택한 {pendingDates.length}일 일괄 등록</button>
       </div>
 
       {/* 등록된 기록 */}
