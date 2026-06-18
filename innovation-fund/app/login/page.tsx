@@ -91,7 +91,7 @@ function LoginInner() {
                 <div><label className="label">이름 <span className="text-red-500">*</span></label><input className="input-field" value={reg.name} onChange={(e) => setR("name", e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password} onChange={(e) => setR("password", e.target.value)} placeholder="4자 이상" /></div>
+                <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password} onChange={(e) => setR("password", e.target.value)} placeholder="6자 이상" /></div>
                 <div><label className="label">비밀번호 확인 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password2} onChange={(e) => setR("password2", e.target.value)} /></div>
               </div>
               <div><label className="label">학과</label><input className="input-field" value={reg.department} onChange={(e) => setR("department", e.target.value)} /></div>

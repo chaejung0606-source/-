@@ -9,6 +9,8 @@ import {
 } from "@/lib/amount-calculator";
 import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
 import { currentUser } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { toRow } from "@/lib/app-mapper";
 import { validateBasicFormat } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
@@ -224,11 +226,24 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         calculatedAmount: getCalculatedAmount(),
       };
 
-      const res = await fetch("/api/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const data = await res.json();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("로그인이 필요합니다. 다시 로그인해 주세요.");
+        router.push("/login?next=/apply");
+        return;
+      }
+      const { data: inserted, error } = await supabase
+        .from("applications")
+        .insert(toRow(payload, user.id))
+        .select("receipt_number")
+        .single();
+      if (error) {
+        alert("신청 저장 중 오류가 발생했습니다.\n" + error.message);
+        return;
+      }
 
       router.push(
-        `/apply/complete?receipt=${data.receiptNumber}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}`
+        `/apply/complete?receipt=${inserted.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}`
       );
     } catch (e) {
       alert("신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
