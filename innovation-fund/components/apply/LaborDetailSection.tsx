@@ -5,7 +5,7 @@ import { getActivePrograms, type Program } from "@/lib/programs";
 import WorkLogEditor from "./WorkLogEditor";
 
 interface LaborDetail {
-  programId?: string; programName: string; role: string; workPeriod: string;
+  programId: string; programName: string; role: string; workPeriod: string;
   totalHours: number; studentType: "undergraduate" | "graduate";
   workLog: WorkLogEntry[]; workDetail: string; supervisorName: string;
 }

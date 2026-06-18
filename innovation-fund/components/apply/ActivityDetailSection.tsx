@@ -5,7 +5,7 @@ import { getActivePrograms, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
 
 interface ActivityDetail {
-  programId?: string; activityName: string; activityType: string;
+  programId: string; activityName: string; activityType: string;
   activityPeriod: string; activityContent: string; requestAmount: number;
   eventLocation?: EventLocation;
 }
