@@ -6,6 +6,7 @@ import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import FundTypeModal from "@/components/home/FundTypeModal";
 
+// 유형 카드 메타 (홈 유형 분석 → 클릭 시 모달)
 const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: string }> = {
   labor: { icon: "🛠️", desc: "사업단 프로그램 근로학생 참여 — 근무상황부 기준 지급", note: "학부 15,000원/시간 · 대학원 20,000원/시간 (월 40시간 이내)" },
   program: { icon: "📋", desc: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등" },
@@ -16,11 +17,6 @@ const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: str
   activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
 };
 
-const categorySubtitle: Record<FundCategory, string> = {
-  labor: "근무상황부를 증빙으로 지급하는 근로장학금",
-  innovation: "우수 학생의 성장을 지원하는 5개 유형",
-  activity: "학생 활동을 지원하는 새로운 지원금",
-};
 const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
 
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
@@ -54,32 +50,28 @@ export default function Home() {
             </div>
             <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
-              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">지원금 신청 플랫폼</div>
+              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">혁신인재지원금 신청 플랫폼</div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors whitespace-nowrap">로그인</Link>
-            <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
-              관리자 <span className="hidden sm:inline">로그인</span> →
-            </Link>
-          </div>
+          <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
+            관리자 <span className="hidden sm:inline">로그인</span> →
+          </Link>
         </div>
       </header>
 
       {/* 히어로 */}
       <section className="py-20 px-4 relative overflow-hidden">
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신융합대학 지원금 신청</h1>
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신인재지원금 신청</h1>
           <p className="handwriting text-gray-700 text-3xl sm:text-4xl mb-10 leading-snug">
             강원대학교 데이터보안·활용 혁신융합대학 사업단이 우수 학생의 성장을 지원합니다.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {CATEGORY_ORDER.map((c) => (
-              <Link key={c} href={`/apply?category=${c}`} className="btn-primary inline-flex items-center justify-center gap-2 text-base px-8 py-3.5">
-                {FUND_CATEGORY_LABELS[c]} 신청 <ChevronRight className="w-4 h-4" />
-              </Link>
-            ))}
-          </div>
+          <Link
+            href="/apply"
+            className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
+          >
+            지금 신청하기 <ChevronRight className="w-5 h-5" />
+          </Link>
         </div>
       </section>
 
@@ -101,13 +93,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 카테고리별 유형 분석 */}
+        {/* 지원금 유형 (카테고리별 분석 · 클릭 시 세부내용) */}
         {CATEGORY_ORDER.map((cat) => (
           <section key={cat}>
             <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
               <Award className="w-6 h-6 text-indigo-500" /> {FUND_CATEGORY_LABELS[cat]}
             </h2>
-            <p className="text-sm text-gray-500 mb-5">{categorySubtitle[cat]} · 유형을 클릭하면 자세한 내용을 볼 수 있습니다.</p>
+            <p className="text-sm text-gray-500 mb-6">유형을 클릭하면 자세한 내용을 볼 수 있습니다.</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {CATEGORY_TYPES[cat].map((type) => {
                 const m = typeMeta[type];
@@ -159,12 +151,18 @@ export default function Home() {
           </section>
         </div>
 
-        {/* 신청 버튼 */}
-        <div className="text-center py-6 flex flex-col sm:flex-row gap-3 justify-center">
-          {CATEGORY_ORDER.map((c) => (
-            <Link key={c} href={`/apply?category=${c}`} className="btn-primary text-base px-8 py-3.5">{FUND_CATEGORY_LABELS[c]} 신청하기</Link>
-          ))}
+        {/* 신청 버튼 (근로장학금 · 혁신인재지원금 · 학생활동지원비 순) */}
+        <div className="text-center py-6">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {CATEGORY_ORDER.map((c) => (
+              <Link key={c} href={`/apply?category=${c}`} className="btn-primary text-base px-8 py-3.5">
+                {FUND_CATEGORY_LABELS[c]} 신청하기
+              </Link>
+            ))}
+          </div>
+          <p className="text-sm text-gray-500 mt-3">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
+
       </div>
 
       {/* 푸터 (엔드바) */}
