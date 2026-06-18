@@ -25,47 +25,21 @@ export async function register(input: RegisterInput): Promise<{ ok: boolean; err
   if (!studentId || !input.password || !input.name.trim()) return { ok: false, error: "필수 정보를 모두 입력해주세요." };
   if (input.password.length < 6) return { ok: false, error: "비밀번호는 6자 이상이어야 합니다." };
 
-  const meta = {
-    studentId,
-    name: input.name.trim(),
-    department: input.department.trim(),
-    phone: input.phone.trim(),
-    realEmail: input.email.trim(),
-    university: (input.university || "강원대학교").trim(),
-  };
-
-  const { data, error } = await supabase.auth.signUp({
-    email: emailForStudentId(studentId),
-    password: input.password,
-    options: { data: meta },
+  // 서버(service_role)에서 계정 생성 — 이메일 확인 불필요(email_confirm=true)
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      studentId, password: input.password, name: input.name.trim(),
+      department: input.department.trim(), phone: input.phone.trim(),
+      email: input.email.trim(), university: input.university || "강원대학교",
+    }),
   });
-  if (error) {
-    if (error.message.toLowerCase().includes("already") || error.message.includes("registered")) {
-      return { ok: false, error: "이미 가입된 학번입니다." };
-    }
-    return { ok: false, error: error.message };
-  }
+  const j = await res.json().catch(() => ({ ok: false, error: "서버 응답 오류" }));
+  if (!j.ok) return { ok: false, error: j.error || "회원가입에 실패했습니다." };
 
-  // 세션이 있으면(이메일 확인 OFF) 프로필 테이블에 기록 (RLS: 본인만)
-  const uid = data.user?.id;
-  if (uid && data.session) {
-    await supabase.from("student_profiles").insert({
-      id: uid, student_id: studentId, name: meta.name, department: meta.department,
-      phone: meta.phone, email: meta.realEmail, university: meta.university,
-    });
-    return { ok: true };
-  }
-
-  // 세션이 없으면 즉시 로그인 시도
-  const r = await supabase.auth.signInWithPassword({ email: emailForStudentId(studentId), password: input.password });
-  if (r.error) return { ok: false, error: "가입은 완료됐으나 자동 로그인에 실패했습니다. 로그인 탭에서 로그인해 주세요." };
-  if (r.data.user) {
-    await supabase.from("student_profiles").upsert({
-      id: r.data.user.id, student_id: studentId, name: meta.name, department: meta.department,
-      phone: meta.phone, email: meta.realEmail, university: meta.university,
-    });
-  }
-  return { ok: true };
+  // 가입 직후 로그인하여 세션 생성
+  return login(studentId, input.password);
 }
 
 export async function login(studentId: string, password: string): Promise<{ ok: boolean; error?: string }> {
