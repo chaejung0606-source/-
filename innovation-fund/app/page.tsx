@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home } from "lucide-react";
+import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import FundTypeModal from "@/components/home/FundTypeModal";
@@ -67,7 +67,7 @@ export default function Home() {
               <User className="w-4 h-4" /> 로그인
             </Link>
             <Link href="/" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
-              <Home className="w-4 h-4" /> 홈
+              <HomeIcon className="w-4 h-4" /> 홈
             </Link>
           </div>
         </div>
