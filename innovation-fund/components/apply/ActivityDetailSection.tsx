@@ -7,7 +7,7 @@ import EventLocationSection from "./EventLocationSection";
 interface ActivityDetail {
   programId: string; activityName: string; activityType: string;
   activityPeriod: string; activityContent: string; requestAmount: number;
-  eventLocation?: EventLocation;
+  eventLocation: EventLocation | undefined;
 }
 
 interface Props { values: ActivityDetail; onChange: (v: ActivityDetail) => void; }
