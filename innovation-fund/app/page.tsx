@@ -1,12 +1,21 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import FundTypeModal from "@/components/home/FundTypeModal";
 
-// 유형 카드 메타 (홈 유형 분석 → 클릭 시 모달)
+const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
+
+// 본문 상단 신청 카드
+const categoryCard: Record<FundCategory, { icon: string; desc: string }> = {
+  labor: { icon: "🛠️", desc: "사업단 프로그램에 근로학생으로 참여 — 근무상황부 기준 근로장학금 지급" },
+  innovation: { icon: "🎯", desc: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 · 자격증 취득" },
+  activity: { icon: "🚀", desc: "학술대회 발표·논문 게재 등 학생 학술활동 지원 (혁신인재지원금과 별개)" },
+};
+
+// 유형 분석 카드 (클릭 시 세부내용 모달)
 const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: string }> = {
   labor: { icon: "🛠️", desc: "사업단 프로그램 근로학생 참여 — 근무상황부 기준 지급", note: "학부 15,000원/시간 · 대학원 20,000원/시간 (월 40시간 이내)" },
   program: { icon: "📋", desc: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등" },
@@ -17,7 +26,7 @@ const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: str
   activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
 };
 
-const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
+const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "activity"];
 
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
 
@@ -41,7 +50,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* 헤더 */}
+      {/* 헤더 (상단바) */}
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -50,32 +59,47 @@ export default function Home() {
             </div>
             <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
-              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">혁신인재지원금 신청 플랫폼</div>
+              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">학생 지원금 신청 플랫폼</div>
             </div>
           </div>
-          <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
-            관리자 <span className="hidden sm:inline">로그인</span> →
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
+              <User className="w-4 h-4" /> 로그인
+            </Link>
+            <Link href="/" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
+              <Home className="w-4 h-4" /> 홈
+            </Link>
+          </div>
         </div>
       </header>
 
       {/* 히어로 */}
       <section className="py-20 px-4 relative overflow-hidden">
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신인재지원금 신청</h1>
-          <p className="handwriting text-gray-700 text-3xl sm:text-4xl mb-10 leading-snug">
-            강원대학교 데이터보안·활용 혁신융합대학 사업단이 우수 학생의 성장을 지원합니다.
+          <h1 className="text-4xl sm:text-6xl font-extrabold mb-5 holo-text leading-tight">학생 지원금 신청 플랫폼</h1>
+          <p className="text-gray-600 text-lg mb-2">
+            강원대학교 데이터보안·활용 혁신융합대학사업단이 우수 학생의 성장을 지원합니다.
           </p>
-          <Link
-            href="/apply"
-            className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
-          >
-            지금 신청하기 <ChevronRight className="w-5 h-5" />
-          </Link>
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 py-12 space-y-12">
+      <div className="max-w-6xl mx-auto px-4 pb-12 space-y-12">
+        {/* 본문 상단 신청 카드 (근로장학금 · 혁신인재지원금 · 학생활동지원비 순) */}
+        <section>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {CATEGORY_ORDER.map((c) => (
+              <div key={c} className="card flex flex-col">
+                <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
+                <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
+                <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
+                <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
+                  신청하기 <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -93,34 +117,32 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 지원금 유형 (카테고리별 분석 · 클릭 시 세부내용) */}
-        {CATEGORY_ORDER.map((cat) => (
-          <section key={cat}>
-            <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <Award className="w-6 h-6 text-indigo-500" /> {FUND_CATEGORY_LABELS[cat]}
-            </h2>
-            <p className="text-sm text-gray-500 mb-6">유형을 클릭하면 자세한 내용을 볼 수 있습니다.</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {CATEGORY_TYPES[cat].map((type) => {
-                const m = typeMeta[type];
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setModalType(type)}
-                    className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
-                  >
-                    <div className="text-3xl mb-3">{m.icon}</div>
-                    <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1">{APPLICATION_TYPE_LABELS[type]} <ChevronRight className="w-4 h-4 text-gray-300" /></h3>
-                    <p className="text-sm text-gray-600 mb-3">{m.desc}</p>
-                    {m.note && (
-                      <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{m.note}</p>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+        {/* 지원금 유형 안내 (클릭 시 세부내용 모달) */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <Award className="w-6 h-6 text-indigo-500" /> 지원금 유형 안내
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">유형을 클릭하면 자세한 내용과 신청 가능한 프로그램을 볼 수 있습니다.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ALL_TYPES.map((type) => {
+              const m = typeMeta[type];
+              return (
+                <button
+                  key={type}
+                  onClick={() => setModalType(type)}
+                  className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
+                >
+                  <div className="text-3xl mb-3">{m.icon}</div>
+                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1">{APPLICATION_TYPE_LABELS[type]} <ChevronRight className="w-4 h-4 text-gray-300" /></h3>
+                  <p className="text-sm text-gray-600 mb-3">{m.desc}</p>
+                  {m.note && (
+                    <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{m.note}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">
@@ -151,18 +173,10 @@ export default function Home() {
           </section>
         </div>
 
-        {/* 신청 버튼 (근로장학금 · 혁신인재지원금 · 학생활동지원비 순) */}
-        <div className="text-center py-6">
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            {CATEGORY_ORDER.map((c) => (
-              <Link key={c} href={`/apply?category=${c}`} className="btn-primary text-base px-8 py-3.5">
-                {FUND_CATEGORY_LABELS[c]} 신청하기
-              </Link>
-            ))}
-          </div>
-          <p className="text-sm text-gray-500 mt-3">신청 전 지급 기준을 반드시 확인해주세요.</p>
+        {/* 신청 안내 */}
+        <div className="text-center py-2">
+          <p className="text-sm text-gray-500">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
-
       </div>
 
       {/* 푸터 (엔드바) */}
@@ -179,6 +193,9 @@ export default function Home() {
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" /> 강원대학교 한빛관 1층 105호
             </span>
+          </div>
+          <div className="mt-3">
+            <Link href="/admin/login" className="text-xs text-gray-400 hover:text-indigo-500">관리자 로그인</Link>
           </div>
         </div>
       </footer>
