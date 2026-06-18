@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS } from "@/types";
 import {
   REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
 } from "@/config/status";
@@ -55,6 +55,21 @@ export default function ApplicationDetailPage() {
     return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
   }
 
+  const transportRows = (t?: import("@/types").TransportInfo): [string, string][] => {
+    if (!t) return [];
+    return [
+      ["교통비", `${TRANSPORT_MODE_LABELS[t.mode]} · ${t.region === "overseas" ? "국외" : t.isJeju ? "국내(제주)" : "국내"}${t.route ? ` · ${t.route}` : ""} · ${t.amount.toLocaleString()}원`],
+    ];
+  };
+
+  const locationRows = (loc?: import("@/types").EventLocation): [string, string][] => {
+    if (!loc) return [];
+    const v = loc.scope === "overseas"
+      ? `국외 · ${loc.country || ""}${loc.cityName ? ` ${loc.cityName}` : ""}`
+      : `국내 · ${loc.province || ""}${loc.city ? ` ${loc.city}` : ""}`;
+    return [["행사 장소", v]];
+  };
+
   const getDetail = (): [string, string][] => {
     if (app.programDetail) return [
       ["프로그램명", app.programDetail.programName],
@@ -62,6 +77,8 @@ export default function ApplicationDetailPage() {
       ["참여 기간", app.programDetail.participationPeriod],
       ["지도교수", app.programDetail.supervisorName],
       ["참여 내용", app.programDetail.participationContent],
+      ...locationRows(app.programDetail.eventLocation),
+      ...transportRows(app.programDetail.transport),
     ];
     if (app.staffDetail) return [
       ["프로그램명", app.staffDetail.programName],
@@ -70,6 +87,7 @@ export default function ApplicationDetailPage() {
       ["총 근무 시간", `${app.staffDetail.totalHours}시간`],
       ["학생 구분", app.staffDetail.studentType === "graduate" ? "대학원생" : "대학생"],
       ["담당 업무", app.staffDetail.taskDescription],
+      ...transportRows(app.staffDetail.transport),
     ];
     if (app.gradeDetail) return [
       ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[app.gradeDetail.subType]],
@@ -95,6 +113,24 @@ export default function ApplicationDetailPage() {
       ["분야", app.certificateDetail.certField],
       ["난이도", { high: "상", mid: "중", low: "하", review: "심의필요" }[app.certificateDetail.difficulty]],
       ["미래융합가상학과", app.certificateDetail.isMirae ? "해당" : "미해당"],
+    ];
+    if (app.laborDetail) return [
+      ["프로그램", app.laborDetail.programName],
+      ["역할", app.laborDetail.role],
+      ["근로 기간", app.laborDetail.workPeriod],
+      ["총 근로시간", `${app.laborDetail.totalHours}시간`],
+      ["학생 구분", app.laborDetail.studentType === "graduate" ? "대학원생" : "학부생"],
+      ["확인자", app.laborDetail.supervisorName],
+      ["근로 내용", app.laborDetail.workDetail],
+      ["근무 기록", (app.laborDetail.workLog || []).map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ") || "-"],
+    ];
+    if (app.activityDetail) return [
+      ["활동명", app.activityDetail.activityName],
+      ["활동 유형", app.activityDetail.activityType],
+      ["활동 기간", app.activityDetail.activityPeriod],
+      ["활동 내용", app.activityDetail.activityContent],
+      ...locationRows(app.activityDetail.eventLocation),
+      ...transportRows(app.activityDetail.transport),
     ];
     return [];
   };

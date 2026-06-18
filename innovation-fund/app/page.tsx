@@ -1,43 +1,27 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
-import { Shield, FileText, Users, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import type { ApplicationType, FundCategory } from "@/types";
+import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
+import FundTypeModal from "@/components/home/FundTypeModal";
 
-const fundTypes = [
-  {
-    id: "program",
-    title: "프로그램 참여지원비",
-    desc: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등",
-    icon: "📋",
-  },
-  {
-    id: "staff",
-    title: "진행요원비",
-    desc: "사업단 프로그램 진행 보조 업무 수행 학생",
-    icon: "👥",
-    note: "대학생 15,000원/시간 · 대학원생 20,000원/시간",
-  },
-  {
-    id: "grade",
-    title: "성적 우수 지원금",
-    desc: "마이크로디그리(30만원) · 부전공(100만원) · 복수전공(150만원)",
-    icon: "🎓",
-    note: "평점 평균 3.0 이상",
-  },
-  {
-    id: "contest",
-    title: "경진대회 입상 우수성과 지원금",
-    desc: "사업단 분야 관련 경진대회 입상자",
-    icon: "🏆",
-    note: "A규모·B규모 / 개인·팀 별 차등 지급",
-  },
-  {
-    id: "certificate",
-    title: "자격증 취득 우수성과 지원금",
-    desc: "미래융합가상학과 학생 대상 자격증 취득 지원",
-    icon: "📜",
-    note: "난이도 상(70만원) · 중(40만원) · 하(10만원)",
-  },
-];
+const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: string }> = {
+  labor: { icon: "🛠️", desc: "사업단 프로그램 근로학생 참여 — 근무상황부 기준 지급", note: "학부 15,000원/시간 · 대학원 20,000원/시간 (월 40시간 이내)" },
+  program: { icon: "📋", desc: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등" },
+  staff: { icon: "👥", desc: "사업단 프로그램 진행 보조 업무 수행 학생", note: "대학생 15,000원/시간 · 대학원생 20,000원/시간" },
+  grade: { icon: "🎓", desc: "마이크로디그리(30만원) · 부전공(100만원) · 복수전공(150만원)", note: "평점 평균 3.0 이상" },
+  contest: { icon: "🏆", desc: "사업단 분야 관련 경진대회 입상자", note: "A규모·B규모 / 개인·팀 별 차등 지급" },
+  certificate: { icon: "📜", desc: "미래융합가상학과 학생 대상 자격증 취득 지원", note: "난이도 상(70만원) · 중(40만원) · 하(10만원)" },
+  activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
+};
+
+const categorySubtitle: Record<FundCategory, string> = {
+  labor: "근무상황부를 증빙으로 지급하는 근로장학금",
+  innovation: "우수 학생의 성장을 지원하는 5개 유형",
+  activity: "학생 활동을 지원하는 새로운 지원금",
+};
+const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
 
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
 
@@ -57,6 +41,8 @@ const ineligibleList = [
 ];
 
 export default function Home() {
+  const [modalType, setModalType] = useState<ApplicationType | null>(null);
+
   return (
     <div className="min-h-screen">
       {/* 헤더 */}
@@ -68,28 +54,32 @@ export default function Home() {
             </div>
             <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
-              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">혁신인재지원금 신청 플랫폼</div>
+              <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">지원금 신청 플랫폼</div>
             </div>
           </div>
-          <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
-            관리자 <span className="hidden sm:inline">로그인</span> →
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/login" className="text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors whitespace-nowrap">로그인</Link>
+            <Link href="/admin/login" className="text-xs sm:text-sm font-medium text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap flex-shrink-0">
+              관리자 <span className="hidden sm:inline">로그인</span> →
+            </Link>
+          </div>
         </div>
       </header>
 
       {/* 히어로 */}
       <section className="py-20 px-4 relative overflow-hidden">
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신인재지원금 신청</h1>
-          <p className="text-gray-600 text-lg mb-10">
-            강원대학교 혁신융합대학 사업단이 우수 학생의 성장을 지원합니다.
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-5 holo-text leading-tight">혁신융합대학 지원금 신청</h1>
+          <p className="handwriting text-gray-700 text-3xl sm:text-4xl mb-10 leading-snug">
+            강원대학교 데이터보안·활용 혁신융합대학 사업단이 우수 학생의 성장을 지원합니다.
           </p>
-          <Link
-            href="/apply"
-            className="btn-primary inline-flex items-center gap-2 text-lg px-10 py-4"
-          >
-            지금 신청하기 <ChevronRight className="w-5 h-5" />
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {CATEGORY_ORDER.map((c) => (
+              <Link key={c} href={`/apply?category=${c}`} className="btn-primary inline-flex items-center justify-center gap-2 text-base px-8 py-3.5">
+                {FUND_CATEGORY_LABELS[c]} 신청 <ChevronRight className="w-4 h-4" />
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -111,24 +101,34 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 지원금 유형 */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <Award className="w-6 h-6 text-indigo-500" /> 지원금 유형
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {fundTypes.map((type) => (
-              <div key={type.id} className="card hover:-translate-y-1 transition-transform duration-300">
-                <div className="text-3xl mb-3">{type.icon}</div>
-                <h3 className="font-bold text-gray-800 mb-2">{type.title}</h3>
-                <p className="text-sm text-gray-600 mb-3">{type.desc}</p>
-                {type.note && (
-                  <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{type.note}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* 카테고리별 유형 분석 */}
+        {CATEGORY_ORDER.map((cat) => (
+          <section key={cat}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+              <Award className="w-6 h-6 text-indigo-500" /> {FUND_CATEGORY_LABELS[cat]}
+            </h2>
+            <p className="text-sm text-gray-500 mb-5">{categorySubtitle[cat]} · 유형을 클릭하면 자세한 내용을 볼 수 있습니다.</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {CATEGORY_TYPES[cat].map((type) => {
+                const m = typeMeta[type];
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setModalType(type)}
+                    className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
+                  >
+                    <div className="text-3xl mb-3">{m.icon}</div>
+                    <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1">{APPLICATION_TYPE_LABELS[type]} <ChevronRight className="w-4 h-4 text-gray-300" /></h3>
+                    <p className="text-sm text-gray-600 mb-3">{m.desc}</p>
+                    {m.note && (
+                      <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{m.note}</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">
@@ -160,13 +160,11 @@ export default function Home() {
         </div>
 
         {/* 신청 버튼 */}
-        <div className="text-center py-6">
-          <Link href="/apply" className="btn-primary text-base px-10 py-3.5">
-            혁신인재지원금 신청하기
-          </Link>
-          <p className="text-sm text-gray-500 mt-3">신청 전 지급 기준을 반드시 확인해주세요.</p>
+        <div className="text-center py-6 flex flex-col sm:flex-row gap-3 justify-center">
+          {CATEGORY_ORDER.map((c) => (
+            <Link key={c} href={`/apply?category=${c}`} className="btn-primary text-base px-8 py-3.5">{FUND_CATEGORY_LABELS[c]} 신청하기</Link>
+          ))}
         </div>
-
       </div>
 
       {/* 푸터 (엔드바) */}
@@ -224,6 +222,8 @@ export default function Home() {
           <span className="text-[10px] leading-tight text-center">카톡<br />문의</span>
         </a>
       </aside>
+
+      <FundTypeModal type={modalType} onClose={() => setModalType(null)} />
     </div>
   );
 }

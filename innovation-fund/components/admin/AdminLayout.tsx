@@ -2,11 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
+  { href: "/admin/programs", label: "프로그램 / 신청기간", icon: CalendarRange },
+  { href: "/admin/content", label: "유형 세부내용", icon: ListChecks },
   { href: "/admin/settings", label: "내보내기 설정", icon: Settings },
   { href: "/", label: "메인 사이트", icon: Home },
 ];

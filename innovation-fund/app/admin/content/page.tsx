@@ -1,0 +1,86 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Save, Plus, Trash2 } from "lucide-react";
+import type { ApplicationType } from "@/types";
+import { APPLICATION_TYPE_LABELS } from "@/types";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { getTypeContent, saveSiteContent, type SiteContent, type TypeContent, type ContentSection } from "@/lib/site-content";
+
+const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "activity"];
+
+export default function ContentAdminPage() {
+  const [content, setContent] = useState<Record<string, TypeContent>>({});
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const init: Record<string, TypeContent> = {};
+    TYPES.forEach((t) => { init[t] = getTypeContent(t); });
+    setContent(init);
+  }, []);
+
+  const setType = (t: ApplicationType, tc: TypeContent) => { setContent((c) => ({ ...c, [t]: tc })); setSaved(false); };
+
+  const setSection = (t: ApplicationType, i: number, sec: ContentSection) => {
+    const tc = content[t]; if (!tc) return;
+    setType(t, { ...tc, sections: tc.sections.map((s, idx) => idx === i ? sec : s) });
+  };
+  const addSection = (t: ApplicationType) => {
+    const tc = content[t]; if (!tc) return;
+    setType(t, { ...tc, sections: [...tc.sections, { heading: "새 섹션", items: [] }] });
+  };
+  const removeSection = (t: ApplicationType, i: number) => {
+    const tc = content[t]; if (!tc) return;
+    setType(t, { ...tc, sections: tc.sections.filter((_, idx) => idx !== i) });
+  };
+
+  const save = () => { saveSiteContent(content as SiteContent); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+
+  return (
+    <AdminLayout>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h1 className="text-2xl font-bold text-gray-800">유형 세부내용 관리</h1>
+        <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
+      </div>
+      <p className="text-gray-500 text-sm mb-6">홈 화면에서 각 지원금 유형을 클릭하면 표시되는 세부내용(모달)을 편집합니다. 항목은 한 줄에 하나씩 입력하세요.</p>
+      {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
+
+      <div className="space-y-5">
+        {TYPES.map((t) => {
+          const tc = content[t];
+          if (!tc) return null;
+          return (
+            <div key={t} className="card">
+              <h2 className="font-bold text-gray-800 mb-3">{APPLICATION_TYPE_LABELS[t]}</h2>
+              <div className="mb-4">
+                <label className="label">소개 문구</label>
+                <textarea className="input-field h-16 resize-none" value={tc.intro} onChange={(e) => setType(t, { ...tc, intro: e.target.value })} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 mb-4 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4" checked={!!tc.showPrograms} onChange={(e) => setType(t, { ...tc, showPrograms: e.target.checked })} />
+                기준일에 신청 가능한 프로그램 목록 표시
+              </label>
+
+              <div className="space-y-3">
+                {tc.sections.map((sec, i) => (
+                  <div key={i} className="rounded-2xl p-3 bg-white/60 border border-gray-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input className="input-field flex-1" value={sec.heading} onChange={(e) => setSection(t, i, { ...sec, heading: e.target.value })} placeholder="섹션 제목" />
+                      <button onClick={() => removeSection(t, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                    <textarea
+                      className="input-field h-24 resize-none text-sm"
+                      value={sec.items.join("\n")}
+                      onChange={(e) => setSection(t, i, { ...sec, items: e.target.value.split("\n").filter((x) => x.trim() !== "") })}
+                      placeholder="한 줄에 하나씩 입력"
+                    />
+                  </div>
+                ))}
+                <button onClick={() => addSection(t)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 섹션 추가</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </AdminLayout>
+  );
+}

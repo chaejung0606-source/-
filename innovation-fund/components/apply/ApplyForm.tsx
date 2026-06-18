@@ -1,16 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, DocumentType, UploadedFile } from "@/types";
-import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from "@/types";
+import type { ApplicationType, UploadedFile, WorkLogEntry, TransportInfo, EventLocation } from "@/types";
+import { APPLICATION_TYPE_LABELS } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
 import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
+import { currentUser } from "@/lib/auth";
+import { validateBasicFormat } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
 import StaffDetailSection from "./StaffDetailSection";
+import LaborDetailSection from "./LaborDetailSection";
+import ActivityDetailSection from "./ActivityDetailSection";
+import TransportSection from "./TransportSection";
 import GradeDetailSection from "./GradeDetailSection";
 import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
@@ -44,7 +49,42 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   const [staffDetail, setStaffDetail] = useState({
     programName: "", workPeriod: "", workDates: "", totalHours: 0,
     studentType: "undergraduate" as "undergraduate" | "graduate", taskDescription: "",
+    workLog: [] as WorkLogEntry[],
   });
+
+  // 근로장학금 상세
+  const [laborDetail, setLaborDetail] = useState({
+    programId: "", programName: "", role: "", workPeriod: "", totalHours: 0,
+    studentType: "undergraduate" as "undergraduate" | "graduate",
+    workLog: [] as WorkLogEntry[], workDetail: "", supervisorName: "",
+  });
+  // 학생활동지원비 상세
+  const [activityDetail, setActivityDetail] = useState({
+    programId: "", activityName: "", activityType: "", activityPeriod: "",
+    activityContent: "", requestAmount: 0,
+    eventLocation: undefined as EventLocation | undefined,
+  });
+
+  // 교통비 (프로그램 참여지원비 / 진행요원비 / 학생활동지원비 공통)
+  const [transport, setTransport] = useState<TransportInfo>({
+    region: "domestic", isJeju: false, mode: "bus", route: "", amount: 0,
+  });
+
+  // 로그인한 신청자 정보 자동 채움
+  useEffect(() => {
+    const u = currentUser();
+    if (u) {
+      setBasicInfo((b) => ({
+        ...b,
+        name: b.name || u.name,
+        studentId: b.studentId || u.studentId,
+        department: b.department || u.department,
+        phone: b.phone || u.phone,
+        email: b.email || u.email,
+        university: u.university || b.university,
+      }));
+    }
+  }, []);
   const [gradeDetail, setGradeDetail] = useState<{
     subType: "microdegree" | "minor" | "double";
     courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;
@@ -82,15 +122,48 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   // 계산 금액
   const getCalculatedAmount = (): number => {
     if (applicationType === "staff") return calcStaffAmount(staffDetail.totalHours, staffDetail.studentType);
+    if (applicationType === "labor") return calcStaffAmount(Math.min(laborDetail.totalHours, 40), laborDetail.studentType); // 월 40시간 이내
     if (applicationType === "grade") return calcGradeAmount(gradeDetail.subType);
     if (applicationType === "contest") return calcContestAmount(contestDetail.scale, contestDetail.awardLevel, contestDetail.isTeam);
     if (applicationType === "certificate") return calcCertAmount(certDetail.difficulty);
+    if (applicationType === "activity") return activityDetail.requestAmount;
     return programDetail.requestAmount;
   };
 
   const getRequestAmount = (): number => {
     if (applicationType === "program") return programDetail.requestAmount;
+    if (applicationType === "activity") return activityDetail.requestAmount;
     return getCalculatedAmount();
+  };
+
+  // 2단계(신청 내용) 필수·형식 검증
+  const validateStep2 = (): string[] => {
+    const e: string[] = [];
+    if (applicationType === "program") {
+      if (!programDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
+      if (!(programDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
+    }
+    if (applicationType === "staff") {
+      if (!staffDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
+      if (staffDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
+    }
+    if (applicationType === "labor") {
+      if (!laborDetail.programId) e.push("• 신청 가능한 근로 프로그램을 선택해주세요.");
+      if (!laborDetail.supervisorName.trim()) e.push("• 확인자(지도교수·담당자)를 입력해주세요.");
+      if (laborDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
+    }
+    if (applicationType === "activity") {
+      if (!activityDetail.activityName.trim()) e.push("• 활동명을 입력해주세요.");
+      if (!(activityDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
+    }
+    if (applicationType === "certificate") {
+      if (!certDetail.certName.trim()) e.push("• 자격증명을 입력해주세요.");
+      if (certDetail.acquisitionDate && !/^\d{4}-\d{2}-\d{2}$/.test(certDetail.acquisitionDate)) e.push("• 취득일은 YYYY-MM-DD 형식으로 입력해주세요.");
+    }
+    if (applicationType === "contest") {
+      if (!contestDetail.contestName.trim()) e.push("• 대회명을 입력해주세요.");
+    }
+    return e;
   };
 
   const handleSubmit = async () => {
@@ -124,6 +197,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     }
     setSubmitting(true);
     try {
+      const transportPayload = transport.amount > 0 || transport.route.trim() ? transport : undefined;
       const payload = {
         name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
         department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
@@ -131,8 +205,10 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationType,
-        programDetail: applicationType === "program" ? programDetail : undefined,
-        staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+        programDetail: applicationType === "program" ? { ...programDetail, transport: transportPayload } : undefined,
+        staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), transport: transportPayload } : undefined,
+        laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+        activityDetail: applicationType === "activity" ? { ...activityDetail, transport: transportPayload } : undefined,
         gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
@@ -200,6 +276,15 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       {step === 2 && applicationType === "certificate" && (
         <CertificateDetailSection values={certDetail} onChange={setCertDetail} calculatedAmount={getCalculatedAmount()} />
       )}
+      {step === 2 && applicationType === "labor" && (
+        <LaborDetailSection values={laborDetail} onChange={setLaborDetail} calculatedAmount={getCalculatedAmount()} />
+      )}
+      {step === 2 && applicationType === "activity" && (
+        <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} />
+      )}
+      {step === 2 && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
+        <TransportSection values={transport} onChange={setTransport} />
+      )}
 
       {/* 3단계: 파일 업로드 */}
       {step === 3 && (
@@ -233,19 +318,20 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           <button
             onClick={() => {
               if (step === 1) {
-                if (!basicInfo.name || !basicInfo.studentId || !basicInfo.department || !basicInfo.phone || !basicInfo.email) {
-                  alert("기본 정보를 모두 입력해주세요.");
-                  return;
-                }
-                if (!basicInfo.bankName || !basicInfo.accountNumber || !basicInfo.accountHolder) {
-                  alert("계좌 정보를 모두 입력해주세요.");
-                  return;
-                }
-                if (basicInfo.privacyAgree !== "동의") {
-                  alert("개인정보 수집·이용에 동의해야 신청을 진행할 수 있습니다.");
-                  return;
-                }
+                const errs = validateBasicFormat({
+                  name: basicInfo.name, studentId: basicInfo.studentId, department: basicInfo.department,
+                  phone: basicInfo.phone, email: basicInfo.email,
+                  accountNumber: basicInfo.accountNumber, applicationDate: basicInfo.applicationDate,
+                });
+                if (!basicInfo.bankName.trim()) errs.push("• 은행명을 입력해주세요.");
+                if (!basicInfo.accountHolder.trim()) errs.push("• 예금주를 입력해주세요.");
+                if (basicInfo.privacyAgree !== "동의") errs.push("• 개인정보 수집·이용에 동의해야 합니다.");
+                if (errs.length) { alert("작성 예시와 동일한 형식으로 정확히 입력해주세요.\n\n" + errs.join("\n")); return; }
                 setConsent((c) => ({ ...c, privacy: true }));
+              }
+              if (step === 2) {
+                const e2 = validateStep2();
+                if (e2.length) { alert("신청 내용을 작성 예시와 동일하게 정확히 입력해주세요.\n\n" + e2.join("\n")); return; }
               }
               setStep(step + 1);
             }}

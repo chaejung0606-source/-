@@ -1,9 +1,33 @@
 export type ApplicationType =
-  | "program"      // 프로그램 참여지원비
-  | "staff"        // 진행요원비
-  | "grade"        // 성적 우수 지원금
-  | "contest"      // 경진대회 입상 우수성과 지원금
-  | "certificate"; // 자격증 취득 우수성과 지원금
+  | "program"      // 프로그램 참여지원비 (혁신인재지원금)
+  | "staff"        // 진행요원비 (혁신인재지원금)
+  | "grade"        // 성적 우수 지원금 (혁신인재지원금)
+  | "contest"      // 경진대회 입상 우수성과 지원금 (혁신인재지원금)
+  | "certificate"  // 자격증 취득 우수성과 지원금 (혁신인재지원금)
+  | "labor"        // 근로장학금
+  | "activity";    // 학생활동지원비
+
+// 최상위 지원금 카테고리
+export type FundCategory = "labor" | "innovation" | "activity";
+
+export const FUND_CATEGORY_LABELS: Record<FundCategory, string> = {
+  labor: "근로장학금",
+  innovation: "혁신인재지원금",
+  activity: "학생활동지원비",
+};
+
+// 카테고리별 신청 유형
+export const CATEGORY_TYPES: Record<FundCategory, ApplicationType[]> = {
+  labor: ["labor"],
+  innovation: ["program", "staff", "grade", "contest", "certificate"],
+  activity: ["activity"],
+};
+
+export function categoryOfType(t: ApplicationType): FundCategory {
+  if (t === "labor") return "labor";
+  if (t === "activity") return "activity";
+  return "innovation";
+}
 
 export type GradeSubType = "microdegree" | "minor" | "double";
 export type ContestScale = "A" | "B";
@@ -64,6 +88,44 @@ export interface ProgramDetail {
   participationContent: string;
   supervisorName: string;
   requestAmount: number;
+  transport?: TransportInfo;     // 교통비
+  eventLocation?: EventLocation; // 행사(학회) 장소
+  programId?: string;            // 선택한 사업단 프로그램 ID
+}
+
+// 근로장학금 상세
+export interface LaborDetail {
+  programId?: string;     // 선택한 근로 프로그램
+  programName: string;    // 프로그램명
+  role: string;           // 역할 (예: 공간관리)
+  workPeriod: string;     // 근로기간
+  totalHours: number;     // 총 근로시간 (자동 합산)
+  studentType: StudentType;
+  calculatedAmount: number;
+  workLog: WorkLogEntry[];      // 근무상황부 (일괄 등록 지원)
+  workDetail: string;           // 근로 상세내역
+  supervisorName: string;       // 확인자(교수/담당자)
+}
+
+// 학생활동지원비 상세
+export interface ActivityDetail {
+  programId?: string;
+  activityName: string;        // 활동명
+  activityType: string;        // 활동 유형
+  activityPeriod: string;      // 활동 기간
+  activityContent: string;     // 활동 내용
+  requestAmount: number;
+  transport?: TransportInfo;
+  eventLocation?: EventLocation;
+}
+
+// 근무상황부 1회 근무 기록
+export interface WorkLogEntry {
+  date: string;       // YYYY-MM-DD
+  startTime: string;  // HH:mm
+  endTime: string;    // HH:mm
+  hours: number;      // 해당 일자 근무 시간 (자동 계산)
+  detail?: string;    // 근로 상세내역 (근로장학금 근무상황부)
 }
 
 export interface StaffDetail {
@@ -74,6 +136,42 @@ export interface StaffDetail {
   studentType: StudentType;
   calculatedAmount: number;
   taskDescription: string;
+  workLog?: WorkLogEntry[];   // 구조화된 근무상황부 (일괄 등록 지원)
+  transport?: TransportInfo;  // 교통비
+}
+
+// 교통비 (행사·학회 참석 등 이동 발생 시)
+export type TransportRegion = "domestic" | "overseas";
+export type TransportMode =
+  | "bus"        // 시내/시외버스
+  | "express"    // 고속버스
+  | "train"      // 기차/KTX
+  | "subway"     // 지하철
+  | "taxi"       // 택시
+  | "car"        // 자가용
+  | "ship"       // 선박
+  | "air";       // 항공 (국외 또는 제주도만)
+
+export interface TransportInfo {
+  region: TransportRegion;  // 국내/국외
+  isJeju: boolean;          // 국내 중 제주도 여부
+  mode: TransportMode;      // 교통수단
+  route: string;            // 이동 구간 (예: 춘천 → 제주)
+  amount: number;           // 교통비 금액
+}
+
+// 행사(학회) 장소
+export interface EventLocation {
+  scope: TransportRegion;  // domestic(국내) / overseas(국외)
+  province?: string;       // 국내: 도/특별시/광역시
+  city?: string;           // 국내: 시/군/구
+  country?: string;        // 국외: 국가
+  cityName?: string;       // 국외: 세부 도시 (자유 입력)
+}
+
+// 제주도 여부 (항공 교통 선택 가능 판단에 사용)
+export function isJejuLocation(loc?: EventLocation): boolean {
+  return !!loc && loc.scope === "domestic" && (loc.province ?? "").includes("제주");
 }
 
 export interface MDCourseGrade {
@@ -157,6 +255,8 @@ export interface Application {
   gradeDetail?: GradeDetail;
   contestDetail?: ContestDetail;
   certificateDetail?: CertificateDetail;
+  laborDetail?: LaborDetail;
+  activityDetail?: ActivityDetail;
 
   // 파일
   files: UploadedFile[];
@@ -204,7 +304,25 @@ export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
   grade: "성적 우수 지원금",
   contest: "경진대회 입상 우수성과 지원금",
   certificate: "자격증 취득 우수성과 지원금",
+  labor: "근로장학금",
+  activity: "학생활동지원비",
 };
+
+export const TRANSPORT_MODE_LABELS: Record<TransportMode, string> = {
+  bus: "시내·시외버스",
+  express: "고속버스",
+  train: "기차·KTX",
+  subway: "지하철",
+  taxi: "택시",
+  car: "자가용",
+  ship: "선박",
+  air: "항공",
+};
+
+// 항공은 국외이거나 국내 제주도일 때만 선택 가능
+export function canSelectAir(region: TransportRegion, isJeju: boolean): boolean {
+  return region === "overseas" || (region === "domestic" && isJeju);
+}
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   application_form: "지급신청서",

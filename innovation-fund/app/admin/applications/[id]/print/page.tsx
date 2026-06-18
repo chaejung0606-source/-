@@ -47,6 +47,14 @@ function typeDetailRows(app: Application): [string, string][] {
     const lvl = { high: "상", mid: "중", low: "하", review: "심의 필요" };
     return [["자격증명", d.certName], ["발급기관", d.issuingOrg], ["취득일", d.acquisitionDate], ["난이도", lvl[d.difficulty]], ["미래융합가상학과", d.isMirae ? "예" : "아니오"]];
   }
+  if (app.laborDetail) {
+    const d = app.laborDetail;
+    return [["프로그램", d.programName], ["역할", d.role], ["근로 기간", d.workPeriod], ["총 근로시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "학부생"], ["확인자", d.supervisorName], ["근로 내용", d.workDetail]];
+  }
+  if (app.activityDetail) {
+    const d = app.activityDetail;
+    return [["활동명", d.activityName], ["활동 유형", d.activityType], ["활동 기간", d.activityPeriod], ["활동 내용", d.activityContent]];
+  }
   return [];
 }
 

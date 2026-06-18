@@ -33,6 +33,8 @@ function getAchievementName(app: Application): string {
   if (app.gradeDetail) return app.gradeDetail.courseName;
   if (app.contestDetail) return app.contestDetail.contestName;
   if (app.certificateDetail) return app.certificateDetail.certName;
+  if (app.laborDetail) return app.laborDetail.programName;
+  if (app.activityDetail) return app.activityDetail.activityName;
   return "";
 }
 

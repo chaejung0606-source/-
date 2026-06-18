@@ -22,6 +22,8 @@ const TYPE_SPECIFIC: Record<ApplicationType, DocumentType[]> = {
   grade: ["transcript", "completion_proof"],
   contest: ["award_certificate", "contest_notice", "achievement_proof"],
   certificate: ["certificate_copy", "achievement_proof"],
+  labor: ["work_log", "achievement_proof"],
+  activity: ["participation_proof", "achievement_proof"],
 };
 
 // 유형별 제출서류 안내 문구
@@ -31,7 +33,11 @@ const DOC_GUIDE: Record<ApplicationType, string[]> = {
   grade: ["신분증 사본", "통장 사본", "재학증명서", "성적증명서", "이수증빙자료 (해당 시)"],
   contest: ["신분증 사본", "통장 사본", "재학증명서", "상장 사본", "대회 공고문", "기타 수상 증빙"],
   certificate: ["신분증 사본", "통장 사본", "재학증명서", "자격증 사본", "취득 증빙자료"],
+  labor: ["신분증 사본", "통장 사본", "재학증명서", "근무상황부 (지도교수·담당자 확인)"],
+  activity: ["신분증 사본", "통장 사본", "재학증명서", "활동 계획서/결과보고서", "지출 증빙(영수증 등)"],
 };
+
+const FALLBACK_GUIDE = ["신분증 사본", "통장 사본", "재학증명서"];
 
 export default function FileUploadSection({ files, onChange, applicationType }: Props) {
   const [selectedType, setSelectedType] = useState<DocumentType>("other");
@@ -117,7 +123,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
         <h3 className="font-bold text-gray-700 mb-2">이 신청 유형의 제출 서류</h3>
         <p className="text-xs text-gray-500 mb-3">지급신청서·개인정보 동의서는 온라인으로 작성되므로, 아래 외부 발급 서류만 업로드하면 됩니다.</p>
         <ul className="text-sm text-gray-600 space-y-1.5">
-          {DOC_GUIDE[applicationType].map((doc) => (
+          {(DOC_GUIDE[applicationType] || FALLBACK_GUIDE).map((doc) => (
             <li key={doc} className="flex items-center gap-2">
               <span className="text-indigo-500">✓</span> {doc}
             </li>
