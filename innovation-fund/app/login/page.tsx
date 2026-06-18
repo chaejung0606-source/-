@@ -19,6 +19,7 @@ function LoginInner() {
   // 회원가입
   const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", department: "", phone: "", email: "" });
   const setR = (k: keyof typeof reg, v: string) => setReg((p) => ({ ...p, [k]: v }));
+  const [agree, setAgree] = useState(false);
 
   const doLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +33,7 @@ function LoginInner() {
     e.preventDefault();
     setError("");
     if (reg.password !== reg.password2) { setError("비밀번호가 일치하지 않습니다."); return; }
+    if (!agree) { setError("개인정보 수집·이용에 동의해야 회원가입이 가능합니다."); return; }
     const r = register(reg);
     if (r.ok) router.push(next);
     else setError(r.error || "회원가입 실패");
@@ -92,6 +94,20 @@ function LoginInner() {
                 <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", e.target.value)} placeholder="010-0000-0000" /></div>
                 <div><label className="label">이메일</label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
               </div>
+
+              {/* 개인정보 수집·이용 동의 (수집 시점 고지) */}
+              <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 leading-relaxed border border-gray-100">
+                <p className="font-semibold text-gray-800 mb-1">개인정보 수집·이용 안내</p>
+                <p>· 수집 항목: 학번, 이름, 학과, 연락처, 이메일</p>
+                <p>· 수집 목적: 회원 식별 및 지원금 신청·관리</p>
+                <p>· 보유 기간: 회원 탈퇴 또는 지원금 지급 완료 후 5년</p>
+                <p className="mt-1">· 동의를 거부할 수 있으나, 미동의 시 회원가입 및 신청이 불가합니다. 자세한 내용은 <Link href="/privacy" className="text-indigo-600 underline">개인정보 처리방침</Link>을 확인하세요.</p>
+              </div>
+              <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <span>위 개인정보 수집·이용에 동의합니다. <span className="text-red-500 font-medium">[필수]</span></span>
+              </label>
+
               <button type="submit" className="btn-primary w-full mt-2">회원가입 후 시작하기</button>
             </form>
           )}

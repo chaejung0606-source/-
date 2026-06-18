@@ -194,7 +194,9 @@ export default function Home() {
               <MapPin className="w-4 h-4" /> 강원대학교 한빛관 1층 105호
             </span>
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <Link href="/privacy" className="text-xs text-gray-500 hover:text-indigo-500 font-medium">개인정보 처리방침</Link>
+            <span className="text-gray-300">|</span>
             <Link href="/admin/login" className="text-xs text-gray-400 hover:text-indigo-500">관리자 로그인</Link>
           </div>
         </div>
