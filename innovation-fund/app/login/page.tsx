@@ -21,20 +21,25 @@ function LoginInner() {
   const setR = (k: keyof typeof reg, v: string) => setReg((p) => ({ ...p, [k]: v }));
   const [agree, setAgree] = useState(false);
 
-  const doLogin = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    const r = login(loginId, loginPw);
+    setError(""); setLoading(true);
+    const r = await login(loginId, loginPw);
+    setLoading(false);
     if (r.ok) router.push(next);
     else setError(r.error || "로그인 실패");
   };
 
-  const doRegister = (e: React.FormEvent) => {
+  const doRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (reg.password !== reg.password2) { setError("비밀번호가 일치하지 않습니다."); return; }
     if (!agree) { setError("개인정보 수집·이용에 동의해야 회원가입이 가능합니다."); return; }
-    const r = register(reg);
+    setLoading(true);
+    const r = await register(reg);
+    setLoading(false);
     if (r.ok) router.push(next);
     else setError(r.error || "회원가입 실패");
   };
@@ -77,7 +82,7 @@ function LoginInner() {
                   <input type="password" className="input-field pl-10" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" />
                 </div>
               </div>
-              <button type="submit" className="btn-primary w-full">로그인</button>
+              <button type="submit" disabled={loading} className="btn-primary w-full">{loading ? "처리 중..." : "로그인"}</button>
             </form>
           ) : (
             <form onSubmit={doRegister} className="space-y-3">
@@ -108,7 +113,7 @@ function LoginInner() {
                 <span>위 개인정보 수집·이용에 동의합니다. <span className="text-red-500 font-medium">[필수]</span></span>
               </label>
 
-              <button type="submit" className="btn-primary w-full mt-2">회원가입 후 시작하기</button>
+              <button type="submit" disabled={loading} className="btn-primary w-full mt-2">{loading ? "처리 중..." : "회원가입 후 시작하기"}</button>
             </form>
           )}
         </div>

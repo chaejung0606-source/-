@@ -72,18 +72,20 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
 
   // 로그인한 신청자 정보 자동 채움
   useEffect(() => {
-    const u = currentUser();
-    if (u) {
-      setBasicInfo((b) => ({
-        ...b,
-        name: b.name || u.name,
-        studentId: b.studentId || u.studentId,
-        department: b.department || u.department,
-        phone: b.phone || u.phone,
-        email: b.email || u.email,
-        university: u.university || b.university,
-      }));
-    }
+    (async () => {
+      const u = await currentUser();
+      if (u) {
+        setBasicInfo((b) => ({
+          ...b,
+          name: b.name || u.name,
+          studentId: b.studentId || u.studentId,
+          department: b.department || u.department,
+          phone: b.phone || u.phone,
+          email: b.email || u.email,
+          university: u.university || b.university,
+        }));
+      }
+    })();
   }, []);
   const [gradeDetail, setGradeDetail] = useState<{
     subType: "microdegree" | "minor" | "double";

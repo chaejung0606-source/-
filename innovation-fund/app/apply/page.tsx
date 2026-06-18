@@ -42,10 +42,12 @@ function ApplyInner() {
 
   // 로그인 게이트
   useEffect(() => {
-    const u = currentUser();
-    if (!u) { router.replace("/login?next=/apply"); return; }
-    setUserName(u.name);
-    setReady(true);
+    (async () => {
+      const u = await currentUser();
+      if (!u) { router.replace("/login?next=/apply"); return; }
+      setUserName(u.name);
+      setReady(true);
+    })();
   }, [router]);
 
   // 단일 유형 카테고리는 바로 폼으로
@@ -55,7 +57,7 @@ function ApplyInner() {
 
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-gray-400">확인 중...</div>;
 
-  const doLogout = () => { logout(); router.replace("/login?next=/apply"); };
+  const doLogout = async () => { await logout(); router.replace("/login?next=/apply"); };
 
   return (
     <div className="min-h-screen">
