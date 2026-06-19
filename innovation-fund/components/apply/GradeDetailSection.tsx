@@ -7,12 +7,14 @@ import {
 } from "@/lib/md-courses";
 
 interface MDCourseGrade { name: string; grade: string; isBase: boolean; }
+interface MinorCourse { name: string; credits: number; isMd: boolean; }
 interface GradeDetail {
   subType: "microdegree" | "minor" | "double";
   courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;
   mdDepartment: string; mdProgramId: string; mdProgramName: string;
   mdCourses: MDCourseGrade[];
   minorMajorName: string; minorMajorCredits: number;
+  minorCourses: MinorCourse[];
   minorIsMirae: boolean; minorMdCompleted: boolean; minorMdName: string;
 }
 
@@ -192,10 +194,32 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
       {(values.subType === "minor" || values.subType === "double") && (() => {
         const isMinor = values.subType === "minor";
         const reqCredits = isMinor ? 21 : 36;
+        const courses = values.minorCourses || [];
+        const totalCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0);
+        const mdExcluded = courses.filter((c) => c.isMd).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+        const netCredits = totalCredits - mdExcluded;        // MD 중복 제외 인정 학점
+        const hasMdCourse = courses.some((c) => c.isMd);
+
+        const updateCourses = (next: MinorCourse[]) => {
+          const total = next.reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          const mdEx = next.filter((c) => c.isMd).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          onChange({
+            ...values,
+            minorCourses: next,
+            minorMajorCredits: total - mdEx,                 // 인정 학점 자동 반영
+            minorMdCompleted: next.some((c) => c.isMd) || values.minorMdCompleted,
+          });
+        };
+        const addCourse = () => updateCourses([...courses, { name: "", credits: 0, isMd: false }]);
+        const setCourse = (i: number, patch: Partial<MinorCourse>) =>
+          updateCourses(courses.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+        const removeCourse = (i: number) => updateCourses(courses.filter((_, idx) => idx !== i));
+
         const conditions = [
           { ok: values.minorIsMirae, label: `미래융합가상학과 ${isMinor ? "부전공" : "복수전공"} 이수(예정)자` },
           { ok: values.gpa >= 3.0, label: "이수 교과목 평점 평균 3.0 이상 (4.5 만점)" },
           { ok: values.minorMdCompleted, label: "마이크로디그리(MD) 1개 이상 이수" },
+          { ok: netCredits >= reqCredits, label: `MD 중복 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
         ];
         const allOk = conditions.every((c) => c.ok);
         return (
@@ -219,20 +243,71 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               <input className="input-field" value={values.minorMajorName} onChange={(e) => set("minorMajorName", e.target.value)} placeholder="예: 사이버보안융합학과" />
             </div>
             <div>
-              <label className="label">이수 학점 (기준 {reqCredits}학점)</label>
-              <input className="input-field" type="number" min="0" value={values.minorMajorCredits || ""} onChange={(e) => set("minorMajorCredits", Number(e.target.value))} placeholder={String(reqCredits)} />
-            </div>
-            <div>
               <label className="label">이수 교과목 평점 평균 (4.5 만점) <span className="text-red-500">*</span></label>
               <input className="input-field" type="number" min="0" max="4.5" step="0.01" value={values.gpa || ""} onChange={(e) => set("gpa", Number(e.target.value))} placeholder="0.00" />
               {values.gpa > 0 && values.gpa < 3.0 && (
                 <p className="text-xs text-red-500 mt-1">⚠️ 평점 평균 3.0 이상이어야 지원 가능합니다.</p>
               )}
             </div>
-            <div>
-              <label className="label">지급 예정액</label>
-              <div className="input-field font-bold text-indigo-700">{calculatedAmount.toLocaleString()}원</div>
+          </div>
+
+          {/* 교과목 이수내역 */}
+          <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}>
+            <div className="flex items-center justify-between">
+              <label className="label !mb-0">이수 교과목 내역 <span className="text-red-500">*</span></label>
+              <button type="button" onClick={addCourse} className="btn-secondary text-sm !h-9 flex items-center gap-1">+ 과목 추가</button>
             </div>
+            <p className="text-xs text-amber-700">
+              ※ 마이크로디그리(MD) 과정으로 이수한 과목은 <strong>「MD 과정」에 체크</strong>해주세요. MD는 4과목 중 3과목만 학점 인정되어 중복되므로, 체크한 과목 학점은 {isMinor ? "부전공" : "복수전공"} 인정 학점에서 자동 제외됩니다.
+            </p>
+            {courses.length === 0 ? (
+              <p className="text-sm text-gray-400">「과목 추가」로 이수한 교과목을 입력하세요.</p>
+            ) : (
+              <div className="space-y-2">
+                {/* 헤더 */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 px-1">
+                  <div className="col-span-6">교과목명</div>
+                  <div className="col-span-2">학점</div>
+                  <div className="col-span-3">MD 과정</div>
+                  <div className="col-span-1"></div>
+                </div>
+                {courses.map((c, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                    <input className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })} placeholder="교과목명" />
+                    <input className="input-field !min-h-[40px] col-span-4 sm:col-span-2" type="number" min="0" step="0.5" value={c.credits || ""} onChange={(e) => setCourse(i, { credits: Number(e.target.value) })} placeholder="학점" />
+                    <label className="col-span-6 sm:col-span-3 flex items-center gap-2 text-sm cursor-pointer rounded-lg px-2 py-2" style={{ background: c.isMd ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.5)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                      <input type="checkbox" checked={c.isMd} onChange={(e) => setCourse(i, { isMd: e.target.checked })} className="w-4 h-4 accent-indigo-600" />
+                      MD 과정
+                    </label>
+                    <button type="button" onClick={() => removeCourse(i)} className="btn-danger !h-9 !px-2 col-span-2 sm:col-span-1 flex items-center justify-center">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 학점 요약 */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(255,255,255,0.7)" }}>
+                <div className="text-[11px] text-gray-500">총 이수 학점</div>
+                <div className="font-bold text-gray-700">{totalCredits}학점</div>
+              </div>
+              <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(251,191,36,0.12)" }}>
+                <div className="text-[11px] text-amber-700">MD 중복 제외</div>
+                <div className="font-bold text-amber-700">-{mdExcluded}학점</div>
+              </div>
+              <div className="rounded-xl p-2.5 text-center" style={{ background: netCredits >= reqCredits ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)" }}>
+                <div className="text-[11px] text-gray-500">인정 학점 (기준 {reqCredits})</div>
+                <div className={`font-bold ${netCredits >= reqCredits ? "text-green-700" : "text-red-600"}`}>{netCredits}학점</div>
+              </div>
+            </div>
+            {hasMdCourse && (
+              <p className="text-xs text-indigo-600">✓ MD 과정 이수 과목이 확인되어 &lsquo;MD 1개 이상 이수&rsquo; 조건이 자동 충족됩니다.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="label">지급 예정액</label>
+            <div className="input-field font-bold text-indigo-700">{calculatedAmount.toLocaleString()}원</div>
           </div>
 
           {/* MD 이수 확인 */}

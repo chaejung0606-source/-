@@ -207,6 +207,13 @@ export interface MDCourseGrade {
   isBase: boolean;
 }
 
+// 부전공/복수전공 이수 교과목 항목
+export interface MinorCourse {
+  name: string;     // 교과목명
+  credits: number;  // 학점
+  isMd: boolean;    // 마이크로디그리(MD) 과정으로 이수한 과목인지 (학점 중복 → 제외 대상)
+}
+
 export interface GradeDetail {
   subType: GradeSubType;
   courseName: string;
@@ -221,7 +228,8 @@ export interface GradeDetail {
   mdCourses?: MDCourseGrade[];
   // 부전공/복수전공 전용
   minorMajorName?: string;     // 전공명
-  minorMajorCredits?: number;  // 이수 학점
+  minorMajorCredits?: number;  // 인정 이수 학점 (총 이수 − MD 중복 제외, 자동 계산)
+  minorCourses?: MinorCourse[]; // 이수 교과목 내역 (과목명·학점·MD포함)
   minorIsMirae?: boolean;      // 미래융합가상학과 이수(예정)자
   minorMdCompleted?: boolean;  // MD 1개 이상 이수
   minorMdName?: string;        // 이수한 MD 과정명
