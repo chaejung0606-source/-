@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileText, Save } from "lucide-react";
+import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS } from "@/types";
 import {
@@ -23,6 +23,24 @@ export default function ApplicationDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("waiting");
   const [adminMemo, setAdminMemo] = useState("");
   const [approvedAmount, setApprovedAmount] = useState<number | "">("");
+  const [syncing, setSyncing] = useState(false);
+
+  const driveSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/drive-sync", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok) alert("Google Drive로 재동기화했습니다.");
+      else if (j.skipped) alert("Drive 동기화가 설정되지 않았습니다. (GOOGLE_SYNC_WEBHOOK_URL 미설정)");
+      else alert("동기화 실패: " + (j.error || res.status));
+    } catch {
+      alert("동기화 중 오류가 발생했습니다.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/applications/${id}`).then((r) => r.json()).then((d: Application) => {
@@ -165,6 +183,9 @@ export default function ApplicationDetailPage() {
           </button>
           <button onClick={() => window.open(`/admin/applications/${id}/print?doc=payment`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 지출자료
+          </button>
+          <button onClick={driveSync} disabled={syncing} className="btn-secondary text-sm flex items-center gap-1.5">
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "동기화 중..." : "Drive 재동기화"}
           </button>
         </div>
       </div>
