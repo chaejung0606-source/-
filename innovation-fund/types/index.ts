@@ -61,7 +61,8 @@ export interface UploadedFile {
   name: string;
   type: DocumentType;
   size: number;
-  url?: string;
+  url?: string;   // 표시용 (구버전 base64 또는 관리자 서명 URL)
+  path?: string;  // Supabase Storage 경로 (신버전)
 }
 
 export type DocumentType =

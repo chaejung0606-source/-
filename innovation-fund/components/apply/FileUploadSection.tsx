@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Upload, X, FileText } from "lucide-react";
 import type { ApplicationType, DocumentType, UploadedFile } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   files: UploadedFile[];
@@ -43,29 +44,28 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
   const [selectedType, setSelectedType] = useState<DocumentType>("other");
   const docTypes = [...(TYPE_SPECIFIC[applicationType] || []), ...COMMON_DOC_TYPES];
 
+  const [uploading, setUploading] = useState(false);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || []);
-    const uploaded: UploadedFile[] = await Promise.all(
-      newFiles.map(
-        (f) =>
-          new Promise<UploadedFile>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve({
-                id: `${Date.now()}-${Math.random()}`,
-                name: f.name,
-                type: selectedType,
-                size: f.size,
-                url: reader.result as string, // base64 (미리보기/내보내기용)
-              });
-            reader.onerror = () =>
-              resolve({ id: `${Date.now()}-${Math.random()}`, name: f.name, type: selectedType, size: f.size });
-            reader.readAsDataURL(f);
-          })
-      )
-    );
-    onChange([...files, ...uploaded]);
-    e.target.value = "";
+    if (newFiles.length === 0) return;
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { alert("로그인이 필요합니다. 다시 로그인해 주세요."); return; }
+      const uploaded: UploadedFile[] = [];
+      for (const f of newFiles) {
+        const ext = f.name.includes(".") ? f.name.split(".").pop() : "";
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+        const { error } = await supabase.storage.from("documents").upload(path, f, { upsert: false });
+        if (error) { alert(`${f.name} 업로드 실패: ${error.message}`); continue; }
+        uploaded.push({ id: `${Date.now()}-${Math.random()}`, name: f.name, type: selectedType, size: f.size, path });
+      }
+      if (uploaded.length) onChange([...files, ...uploaded]);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   };
 
   const removeFile = (id: string) => onChange(files.filter((f) => f.id !== id));
@@ -87,9 +87,9 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
             </select>
           </div>
           <div className="flex items-end">
-            <label className="btn-secondary cursor-pointer flex items-center gap-2">
-              <Upload className="w-4 h-4" /> 파일 선택
-              <input type="file" multiple className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" />
+            <label className={`btn-secondary cursor-pointer flex items-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+              <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "파일 선택"}
+              <input type="file" multiple className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
             </label>
           </div>
         </div>

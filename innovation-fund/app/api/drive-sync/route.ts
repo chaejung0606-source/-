@@ -45,11 +45,24 @@ export async function POST(req: NextRequest) {
   const { data: r, error } = await supabaseAdmin().from("applications").select("*").eq("id", id).maybeSingle();
   if (error || !r) return NextResponse.json({ ok: false, error: "not found" }, { status: 404 });
 
-  // 비민감 첨부만 (신분증/통장 제외)
-  const files = ((r.files as any[]) || [])
-    .filter((f) => !SENSITIVE_FILE_TYPES.includes(f.type))
-    .map((f) => ({ name: f.name, type: f.type, dataUrl: f.url || "" }))
-    .filter((f) => f.dataUrl);
+  // 비민감 첨부만 (신분증/통장 제외) → dataUrl로 변환
+  const admin = supabaseAdmin();
+  const nonSensitive = ((r.files as any[]) || []).filter((f) => !SENSITIVE_FILE_TYPES.includes(f.type));
+  const files: { name: string; type: string; dataUrl: string }[] = [];
+  for (const f of nonSensitive) {
+    if (f.path) {
+      // Storage에서 다운로드 후 base64
+      const { data: blob } = await admin.storage.from("documents").download(f.path);
+      if (blob) {
+        const buf = Buffer.from(await blob.arrayBuffer());
+        const mime = (blob as any).type || "application/octet-stream";
+        files.push({ name: f.name, type: f.type, dataUrl: `data:${mime};base64,${buf.toString("base64")}` });
+      }
+    } else if (f.url) {
+      // 구버전 base64 호환
+      files.push({ name: f.name, type: f.type, dataUrl: f.url });
+    }
+  }
 
   // 비민감 요약 (접수번호로만 식별)
   const d = r as any;

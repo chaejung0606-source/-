@@ -9,10 +9,21 @@ function isAdmin(req: NextRequest) {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { data, error } = await supabaseAdmin().from("applications").select("*").eq("id", id).maybeSingle();
+  const admin = supabaseAdmin();
+  const { data, error } = await admin.from("applications").select("*").eq("id", id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(fromRow(data));
+
+  const app = fromRow(data);
+  // Storage에 저장된 첨부는 만료형 서명 URL 발급 (관리자 열람용)
+  app.files = await Promise.all((app.files || []).map(async (f) => {
+    if (f.path) {
+      const { data: signed } = await admin.storage.from("documents").createSignedUrl(f.path, 3600);
+      return { ...f, url: signed?.signedUrl };
+    }
+    return f; // 구버전(base64 url) 호환
+  }));
+  return NextResponse.json(app);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
