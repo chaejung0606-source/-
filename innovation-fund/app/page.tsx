@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
@@ -59,8 +59,9 @@ export default function Home() {
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="glass-pill w-11 h-11 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-indigo-600" />
+            <div className="w-11 h-11 flex items-center justify-center shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/sdu-shield.png" alt="SDU 사업단 로고" className="w-full h-full object-contain" />
             </div>
             <div className="min-w-0">
               <div className="text-xs text-gray-500 hidden sm:block">강원대학교 데이터보안·활용 혁신융합대학사업단</div>
@@ -203,6 +204,11 @@ export default function Home() {
             <Link href="/privacy" className="text-xs text-gray-500 hover:text-indigo-500 font-medium">개인정보 처리방침</Link>
             <span className="text-gray-300">|</span>
             <Link href="/admin/login" className="text-xs text-gray-400 hover:text-indigo-500">관리자 로그인</Link>
+          </div>
+          {/* 사업단 가로형 로고 */}
+          <div className="mt-5 flex justify-center sm:justify-end">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/sdu-wordmark.png" alt="SDU 데이터보안활용 혁신융합대학 사업단" className="w-full max-w-[360px] h-auto object-contain" />
           </div>
         </div>
       </footer>
