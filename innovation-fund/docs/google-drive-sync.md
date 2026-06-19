@@ -20,11 +20,14 @@
 - 기존 코드 지우고 아래를 붙여넣은 뒤 저장(💾)
 
 ```javascript
+// 시트 URL의 /d/ 와 /edit 사이 문자열 (스프레드시트 ID)로 교체하세요.
+var SHEET_ID = "여기에_시트_ID_붙여넣기";
+
 function doPost(e) {
   var data = JSON.parse(e.postData.contents);
 
-  // 1) 시트에 요약행 추가
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // 1) 시트에 요약행 추가 (ID로 직접 지정 → 연결 시트 혼동 방지)
+  var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("신청내역") || ss.insertSheet("신청내역");
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(["접수번호","신청일","신청유형","프로그램/내용","신청금액","자동산정금액","검토상태","지급상태","동기화시각"]);
