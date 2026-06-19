@@ -21,11 +21,11 @@ function subTypeName(app: Application): string {
 function typeDetailRows(app: Application): [string, string][] {
   if (app.programDetail) {
     const d = app.programDetail;
-    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent]];
+    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent], ...extraCostRows(d.extraCosts)];
   }
   if (app.staffDetail) {
     const d = app.staffDetail;
-    return [["프로그램명", d.programName], ["근무 기간", d.workPeriod], ["근무 일자", d.workDates], ["총 근무시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "대학생"], ["담당 업무", d.taskDescription]];
+    return [["프로그램명", d.programName], ["근무 기간", d.workPeriod], ["근무 일자", d.workDates], ["총 근무시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "대학생"], ["담당 업무", d.taskDescription], ...extraCostRows(d.extraCosts)];
   }
   if (app.gradeDetail) {
     const d = app.gradeDetail;
@@ -53,17 +53,51 @@ function typeDetailRows(app: Application): [string, string][] {
   }
   if (app.activityDetail) {
     const d = app.activityDetail;
-    return [["활동명", d.activityName], ["활동 유형", d.activityType], ["활동 기간", d.activityPeriod], ["활동 내용", d.activityContent]];
+    if (d.activityKind === "paper" && d.paper) {
+      const p = d.paper;
+      return [
+        ["신청 구분", "논문게재료"],
+        ["논문명", p.paperTitle], ["학술지명", p.journalName], ["ISSN", p.issn],
+        ["발행권(호)", p.volumeIssue], ["발행일", p.publishDate], ["발행기관", p.publisher],
+        ["신청금액(게재료)", `${(p.requestFee || 0).toLocaleString()}원`],
+        ["관련 분야", d.activityType], ["사업단 연관성", d.activityContent],
+      ];
+    }
+    const rows: [string, string][] = [
+      ["신청 구분", "학생활동지원비 (학회참석 등)"],
+      ["활동명", d.activityName], ["활동 유형", d.activityType],
+      ["활동 기간", d.activityPeriod], ["활동 내용", d.activityContent],
+    ];
+    rows.push(...extraCostRows(d.extraCosts));
+    return rows;
   }
   return [];
 }
 
-const DOC_TITLE: Record<string, string> = {
-  form: "혁신인재지원금 지급신청서",
-  evidence: "공통 증빙서류",
-  review: "혁신인재지원금 심의요청서",
-  payment: "혁신인재지원금 지출자료",
-};
+function extraCostRows(x?: import("@/types").ExtraCosts): [string, string][] {
+  if (!x) return [];
+  const rows: [string, string][] = [];
+  if (x.registrationFee) rows.push(["등록비·참가비", `${x.registrationFee.toLocaleString()}원`]);
+  if (x.lodgingFee) rows.push(["숙박비", `${x.lodgingFee.toLocaleString()}원${x.lodgingNights ? ` (${x.lodgingNights}박)` : ""}`]);
+  return rows;
+}
+
+// 지원금 그룹별 명칭
+function fundLabelOf(app: Application): string {
+  if (app.applicationType === "activity") return "학생활동지원비";
+  if (app.applicationType === "labor") return "근로장학금";
+  return "혁신인재지원금";
+}
+// 문서 종류별 제목
+function docLabelOf(app: Application, doc: string): string {
+  const f = fundLabelOf(app);
+  switch (doc) {
+    case "evidence": return `${f} 증빙서류`;
+    case "review": return `${f} 심의요청서`;
+    case "payment": return `${f} 지출자료`;
+    default: return `${f} 지급신청서`;
+  }
+}
 
 function PrintContent() {
   const { id } = useParams() as { id: string };
@@ -75,7 +109,7 @@ function PrintContent() {
     fetch(`/api/applications/${id}`).then((r) => r.json()).then((d: Application) => {
       setApp(d);
       // 인쇄 시 기본 저장 파일명 지정
-      const label = DOC_TITLE[doc] || "혁신인재지원금";
+      const label = docLabelOf(d, doc);
       const vars = {
         접수번호: d.receiptNumber, 이름: d.name, 학번: d.studentId,
         유형: APPLICATION_TYPE_LABELS[d.applicationType], 날짜: d.applicationDate,
@@ -89,6 +123,21 @@ function PrintContent() {
   }, [id, doc]);
 
   if (!app) return <div className="p-10 text-center text-gray-400">불러오는 중...</div>;
+
+  // 모든 PDF 문서에 공통으로 들어가는 신청자(학생) 정보 블록
+  const studentInfoBlock = (
+    <>
+      <div className="sec">신청자 정보</div>
+      <table className="form"><tbody>
+        <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
+        <tr><th>대학</th><td>{app.university}</td><th>학과/전공</th><td>{app.department}</td></tr>
+        <tr><th>학위/학년</th><td>{app.grade}</td><th>학적상태</th><td>{app.academicStatus}{app.gradCompletion && app.grade === "대학원" ? ` (${app.gradCompletion}${app.completedYears ? `, ${app.completedYears}` : ""}${app.currentSemester ? `, ${app.currentSemester}` : ""})` : ""}</td></tr>
+        <tr><th>연락처</th><td>{app.phone}</td><th>이메일</th><td>{app.email}</td></tr>
+        <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
+        <tr><th>은행/예금주</th><td>{app.bankInfo.bankName} / {app.bankInfo.accountHolder}</td><th>계좌번호</th><td>{app.bankInfo.accountNumber}</td></tr>
+      </tbody></table>
+    </>
+  );
 
   return (
     <div className="print-page">
@@ -109,6 +158,7 @@ function PrintContent() {
         .ev-page { page-break-after: always; min-height: 90vh; }
         .ev-page:last-child { page-break-after: auto; }
         .ev-head { border: 1px solid #333; background: #ccd5e8; font-weight: 700; padding: 8px 10px; border-radius: 6px 6px 0 0; }
+        .ev-head-sub { font-size: 11px; font-weight: 500; color: #334155; margin-top: 2px; }
         .ev-img { width: 100%; height: 75vh; object-fit: contain; border: 1px solid #333; border-top: none; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
         .ev-img img { max-width: 100%; max-height: 100%; }
         .sign-row { margin-top: 30px; text-align: right; font-size: 13px; }
@@ -121,7 +171,7 @@ function PrintContent() {
         <button onClick={() => window.print()}>📄 PDF로 저장 / 인쇄</button>
         <button onClick={() => window.close()} style={{ background: "#888" }}>닫기</button>
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
-          저장 파일명: <b>{app.receiptNumber} {DOC_TITLE[doc]}_({app.name}_{app.studentId})</b><br />
+          저장 파일명: <b>{app.receiptNumber} {docLabelOf(app, doc)}_({app.name}_{app.studentId})</b><br />
           인쇄 대화상자에서 &quot;PDF로 저장&quot;을 선택하면 위 파일명으로 저장됩니다.
         </p>
       </div>
@@ -129,7 +179,7 @@ function PrintContent() {
       {/* === 신청서 === */}
       {doc === "form" && (
         <>
-          <div className="doc-title">혁신인재지원금 지급신청서</div>
+          <div className="doc-title">{docLabelOf(app, "form")}</div>
           <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
 
           <div className="sec">1. 기본 정보</div>
@@ -164,7 +214,7 @@ function PrintContent() {
           </tbody></table>
 
           <p style={{ marginTop: 24, fontSize: 12, lineHeight: 1.7 }}>
-            위와 같이 혁신인재지원금을 신청하며, 제출한 내용과 증빙서류가 사실과 다름없음을 확인합니다.<br />
+            위와 같이 {fundLabelOf(app)}을 신청하며, 제출한 내용과 증빙서류가 사실과 다름없음을 확인합니다.<br />
             허위 신청 또는 부적격 사유 확인 시 지급이 취소되거나 환수될 수 있음에 동의합니다.
           </p>
           <div className="sign-row">
@@ -174,38 +224,47 @@ function PrintContent() {
         </>
       )}
 
-      {/* === 증빙서류 (서류별 1페이지) === */}
+      {/* === 증빙서류 (표지 + 서류별 1페이지) === */}
       {doc === "evidence" && (
         <>
-          <div className="doc-title">양식1. 공통 증빙서류</div>
-          <div className="doc-sub">접수번호 {app.receiptNumber} · {app.name} ({app.studentId})</div>
-          {app.files.length === 0 ? (
-            <p style={{ textAlign: "center", color: "#999", padding: 40 }}>첨부된 증빙서류가 없습니다.</p>
-          ) : (
-            app.files.map((f) => (
-              <div className="ev-page" key={f.id}>
-                <div className="ev-head">{DOCUMENT_TYPE_LABELS[f.type]} — {f.name}</div>
-                <div className="ev-img">
-                  {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
-                </div>
+          {/* 표지 */}
+          <div className={app.files.length > 0 ? "ev-page" : undefined}>
+            <div className="doc-title">{docLabelOf(app, "evidence")}</div>
+            <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
+            {studentInfoBlock}
+            <div className="sec">첨부 서류 목록</div>
+            <table className="form"><tbody>
+              {app.files.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: "#999" }}>첨부된 증빙서류가 없습니다.</td></tr>
+              ) : (
+                app.files.map((f, i) => (
+                  <tr key={f.id}><th>{i + 1}</th><td>{DOCUMENT_TYPE_LABELS[f.type]}</td><td colSpan={2}>{f.name}</td></tr>
+                ))
+              )}
+            </tbody></table>
+          </div>
+          {/* 서류별 페이지 */}
+          {app.files.map((f) => (
+            <div className="ev-page" key={f.id}>
+              <div className="ev-head">
+                {DOCUMENT_TYPE_LABELS[f.type]} — {f.name}
+                <div className="ev-head-sub">접수번호 {app.receiptNumber} · {app.name}({app.studentId}) · {app.department}</div>
               </div>
-            ))
-          )}
+              <div className="ev-img">
+                {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
+              </div>
+            </div>
+          ))}
         </>
       )}
 
       {/* === 심의요청서 === */}
       {doc === "review" && (
         <>
-          <div className="doc-title">혁신인재지원금 심의요청서</div>
+          <div className="doc-title">{docLabelOf(app, "review")}</div>
           <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
 
-          <div className="sec">학생 정보</div>
-          <table className="form"><tbody>
-            <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
-            <tr><th>학과/전공</th><td>{app.department}</td><th>학위/학년</th><td>{app.grade}</td></tr>
-            <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
-          </tbody></table>
+          {studentInfoBlock}
 
           <div className="sec">심의 대상 내용</div>
           <table className="form"><tbody>
@@ -228,20 +287,10 @@ function PrintContent() {
       {/* === 지출자료 === */}
       {doc === "payment" && (
         <>
-          <div className="doc-title">혁신인재지원금 지출자료</div>
+          <div className="doc-title">{docLabelOf(app, "payment")}</div>
           <div className="doc-sub">강원대학교 데이터보안·활용 혁신융합대학사업단 · 접수번호 {app.receiptNumber}</div>
 
-          <div className="sec">지급 대상자</div>
-          <table className="form"><tbody>
-            <tr><th>성명</th><td>{app.name}</td><th>학번</th><td>{app.studentId}</td></tr>
-            <tr><th>지원유형</th><td>{APPLICATION_TYPE_LABELS[app.applicationType]}</td><th>세부유형</th><td>{subTypeName(app)}</td></tr>
-          </tbody></table>
-
-          <div className="sec">계좌 정보 (본인 명의)</div>
-          <table className="form"><tbody>
-            <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
-            <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
-          </tbody></table>
+          {studentInfoBlock}
 
           <div className="sec">지급 내역</div>
           <table className="form"><tbody>

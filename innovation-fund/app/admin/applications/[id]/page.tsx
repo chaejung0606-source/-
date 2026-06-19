@@ -88,6 +88,14 @@ export default function ApplicationDetailPage() {
     return [["행사 장소", v]];
   };
 
+  const extraCostRows = (x?: import("@/types").ExtraCosts): [string, string][] => {
+    if (!x) return [];
+    const rows: [string, string][] = [];
+    if (x.registrationFee) rows.push(["등록비·참가비", `${x.registrationFee.toLocaleString()}원`]);
+    if (x.lodgingFee) rows.push(["숙박비", `${x.lodgingFee.toLocaleString()}원${x.lodgingNights ? ` (${x.lodgingNights}박)` : ""}`]);
+    return rows;
+  };
+
   const getDetail = (): [string, string][] => {
     if (app.programDetail) return [
       ["프로그램명", app.programDetail.programName],
@@ -97,6 +105,7 @@ export default function ApplicationDetailPage() {
       ["참여 내용", app.programDetail.participationContent],
       ...locationRows(app.programDetail.eventLocation),
       ...transportRows(app.programDetail.transport),
+      ...extraCostRows(app.programDetail.extraCosts),
     ];
     if (app.staffDetail) return [
       ["프로그램명", app.staffDetail.programName],
@@ -106,6 +115,7 @@ export default function ApplicationDetailPage() {
       ["학생 구분", app.staffDetail.studentType === "graduate" ? "대학원생" : "대학생"],
       ["담당 업무", app.staffDetail.taskDescription],
       ...transportRows(app.staffDetail.transport),
+      ...extraCostRows(app.staffDetail.extraCosts),
     ];
     if (app.gradeDetail) return [
       ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[app.gradeDetail.subType]],
@@ -142,14 +152,34 @@ export default function ApplicationDetailPage() {
       ["근로 내용", app.laborDetail.workDetail],
       ["근무 기록", (app.laborDetail.workLog || []).map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ") || "-"],
     ];
-    if (app.activityDetail) return [
-      ["활동명", app.activityDetail.activityName],
-      ["활동 유형", app.activityDetail.activityType],
-      ["활동 기간", app.activityDetail.activityPeriod],
-      ["활동 내용", app.activityDetail.activityContent],
-      ...locationRows(app.activityDetail.eventLocation),
-      ...transportRows(app.activityDetail.transport),
-    ];
+    if (app.activityDetail) {
+      const a = app.activityDetail;
+      if (a.activityKind === "paper" && a.paper) {
+        const p = a.paper;
+        return [
+          ["신청 구분", "논문게재료"],
+          ["논문명", p.paperTitle],
+          ["학술지명", p.journalName],
+          ["ISSN", p.issn],
+          ["발행권(호)", p.volumeIssue],
+          ["발행일", p.publishDate],
+          ["발행기관", p.publisher],
+          ["신청금액(게재료)", `${(p.requestFee || 0).toLocaleString()}원`],
+          ["관련 분야", a.activityType],
+          ["사업단 연관성", a.activityContent],
+        ];
+      }
+      return [
+        ["신청 구분", "학생활동지원비 (학회참석 등)"],
+        ["활동명", a.activityName],
+        ["활동 유형", a.activityType],
+        ["활동 기간", a.activityPeriod],
+        ["활동 내용", a.activityContent],
+        ...locationRows(a.eventLocation),
+        ...transportRows(a.transport),
+        ...extraCostRows(a.extraCosts),
+      ];
+    }
     return [];
   };
 
