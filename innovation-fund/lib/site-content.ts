@@ -1,15 +1,14 @@
-// 홈 '유형 분석' 카드 → 상세 모달 내용. 관리자가 편집 가능 (localStorage).
+// 홈 '유형 분석' 모달 내용 — Supabase `site_content` 테이블 기반(공개 읽기, 쓰기는 관리자 서버 라우트).
+import { supabase } from "./supabase";
 import type { ApplicationType } from "@/types";
 
 export interface ContentSection { heading: string; items: string[]; }
 export interface TypeContent {
   intro: string;
   sections: ContentSection[];
-  showPrograms?: boolean;  // 클릭한 날짜 기준 신청 가능 프로그램 목록 표시 여부
+  showPrograms?: boolean;
 }
 export type SiteContent = Partial<Record<ApplicationType, TypeContent>>;
-
-const KEY = "siteContentV1";
 
 export const DEFAULT_CONTENT: Record<ApplicationType, TypeContent> = {
   program: {
@@ -72,17 +71,19 @@ export const DEFAULT_CONTENT: Record<ApplicationType, TypeContent> = {
   },
 };
 
-export function getSiteContent(): SiteContent {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; }
+// 전체 콘텐츠 (공개 읽기) — 저장된 것 위에 기본값 병합
+export async function fetchSiteContent(): Promise<Record<ApplicationType, TypeContent>> {
+  const merged: Record<string, TypeContent> = { ...DEFAULT_CONTENT };
+  const { data, error } = await supabase.from("site_content").select("*");
+  if (!error && data) {
+    for (const row of data as any[]) {
+      if (row?.type && row?.content) merged[row.type] = row.content as TypeContent;
+    }
+  }
+  return merged as Record<ApplicationType, TypeContent>;
 }
 
-export function getTypeContent(type: ApplicationType): TypeContent {
-  const stored = getSiteContent()[type];
-  return stored || DEFAULT_CONTENT[type];
-}
-
-export function saveSiteContent(content: SiteContent): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(content));
+export async function fetchTypeContent(type: ApplicationType): Promise<TypeContent> {
+  const { data } = await supabase.from("site_content").select("content").eq("type", type).maybeSingle();
+  return (data?.content as TypeContent) || DEFAULT_CONTENT[type];
 }

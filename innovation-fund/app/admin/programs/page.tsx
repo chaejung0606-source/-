@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { getPrograms, savePrograms, newProgramId, isProgramActive, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, isProgramActive, type Program } from "@/lib/programs";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
 const today = () => new Date().toISOString().split("T")[0];
@@ -13,7 +13,7 @@ export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { setList(getPrograms()); }, []);
+  useEffect(() => { fetchPrograms().then((l) => setList(l.length ? l : SEED)); }, []);
 
   const update = (id: string, patch: Partial<Program>) => {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -24,7 +24,14 @@ export default function ProgramsAdminPage() {
     setList((l) => [...l, { id: newProgramId(), category, name: "", role: "", applyStart: today(), applyEnd: today(), note: "" }]);
     setSaved(false);
   };
-  const save = () => { savePrograms(list); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const save = async () => {
+    const res = await fetch("/api/admin/programs", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (j.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    else alert("저장 실패: " + (j.error || res.status));
+  };
 
   return (
     <AdminLayout>

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { X, CalendarDays, ChevronRight } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType } from "@/types";
-import { getTypeContent, type TypeContent } from "@/lib/site-content";
-import { getActivePrograms, type Program } from "@/lib/programs";
+import { fetchTypeContent, type TypeContent } from "@/lib/site-content";
+import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
 
 interface Props { type: ApplicationType | null; onClose: () => void; }
 
@@ -16,13 +16,12 @@ export default function FundTypeModal({ type, onClose }: Props) {
 
   useEffect(() => {
     if (!type) return;
-    setContent(getTypeContent(type));
+    fetchTypeContent(type).then(setContent);
   }, [type]);
 
   useEffect(() => {
     if (!type) return;
-    const c = getTypeContent(type);
-    if (c.showPrograms) setPrograms(getActivePrograms(categoryOfType(type), date));
+    fetchPrograms().then((all) => setPrograms(filterActive(all, categoryOfType(type), date)));
   }, [type, date]);
 
   if (!type || !content) return null;

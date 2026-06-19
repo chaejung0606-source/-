@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { EventLocation } from "@/types";
-import { getActivePrograms, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
 
 interface ActivityDetail {
@@ -16,7 +16,7 @@ const ACTIVITY_TYPES = ["동아리 활동", "학생 자치활동", "학술 행�
 
 export default function ActivityDetailSection({ values, onChange }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { setPrograms(getActivePrograms("activity")); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "activity"))); }, []);
 
   const set = (patch: Partial<ActivityDetail>) => onChange({ ...values, ...patch });
   const isEvent = values.activityType === "학술 행사" || values.activityType === "학회 참가";

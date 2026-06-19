@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { getTypeContent, saveSiteContent, type SiteContent, type TypeContent, type ContentSection } from "@/lib/site-content";
+import { fetchSiteContent, type TypeContent, type ContentSection } from "@/lib/site-content";
 
 const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "activity"];
 
@@ -13,9 +13,7 @@ export default function ContentAdminPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const init: Record<string, TypeContent> = {};
-    TYPES.forEach((t) => { init[t] = getTypeContent(t); });
-    setContent(init);
+    fetchSiteContent().then((c) => setContent(c as Record<string, TypeContent>));
   }, []);
 
   const setType = (t: ApplicationType, tc: TypeContent) => { setContent((c) => ({ ...c, [t]: tc })); setSaved(false); };
@@ -33,7 +31,14 @@ export default function ContentAdminPage() {
     setType(t, { ...tc, sections: tc.sections.filter((_, idx) => idx !== i) });
   };
 
-  const save = () => { saveSiteContent(content as SiteContent); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const save = async () => {
+    const res = await fetch("/api/admin/content", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (j.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    else alert("저장 실패: " + (j.error || res.status));
+  };
 
   return (
     <AdminLayout>

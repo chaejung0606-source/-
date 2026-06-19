@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { EventLocation } from "@/types";
-import { getActivePrograms, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
 
 interface ProgramDetail {
@@ -16,7 +16,7 @@ const PROGRAM_TYPES = ["교과", "비교과", "실험실습", "현장실습", "�
 
 export default function ProgramDetailSection({ values, onChange }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { setPrograms(getActivePrograms("innovation")); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation"))); }, []);
 
   const set = (patch: Partial<ProgramDetail>) => onChange({ ...values, ...patch });
   const isConference = values.programType === "학회 참석";
