@@ -90,6 +90,7 @@ export interface ProgramDetail {
   supervisorName: string;
   requestAmount: number;
   transport?: TransportInfo;     // 교통비
+  extraCosts?: ExtraCosts;       // 등록비·숙박비
   eventLocation?: EventLocation; // 행사(학회) 장소
   programId?: string;            // 선택한 사업단 프로그램 ID
 }
@@ -108,9 +109,31 @@ export interface LaborDetail {
   supervisorName: string;       // 확인자(교수/담당자)
 }
 
+// 학생활동지원비 신청 구분 (학회참석 등 / 논문게재료)
+export type ActivityKind = "conference" | "paper";
+
+// 논문게재료 신청 정보
+export interface PaperDetail {
+  paperTitle: string;   // 논문명
+  journalName: string;  // 학술지명
+  issn: string;         // ISSN 번호
+  volumeIssue: string;  // 발행권(호)
+  publishDate: string;  // 발행일
+  publisher: string;    // 발행기관
+  requestFee: number;   // 신청금액(게재료)
+}
+
+// 등록비·숙박비 등 부가 비용 (교통비와 별도)
+export interface ExtraCosts {
+  registrationFee?: number;  // 등록비·참가비
+  lodgingFee?: number;       // 숙박비
+  lodgingNights?: number;    // 숙박 일수 (선택)
+}
+
 // 학생활동지원비 상세
 export interface ActivityDetail {
   programId?: string;
+  activityKind?: ActivityKind; // 신청 구분 (미지정 시 conference 취급)
   activityName: string;        // 활동명
   activityType: string;        // 활동 유형
   activityPeriod: string;      // 활동 기간
@@ -118,6 +141,8 @@ export interface ActivityDetail {
   requestAmount: number;
   transport?: TransportInfo;
   eventLocation?: EventLocation;
+  extraCosts?: ExtraCosts;     // 등록비·숙박비
+  paper?: PaperDetail;         // 논문게재료 신청 시 사용
 }
 
 // 근무상황부 1회 근무 기록
@@ -139,6 +164,7 @@ export interface StaffDetail {
   taskDescription: string;
   workLog?: WorkLogEntry[];   // 구조화된 근무상황부 (일괄 등록 지원)
   transport?: TransportInfo;  // 교통비
+  extraCosts?: ExtraCosts;    // 등록비·숙박비
 }
 
 // 교통비 (행사·학회 참석 등 이동 발생 시)
