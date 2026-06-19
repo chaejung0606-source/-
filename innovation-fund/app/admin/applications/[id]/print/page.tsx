@@ -33,7 +33,15 @@ function typeDetailRows(app: Application): [string, string][] {
     if (d.subType === "microdegree") {
       rows.push(["학과", d.mdDepartment || "-"], ["MD 과정", d.mdProgramName || d.courseName], ["이수 교과목", (d.mdCourses || []).map((c) => `${c.name}(${c.grade})`).join(", ")], ["평점 평균", String(d.gpa)]);
     } else {
-      rows.push(["전공명", d.minorMajorName || "-"], ["이수 학점", String(d.minorMajorCredits ?? "")], ["평점 평균", String(d.gpa)], ["MD 1개 이상 이수", d.minorMdCompleted ? "예" : "아니오"], ["이수 MD명", d.minorMdName || "-"]);
+      const mc = d.minorCourses || [];
+      const total = mc.reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      const mdEx = mc.filter((c) => c.isMd).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      rows.push(["전공명", d.minorMajorName || "-"]);
+      if (mc.length) {
+        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점${c.isMd ? ", MD" : ""})`).join(", ")]);
+        rows.push(["총 이수 학점", `${total}학점`], ["MD 중복 제외", `-${mdEx}학점`]);
+      }
+      rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)], ["MD 1개 이상 이수", d.minorMdCompleted ? "예" : "아니오"], ["이수 MD명", d.minorMdName || "-"]);
     }
     return rows;
   }
