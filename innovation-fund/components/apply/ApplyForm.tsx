@@ -235,12 +235,21 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       const { data: inserted, error } = await supabase
         .from("applications")
         .insert(toRow(payload, user.id))
-        .select("receipt_number")
+        .select("id,receipt_number")
         .single();
       if (error) {
         alert("신청 저장 중 오류가 발생했습니다.\n" + error.message);
         return;
       }
+
+      // Google Drive 동기화 (비민감 정보만, 실패해도 신청은 정상 처리)
+      try {
+        await fetch("/api/drive-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: inserted.id }),
+        });
+      } catch { /* 동기화 실패는 무시 */ }
 
       router.push(
         `/apply/complete?receipt=${inserted.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}`
