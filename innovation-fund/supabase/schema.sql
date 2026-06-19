@@ -168,6 +168,17 @@ CREATE TABLE IF NOT EXISTS site_content (
 ALTER TABLE site_content ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "content public read" ON site_content FOR SELECT USING (TRUE);
 
+-- ---------------------------------------------------------------------
+-- 4-1) 사이트 설정(푸터·사이드바 등) 키-값 저장 — 서버(service_role)만 접근
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_config (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+-- 정책 없음 → anon 직접 접근 불가, 서버 라우트(service_role)로만 읽기/쓰기
+
 -- =====================================================================
 -- 5) Storage (증빙 서류 — 신분증/통장/재학증명서 등 민감자료)
 --    비공개 버킷 'documents'를 만든 뒤 아래 정책 적용.

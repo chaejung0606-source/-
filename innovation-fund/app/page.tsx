@@ -1,10 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
+import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
 import FundTypeModal from "@/components/home/FundTypeModal";
+
+const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText };
 
 const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
 
@@ -47,6 +50,8 @@ const ineligibleList = [
 
 export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
+  const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
+  useEffect(() => { fetchSiteConfig().then(setSite); }, []);
 
   return (
     <div className="min-h-screen">
@@ -182,16 +187,16 @@ export default function Home() {
       {/* 푸터 (엔드바) */}
       <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm">
-          <p className="font-bold holo-text mb-3 inline-block">강원대학교 데이터보안·활용 혁신융합대학사업단</p>
+          <p className="font-bold holo-text mb-3 inline-block">{site.footer.organization}</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-gray-500">
-            <a href="mailto:sducoss@kangwon.ac.kr" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
-              <Mail className="w-4 h-4" /> sducoss@kangwon.ac.kr
+            <a href={`mailto:${site.footer.email}`} className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+              <Mail className="w-4 h-4" /> {site.footer.email}
             </a>
-            <a href="tel:033-250-7879" className="flex items-center gap-1.5 hover:text-[#4f8cff]">
-              <Phone className="w-4 h-4" /> 033-250-7879
+            <a href={`tel:${site.footer.phone}`} className="flex items-center gap-1.5 hover:text-[#4f8cff]">
+              <Phone className="w-4 h-4" /> {site.footer.phone}
             </a>
             <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" /> 강원대학교 한빛관 1층 105호
+              <MapPin className="w-4 h-4" /> {site.footer.address}
             </span>
           </div>
           <div className="mt-3 flex items-center justify-center gap-3">
@@ -206,38 +211,26 @@ export default function Home() {
       <aside className="fixed z-50 flex gap-2.5
         bottom-3 left-1/2 -translate-x-1/2 flex-row
         sm:bottom-auto sm:left-auto sm:translate-x-0 sm:right-5 sm:top-1/2 sm:-translate-y-1/2 sm:flex-col sm:gap-3">
-        {[
-          { href: "https://sducoss.ac.kr/ko/index", label: "사업단\n홈페이지", icon: Globe, color: "#4f8cff" },
-          { href: "https://lms.sducoss.ac.kr/login.php", label: "LMS\n사이트", icon: BookOpen, color: "#2dd4bf" },
-          { href: "https://iruri.kangwon.ac.kr", label: "이루리\n로그인", icon: GraduationCap, color: "#a78bfa" },
-        ].map((item) => {
-          const Icon = item.icon;
+        {site.sidebarLinks.map((item) => {
+          const Icon = SIDEBAR_ICONS[item.iconName] || Globe;
+          if (item.isKakao) {
+            return (
+              <a key={item.id} href={item.href} target="_blank" rel="noopener noreferrer" title={item.label.replace("\n", " ")}
+                className="w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 rounded-3xl font-bold text-[#3c1e1e] hover:scale-105 transition-transform"
+                style={{ background: item.color || "#FEE500", boxShadow: "0 12px 28px rgba(0,0,0,0.18)" }}>
+                <Icon className="w-7 h-7" />
+                <span className="text-[10px] leading-tight text-center whitespace-pre-line">{item.label}</span>
+              </a>
+            );
+          }
           return (
-            <a
-              key={item.href}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={item.label.replace("\n", " ")}
-              className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform"
-            >
+            <a key={item.id} href={item.href} target="_blank" rel="noopener noreferrer" title={item.label.replace("\n", " ")}
+              className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform">
               <Icon className="w-7 h-7" style={{ color: item.color }} />
               <span className="text-[10px] font-semibold text-gray-700 leading-tight text-center whitespace-pre-line">{item.label}</span>
             </a>
           );
         })}
-        {/* 카카오톡 문의하기 */}
-        <a
-          href="http://pf.kakao.com/_YnXnn/chat"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="카카오톡으로 문의하기"
-          className="w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 rounded-3xl font-bold text-[#3c1e1e] hover:scale-105 transition-transform"
-          style={{ background: "#FEE500", boxShadow: "0 12px 28px rgba(0,0,0,0.18)" }}
-        >
-          <MessageCircle className="w-7 h-7" />
-          <span className="text-[10px] leading-tight text-center">카톡<br />문의</span>
-        </a>
       </aside>
 
       <FundTypeModal type={modalType} onClose={() => setModalType(null)} />
