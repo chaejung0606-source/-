@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
 import FundTypeModal from "@/components/home/FundTypeModal";
+import { supabase } from "@/lib/supabase";
+import { logout } from "@/lib/auth";
 
 const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText };
 
@@ -51,7 +53,14 @@ const ineligibleList = [
 export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
   const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const doLogout = async () => { await logout(); setLoggedIn(false); };
 
   return (
     <div className="min-h-screen">
@@ -69,12 +78,25 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
-              <User className="w-4 h-4" /> 로그인
-            </Link>
-            <Link href="/" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
-              <HomeIcon className="w-4 h-4" /> 홈
-            </Link>
+            {loggedIn ? (
+              <>
+                <Link href="/mypage" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                  <User className="w-4 h-4" /> 마이페이지
+                </Link>
+                <button onClick={doLogout} className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-red-500 transition-colors">
+                  <LogOut className="w-4 h-4" /> 로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
+                  <User className="w-4 h-4" /> 로그인
+                </Link>
+                <Link href="/" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
+                  <HomeIcon className="w-4 h-4" /> 홈
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

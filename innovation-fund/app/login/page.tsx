@@ -1,6 +1,6 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowLeft, User, Lock } from "lucide-react";
 import { login, register } from "@/lib/auth";
@@ -8,6 +8,8 @@ import { formatPhone } from "@/lib/validation";
 
 function LoginInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next") || "/mypage";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
 
@@ -27,7 +29,7 @@ function LoginInner() {
     setError(""); setLoading(true);
     const r = await login(loginId, loginPw);
     setLoading(false);
-    if (r.ok) router.push("/");
+    if (r.ok) router.push(next);
     else setError(r.error || "로그인 실패");
   };
 
@@ -39,7 +41,7 @@ function LoginInner() {
     setLoading(true);
     const r = await register(reg);
     setLoading(false);
-    if (r.ok) router.push("/");
+    if (r.ok) router.push(next);
     else setError(r.error || "회원가입 실패");
   };
 
