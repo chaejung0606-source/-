@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Shield, ArrowLeft, LogOut } from "lucide-react";
+import { Shield, ArrowLeft, LogOut, Home as HomeIcon } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { currentUser, logout } from "@/lib/auth";
@@ -66,9 +66,10 @@ function ApplyInner() {
           <Link href="/" className="text-indigo-500 hover:text-indigo-700"><ArrowLeft className="w-5 h-5" /></Link>
           <Shield className="w-6 h-6 text-indigo-600" />
           <span className="font-bold holo-text">지원금 신청</span>
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-gray-500 hidden sm:inline">{userName}님</span>
-            <button onClick={doLogout} className="text-gray-400 hover:text-gray-700 flex items-center gap-1"><LogOut className="w-4 h-4" /> 로그아웃</button>
+          <div className="ml-auto flex items-center gap-2 text-sm">
+            <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
+            <Link href="/" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
+            <button onClick={doLogout} className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-red-500"><LogOut className="w-4 h-4" /> 로그아웃</button>
           </div>
         </div>
       </header>

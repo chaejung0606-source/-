@@ -11,7 +11,7 @@ import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow } from "@/lib/app-mapper";
-import { validateBasicFormat } from "@/lib/validation";
+import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
 import StaffDetailSection from "./StaffDetailSection";
@@ -91,7 +91,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           name: b.name || u.name,
           studentId: b.studentId || u.studentId,
           department: b.department || u.department,
-          phone: b.phone || u.phone,
+          phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,
           university: u.university || b.university,
         }));
@@ -184,6 +184,10 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   const handleSubmit = async () => {
     if (!consent.privacy || !consent.truth || !consent.account) {
       alert("모든 동의 항목에 체크해주세요.");
+      return;
+    }
+    if (!signature) {
+      alert("신청인 서명 이미지를 업로드해주세요. (필수)");
       return;
     }
     // 마이크로디그리 이수조건 검증
@@ -391,7 +395,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting || !consent.privacy || !consent.truth || !consent.account}
+            disabled={submitting || !consent.privacy || !consent.truth || !consent.account || !signature}
             className="btn-primary flex-1"
           >
             {submitting ? "제출 중..." : "신청 제출"}

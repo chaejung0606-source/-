@@ -9,7 +9,7 @@ import { formatPhone } from "@/lib/validation";
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/mypage";
+  const next = params.get("next") || "/";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
 
