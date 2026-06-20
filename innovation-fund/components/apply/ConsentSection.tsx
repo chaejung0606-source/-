@@ -70,10 +70,10 @@ export default function ConsentSection({ values, onChange, signature, onSignatur
 
       {/* 학생 서명 */}
       <div className="card">
-        <h2 className="section-title">신청인 서명</h2>
-        <p className="text-sm text-gray-500 mb-3">서명 이미지를 업로드하면 지급신청서 서명란에 자동 삽입됩니다. (선택)</p>
+        <h2 className="section-title">신청인 서명 <span className="text-red-500">*</span></h2>
+        <p className="text-sm text-gray-500 mb-3">서명 이미지를 업로드해야 신청할 수 있습니다. 지급신청서 서명란에 자동 삽입됩니다. <span className="text-red-500 font-medium">(필수)</span></p>
         <div className="flex items-center gap-4">
-          <label className="btn-secondary cursor-pointer text-sm">
+          <label className={`cursor-pointer text-sm ${signature ? "btn-secondary" : "btn-primary"}`}>
             서명 이미지 업로드
             <input type="file" accept="image/*" className="hidden" onChange={handleSignature} />
           </label>

@@ -34,15 +34,14 @@ function typeDetailRows(app: Application): [string, string][] {
       rows.push(["학과", d.mdDepartment || "-"], ["MD 과정", d.mdProgramName || d.courseName], ["이수 교과목", (d.mdCourses || []).map((c) => `${c.name}(${c.grade})`).join(", ")], ["평점 평균", String(d.gpa)]);
     } else {
       const mc = d.minorCourses || [];
-      const ex = d.minorExcludedCourses || [];
       const total = mc.reduce((s, c) => s + (Number(c.credits) || 0), 0);
-      const mdEx = mc.filter((c) => ex.includes(c.name)).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      const mdEx = mc.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
       rows.push(["전공명", d.minorMajorName || "-"]);
       if (mc.length) {
-        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${ex.includes(c.name) ? ", 불인정" : ""})`).join(", ")]);
+        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${c.mdProgramId ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`).join(", ")]);
         rows.push(["총 이수 학점", `${total}학점`], ["MD 학점 불인정", `-${mdEx}학점`]);
       }
-      rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)], ["이수 MD 과정", d.minorMdName || "-"], ["MD 학점 불인정 과목", ex.length ? ex.join(", ") : "-"]);
+      rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)], ["이수 MD 과정", d.minorMdName || "-"]);
     }
     return rows;
   }

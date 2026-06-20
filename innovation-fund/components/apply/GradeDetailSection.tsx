@@ -7,7 +7,7 @@ import {
 } from "@/lib/md-courses";
 
 interface MDCourseGrade { name: string; grade: string; isBase: boolean; }
-interface MinorCourse { name: string; credits: number; grade: string; }
+interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; }
 interface GradeDetail {
   subType: "microdegree" | "minor" | "double";
   courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;
@@ -16,8 +16,7 @@ interface GradeDetail {
   minorMajorName: string; minorMajorCredits: number;
   minorCourses: MinorCourse[];
   minorIsMirae: boolean; minorMdCompleted: boolean;
-  minorMdProgramId: string; minorMdName: string;
-  minorExcludedCourses: string[];
+  minorMdName: string;
 }
 
 // 부전공/복수전공 전공 (3개)
@@ -226,50 +225,50 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const isMinor = values.subType === "minor";
         const reqCredits = isMinor ? 21 : 36;
         const courses = values.minorCourses || [];
-        const excluded = values.minorExcludedCourses || [];
         const courseOptions = coursesForMajor(values.minorMajorName);
         const mdPrograms = programsForMajor(values.minorMajorName);
-        const mdProgram = values.minorMdProgramId ? getProgramById(values.minorMdProgramId) : undefined;
-        const mdCourseList = mdProgram ? [...mdProgram.baseCourses, ...mdProgram.mainCourses] : [];
+        // 과목이 선택한 MD 과정에 포함되는지 검증
+        const inMd = (c: MinorCourse): boolean => {
+          if (!c.mdProgramId) return true;
+          const p = getProgramById(c.mdProgramId);
+          return !!p && [...p.baseCourses, ...p.mainCourses].includes(c.name);
+        };
 
         const totalCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0);
         // 학점 불인정(MD) 과목의 학점 제외
-        const mdExcluded = courses.filter((c) => excluded.includes(c.name)).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+        const mdExcluded = courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
         const netCredits = totalCredits - mdExcluded;
         const autoGpa = calcMinorGpa(courses);
+        const mdNames = Array.from(new Set(courses.filter((c) => c.mdProgramId).map((c) => getProgramById(c.mdProgramId!)?.name).filter(Boolean) as string[]));
+        const hasMd = mdNames.length > 0;
+        const mismatch = courses.some((c) => !inMd(c));
 
-        // 변경 시 평점평균·인정학점 자동 반영
-        const apply = (patch: Partial<GradeDetail>) => {
-          const next = { ...values, ...patch };
-          const cs = next.minorCourses || [];
-          const ex = next.minorExcludedCourses || [];
+        // 변경 시 평점평균·인정학점·MD 정보 자동 반영
+        const apply = (cs: MinorCourse[], patch: Partial<GradeDetail> = {}) => {
           const tot = cs.reduce((s, c) => s + (Number(c.credits) || 0), 0);
-          const exCr = cs.filter((c) => ex.includes(c.name)).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          const exCr = cs.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          const names = Array.from(new Set(cs.filter((c) => c.mdProgramId).map((c) => getProgramById(c.mdProgramId!)?.name).filter(Boolean) as string[]));
           onChange({
-            ...next,
+            ...values, ...patch, minorCourses: cs,
             gpa: calcMinorGpa(cs),
             minorMajorCredits: tot - exCr,
-            minorMdCompleted: !!next.minorMdProgramId,
+            minorMdCompleted: names.length > 0,
+            minorMdName: names.join(", "),
           });
         };
-        const addCourse = () => apply({ minorCourses: [...courses, { name: "", credits: 1, grade: "A+" }] });
+        const addCourse = () => apply([...courses, { name: "", credits: 1, grade: "A+", mdProgramId: "", excluded: false }]);
         const setCourse = (i: number, patch: Partial<MinorCourse>) =>
-          apply({ minorCourses: courses.map((c, idx) => (idx === i ? { ...c, ...patch } : c)) });
-        const removeCourse = (i: number) => apply({ minorCourses: courses.filter((_, idx) => idx !== i) });
-        const selectMd = (id: string) => {
-          const p = getProgramById(id);
-          apply({ minorMdProgramId: id, minorMdName: p?.name || "", minorExcludedCourses: [] });
-        };
-        const toggleExcluded = (name: string) =>
-          apply({ minorExcludedCourses: excluded.includes(name) ? excluded.filter((n) => n !== name) : [...excluded, name] });
+          apply(courses.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+        const removeCourse = (i: number) => apply(courses.filter((_, idx) => idx !== i));
         const selectMajor = (m: string) =>
-          apply({ minorMajorName: m, minorCourses: [], minorMdProgramId: "", minorMdName: "", minorExcludedCourses: [] });
+          onChange({ ...values, minorMajorName: m, minorCourses: [], gpa: 0, minorMajorCredits: 0, minorMdCompleted: false, minorMdName: "" });
 
         const conditions = [
           { ok: values.minorIsMirae, label: `미래융합가상학과 ${isMinor ? "부전공" : "복수전공"} 이수(예정)자` },
           { ok: autoGpa >= 3.0, label: "이수 교과목 평점 평균 3.0 이상 (4.5 만점)" },
-          { ok: !!values.minorMdProgramId, label: "마이크로디그리(MD) 1개 이상 이수" },
+          { ok: hasMd, label: "마이크로디그리(MD) 1개 이상 이수" },
           { ok: netCredits >= reqCredits, label: `MD 학점 불인정 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
+          { ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" },
         ];
         const allOk = conditions.every((c) => c.ok);
         return (
@@ -306,70 +305,59 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
             </div>
           </div>
 
-          {/* 교과목 이수내역 */}
+          {/* 교과목 이수내역 (과목별 MD 지정) */}
           <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}>
             <div className="flex items-center justify-between">
               <label className="label !mb-0">이수 교과목 내역 <span className="text-red-500">*</span></label>
               <button type="button" onClick={addCourse} disabled={!values.minorMajorName} className="btn-secondary text-sm !h-9 flex items-center gap-1 disabled:opacity-50">+ 과목 추가</button>
             </div>
+            <p className="text-[11px] text-amber-700">
+              ※ MD 이수과목이면 「MD 과정」을 선택하세요. MD는 4과목 중 3과목만 학점 인정되므로, 불인정 과목으로 체크하면 해당 학점이 인정 학점에서 제외됩니다. (선택한 MD 과정에 포함된 교과목인지 자동 확인)
+            </p>
             {!values.minorMajorName ? (
               <p className="text-sm text-gray-400">먼저 전공을 선택하면 해당 전공 교과목을 추가할 수 있습니다.</p>
             ) : courses.length === 0 ? (
               <p className="text-sm text-gray-400">「과목 추가」로 이수한 교과목을 입력하세요.</p>
             ) : (
-              <div className="space-y-2">
-                <div className="hidden sm:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 px-1">
-                  <div className="col-span-6">교과목명</div>
-                  <div className="col-span-2">학점</div>
-                  <div className="col-span-3">평점</div>
-                  <div className="col-span-1"></div>
-                </div>
-                {courses.map((c, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                    <select className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })}>
-                      <option value="">교과목 선택</option>
-                      {courseOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-                    </select>
-                    <select className="input-field !min-h-[40px] col-span-4 sm:col-span-2" value={c.credits || 1} onChange={(e) => setCourse(i, { credits: Number(e.target.value) })}>
-                      {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n}학점</option>)}
-                    </select>
-                    <select className="input-field !min-h-[40px] col-span-6 sm:col-span-3" value={c.grade || "A+"} onChange={(e) => setCourse(i, { grade: e.target.value })}>
-                      {MINOR_GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                    <button type="button" onClick={() => removeCourse(i)} className="btn-danger !h-9 !px-2 col-span-2 sm:col-span-1 flex items-center justify-center">✕</button>
+              <div className="space-y-2.5">
+                {courses.map((c, i) => {
+                  const ok = inMd(c);
+                  return (
+                  <div key={i} className="rounded-xl p-2.5 space-y-2" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.8)" }}>
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <select className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })}>
+                        <option value="">교과목 선택</option>
+                        {courseOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                      </select>
+                      <select className="input-field !min-h-[40px] col-span-5 sm:col-span-2" value={c.credits || 1} onChange={(e) => setCourse(i, { credits: Number(e.target.value) })}>
+                        {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n}학점</option>)}
+                      </select>
+                      <select className="input-field !min-h-[40px] col-span-5 sm:col-span-3" value={c.grade || "A+"} onChange={(e) => setCourse(i, { grade: e.target.value })}>
+                        {MINOR_GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <button type="button" onClick={() => removeCourse(i)} className="btn-danger !h-9 !px-2 col-span-2 sm:col-span-1 flex items-center justify-center">✕</button>
+                    </div>
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.mdProgramId || ""} onChange={(e) => setCourse(i, { mdProgramId: e.target.value, excluded: e.target.value ? c.excluded : false })}>
+                        <option value="">MD 이수과목 아님</option>
+                        {mdPrograms.map((p) => <option key={p.id} value={p.id}>MD: {p.level} · {p.name}</option>)}
+                      </select>
+                      {c.mdProgramId ? (
+                        <label className="col-span-4 sm:col-span-5 flex items-center gap-1.5 text-sm cursor-pointer rounded-lg px-2 py-1.5" style={{ background: c.excluded ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.5)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                          <input type="checkbox" checked={!!c.excluded} onChange={(e) => setCourse(i, { excluded: e.target.checked })} className="w-4 h-4 accent-red-500" />
+                          학점 불인정
+                        </label>
+                      ) : <div className="col-span-4 sm:col-span-5" />}
+                    </div>
+                    {c.mdProgramId && c.name && !ok && (
+                      <p className="text-xs text-red-600">⚠️ 선택한 MD 과정에 포함되지 않은 교과목입니다. MD 과정 또는 교과목을 다시 확인해주세요.</p>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <p className="text-[11px] text-gray-400">※ 평점평균은 입력한 평점·학점으로 자동 계산됩니다. (가/부 과목은 평점평균에서 제외)</p>
-          </div>
-
-          {/* MD 과정 이수 + 학점 불인정 과목 */}
-          <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
-            <label className="label !mb-0">이수한 마이크로디그리(MD) 과정 <span className="text-red-500">*</span></label>
-            <select className="input-field" value={values.minorMdProgramId} onChange={(e) => selectMd(e.target.value)} disabled={!values.minorMajorName}>
-              <option value="">{values.minorMajorName ? "MD 과정을 선택하세요" : "먼저 전공을 선택하세요"}</option>
-              {mdPrograms.map((p) => <option key={p.id} value={p.id}>{p.level} · {p.name}</option>)}
-            </select>
-            {mdProgram && (
-              <div>
-                <p className="text-xs text-amber-700 mb-2">
-                  ※ MD 과정은 4과목 중 3과목만 학점 인정됩니다. 아래 과정 교과목 중 <strong>학점 불인정 과목</strong>을 선택하면 해당 과목 학점이 {isMinor ? "부전공" : "복수전공"} 인정 학점에서 제외됩니다.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {mdCourseList.map((name) => {
-                    const on = excluded.includes(name);
-                    return (
-                      <button key={name} type="button" onClick={() => toggleExcluded(name)}
-                        className={`text-sm rounded-lg px-3 py-1.5 transition-all ${on ? "bg-red-500 text-white" : "bg-white/70 text-gray-600 hover:bg-white"}`}
-                        style={{ border: "1px solid rgba(239,68,68,0.25)" }}>
-                        {on ? "✕ 불인정 " : ""}{name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 학점 요약 */}
