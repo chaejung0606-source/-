@@ -104,17 +104,15 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     mdDepartment: string; mdProgramId: string; mdProgramName: string;
     mdCourses: { name: string; grade: string; isBase: boolean }[];
     minorMajorName: string; minorMajorCredits: number;
-    minorCourses: { name: string; credits: number; grade: string }[];
+    minorCourses: { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean }[];
     minorIsMirae: boolean; minorMdCompleted: boolean;
-    minorMdProgramId: string; minorMdName: string;
-    minorExcludedCourses: string[];
+    minorMdName: string;
   }>({
     subType: "microdegree",
     courseName: "", credits: 0, gpa: 0, microDegreeCompleted: false,
     mdDepartment: "", mdProgramId: "", mdProgramName: "", mdCourses: [],
     minorMajorName: "", minorMajorCredits: 0, minorCourses: [],
-    minorIsMirae: false, minorMdCompleted: false,
-    minorMdProgramId: "", minorMdName: "", minorExcludedCourses: [],
+    minorIsMirae: false, minorMdCompleted: false, minorMdName: "",
   });
   const [contestDetail, setContestDetail] = useState({
     contestName: "", contestTheme: "", relevanceDescription: "", organizer: "",
@@ -206,13 +204,13 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       const reasons: string[] = [];
       const reqCredits = gradeDetail.subType === "minor" ? 21 : 36;
       const courses = gradeDetail.minorCourses || [];
-      const excluded = gradeDetail.minorExcludedCourses || [];
       const netCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0)
-        - courses.filter((c) => excluded.includes(c.name)).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+        - courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      const hasMd = courses.some((c) => c.mdProgramId);
       if (!gradeDetail.minorMajorName) reasons.push("• 부전공/복수전공 전공명을 선택해야 합니다.");
       if (!gradeDetail.minorIsMirae) reasons.push("• 미래융합가상학과 이수(예정)자 확인이 필요합니다.");
       if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
-      if (!gradeDetail.minorMdProgramId) reasons.push("• 이수한 마이크로디그리(MD) 과정을 선택해야 합니다.");
+      if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과정을 1개 이상 지정해야 합니다.");
       if (courses.length === 0) reasons.push("• 이수 교과목 내역을 입력해야 합니다.");
       else if (netCredits < reqCredits) reasons.push(`• MD 학점 불인정 제외 인정 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
       if (reasons.length > 0) {
