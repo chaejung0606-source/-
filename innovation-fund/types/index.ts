@@ -85,7 +85,9 @@ export type DocumentType =
 export interface ProgramDetail {
   programName: string;
   programType: string;
-  participationPeriod: string;
+  startDate?: string;            // 참여 시작일 (yyyy-mm-dd)
+  endDate?: string;              // 참여 종료일 (yyyy-mm-dd)
+  participationPeriod: string;   // "{start} ~ {end}" 자동
   participationContent: string;
   supervisorName: string;
   requestAmount: number;
@@ -136,8 +138,12 @@ export interface TransportItem {
   id: string;
   date: string;        // 사용일자 (yyyy-mm-dd)
   mode: TransportMode; // 교통수단
-  route: string;       // 이동구간 (예: 춘천 → 서울)
+  route?: string;      // 이동구간 (구버전 호환)
+  departure?: string;  // 출발지
+  arrival?: string;    // 도착지
   amount: number;      // 금액
+  proofPath?: string;  // 행별 증빙 Supabase storage 경로
+  proofName?: string;  // 증빙 파일명(표시용)
 }
 
 // 숙박비 (개인사용 / 단체사용)
@@ -145,6 +151,8 @@ export interface LodgingDetail {
   usage: "personal" | "group";  // 개인사용 / 단체사용
   roomAmount: number;     // 개인사용: 숙소 결제금액 / 단체사용: 숙소 전체금액
   personalAmount: number; // 단체사용 시 개인 부담금액 (개인사용이면 미사용)
+  proofPath?: string;     // 숙박비 증빙 Supabase storage 경로
+  proofName?: string;     // 증빙 파일명(표시용)
 }
 
 // 비용 입력 통합 (등록비·교통비·숙박비)

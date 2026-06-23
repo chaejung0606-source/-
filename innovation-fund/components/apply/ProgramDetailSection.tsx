@@ -5,7 +5,8 @@ import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
 
 interface ProgramDetail {
-  programName: string; programType: string; participationPeriod: string;
+  programName: string; programType: string;
+  startDate: string; endDate: string; participationPeriod: string;
   participationContent: string; supervisorName: string; requestAmount: number;
   programId?: string; eventLocation?: EventLocation;
 }
@@ -14,12 +15,37 @@ interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; }
 
 const PROGRAM_TYPES = ["교과", "비교과", "실험실습", "현장실습", "인턴십", "기업체 연계 방문·프로젝트", "학회 참석", "기타"];
 
+// 숫자 8자리(20260616) 입력 시 yyyy-mm-dd 로 자동 변환
+function fmtDate(raw: string): string {
+  const d = raw.replace(/[^0-9]/g, "");
+  if (d.length === 8) return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+  return raw;
+}
+
+function SmartDate({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="flex gap-2">
+      <input className="input-field flex-1" inputMode="numeric" value={value}
+        placeholder={placeholder || "YYYY-MM-DD 또는 20260616"} onChange={(e) => onChange(fmtDate(e.target.value))} />
+      <input type="date" className="input-field !w-[46px] !px-1 shrink-0" title="달력에서 선택"
+        value={/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ""} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
 export default function ProgramDetailSection({ values, onChange }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
   useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation"))); }, []);
 
   const set = (patch: Partial<ProgramDetail>) => onChange({ ...values, ...patch });
   const isConference = values.programType === "학회 참석";
+
+  const setPeriod = (patch: { startDate?: string; endDate?: string }) => {
+    const start = patch.startDate ?? values.startDate ?? "";
+    const end = patch.endDate ?? values.endDate ?? "";
+    const period = start && end ? `${start} ~ ${end}` : (start || end || "");
+    set({ ...patch, participationPeriod: period });
+  };
 
   return (
     <div className="card space-y-4">
@@ -47,8 +73,12 @@ export default function ProgramDetailSection({ values, onChange }: Props) {
           </select>
         </div>
         <div>
-          <label className="label">참여 기간</label>
-          <input className="input-field" value={values.participationPeriod} onChange={(e) => set({ participationPeriod: e.target.value })} placeholder="예: 2026-07-01 ~ 2026-08-31" />
+          <label className="label">참여 시작일</label>
+          <SmartDate value={values.startDate || ""} onChange={(v) => setPeriod({ startDate: v })} />
+        </div>
+        <div>
+          <label className="label">참여 종료일</label>
+          <SmartDate value={values.endDate || ""} onChange={(v) => setPeriod({ endDate: v })} />
         </div>
         <div>
           <label className="label">지도교수 또는 담당자명</label>

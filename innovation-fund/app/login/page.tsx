@@ -18,7 +18,7 @@ function LoginInner() {
   const [loginPw, setLoginPw] = useState("");
 
   // 회원가입
-  const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", department: "", phone: "", email: "" });
+  const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" });
   const setR = (k: keyof typeof reg, v: string) => setReg((p) => ({ ...p, [k]: v }));
   const [agree, setAgree] = useState(false);
 
@@ -99,6 +99,20 @@ function LoginInner() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>
                 <div><label className="label">이메일</label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
+              </div>
+
+              {/* 계좌 정보 (지원금 입금 계좌) — 신청 시 자동입력 */}
+              <div>
+                <label className="label">계좌 정보 (지원금 입금 계좌)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <select className="input-field" value={reg.bankName} onChange={(e) => setR("bankName", e.target.value)}>
+                    <option value="">은행 선택</option>
+                    {["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"].map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <input className="input-field" value={reg.accountHolder} onChange={(e) => setR("accountHolder", e.target.value)} placeholder="예금주" />
+                </div>
+                <input className="input-field mt-3" value={reg.accountNumber} onChange={(e) => setR("accountNumber", e.target.value)} placeholder="계좌번호 (- 없이)" inputMode="numeric" />
+                <p className="text-xs text-gray-400 mt-1">신청 시 자동으로 입력됩니다. (권장)</p>
               </div>
 
               {/* 개인정보 수집·이용 동의 (수집 시점 고지) */}

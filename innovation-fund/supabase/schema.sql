@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS student_profiles (
   phone TEXT,
   email TEXT,                       -- 실제 연락용 이메일 (알림 등)
   university TEXT DEFAULT '강원대학교',
+  bank_name TEXT,
+  account_number TEXT,
+  account_holder TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

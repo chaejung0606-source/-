@@ -101,13 +101,15 @@ export default function ApplicationDetailPage() {
     const rows: [string, string][] = [];
     if (c.registrationFee) rows.push(["등록비", `${c.registrationFee.toLocaleString()}원${c.registrationProofName ? ` (증빙: ${c.registrationProofName})` : ""}`]);
     (c.transports || []).forEach((t, i) => {
-      rows.push([`교통비 ${i + 1}`, `${t.date || "-"} · ${TRANSPORT_MODE_LABELS[t.mode]} · ${t.route || "-"} · ${(t.amount || 0).toLocaleString()}원`]);
+      const seg = (t.departure || t.arrival) ? `${t.departure || "-"}→${t.arrival || "-"}` : (t.route || "-");
+      rows.push([`교통비 ${i + 1}`, `${t.date || "-"} · ${TRANSPORT_MODE_LABELS[t.mode]} · ${seg} · ${(t.amount || 0).toLocaleString()}원${t.proofName ? ` (증빙: ${t.proofName})` : ""}`]);
     });
     if (c.lodging) {
       const l = c.lodging;
-      rows.push(["숙박비", l.usage === "personal"
+      rows.push(["숙박비", (l.usage === "personal"
         ? `개인사용 · 결제 ${(l.roomAmount || 0).toLocaleString()}원`
-        : `단체사용 · 전체 ${(l.roomAmount || 0).toLocaleString()}원 · 개인부담 ${(l.personalAmount || 0).toLocaleString()}원`]);
+        : `단체사용 · 전체 ${(l.roomAmount || 0).toLocaleString()}원 · 개인부담 ${(l.personalAmount || 0).toLocaleString()}원`)
+        + (l.proofName ? ` (증빙: ${l.proofName})` : "")]);
     }
     rows.push(["지원비 합계", `${calcSupportTotal(c).toLocaleString()}원`]);
     return rows;
