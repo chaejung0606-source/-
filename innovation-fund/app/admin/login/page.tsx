@@ -64,9 +64,6 @@ export default function AdminLoginPage() {
             </button>
           </form>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-4">
-          초기 비밀번호: admin1234 (.env.local에서 변경)
-        </p>
       </div>
     </div>
   );
