@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
@@ -16,10 +16,16 @@ const NAV = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
+
+  const doLogout = async () => {
+    try { await fetch("/api/admin/logout", { method: "POST" }); } catch { /* ignore */ }
+    router.push("/admin/login");
+  };
 
   const SidebarContent = () => (
     <>
@@ -47,6 +53,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           );
         })}
+        <button onClick={() => { setDrawerOpen(false); doLogout(); }} className="sidebar-item w-full text-left text-red-500 hover:text-red-600">
+          <LogOut className="w-[18px] h-[18px]" /> 로그아웃
+        </button>
       </nav>
 
       {/* 외부 바로가기 */}

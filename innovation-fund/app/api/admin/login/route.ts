@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 8, // 8시간
+      maxAge: 60 * 60 * 24 * 365, // 1년 (로그아웃 전까지 유지)
       path: "/",
     });
     return res;
