@@ -8,6 +8,7 @@ const STAR = "polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 
 // 마우스 포인터를 따라다니는 반짝이 효과 (클릭 비차단, 기능 영향 없음)
 export default function CursorGlitter() {
   const last = useRef({ x: 0, y: 0, t: 0 });
+  const dragging = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -48,15 +49,24 @@ export default function CursorGlitter() {
     };
 
     const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return; // 드래그 중일 때만 반짝이 생성
       const now = performance.now();
       const dist = Math.hypot(e.clientX - last.current.x, e.clientY - last.current.y);
       if (now - last.current.t < 28 && dist < 16) return;
       last.current = { x: e.clientX, y: e.clientY, t: now };
       spawn(e.clientX, e.clientY);
     };
+    const onDown = () => { dragging.current = true; };
+    const onUp = () => { dragging.current = false; };
 
+    window.addEventListener("mousedown", onDown, { passive: true });
+    window.addEventListener("mouseup", onUp, { passive: true });
     window.addEventListener("mousemove", onMove, { passive: true });
-    return () => window.removeEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mousemove", onMove);
+    };
   }, []);
 
   return null;
