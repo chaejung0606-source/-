@@ -2,12 +2,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown } from "lucide-react";
+import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown, CalendarClock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
-import type { Application } from "@/types";
+import TimetableEditor from "@/components/mypage/TimetableEditor";
+import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
 
@@ -31,6 +32,12 @@ export default function MyPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileOk, setProfileOk] = useState(false);
 
+  // 수강 시간표 (근로장학금)
+  const [ttOpen, setTtOpen] = useState(false);
+  const [timetable, setTimetable] = useState<ClassTime[]>([]);
+  const [ttSaving, setTtSaving] = useState(false);
+  const [ttOk, setTtOk] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const { data: auth } = await supabase.auth.getUser();
@@ -52,6 +59,7 @@ export default function MyPage() {
       accountNumber: m.accountNumber || "",
       accountHolder: m.accountHolder || "",
     });
+    setTimetable(Array.isArray((m as any).timetable) ? (m as any).timetable : []);
     const { data } = await supabase
       .from("applications")
       .select("*")
@@ -88,6 +96,23 @@ export default function MyPage() {
       }
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const saveTimetable = async () => {
+    setTtSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/auth/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ timetableOnly: true, timetable }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (j.ok) { setTtOk(true); setTimeout(() => setTtOk(false), 3000); }
+      else alert("저장 실패: " + (j.error || "알 수 없는 오류"));
+    } finally {
+      setTtSaving(false);
     }
   };
 
@@ -222,6 +247,36 @@ export default function MyPage() {
                   className="btn-primary text-sm disabled:opacity-60"
                 >
                   {profileSaving ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 수강 시간표 (근로장학금) */}
+        <div className="card">
+          <button
+            type="button"
+            onClick={() => setTtOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-5 h-5 text-indigo-500" />
+              <span className="font-semibold text-gray-800">수강 시간표 (근로장학금)</span>
+              {ttOk && <span className="text-xs text-green-600 font-medium">✓ 저장되었습니다</span>}
+            </div>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${ttOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {ttOpen && (
+            <div className="mt-4 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                ※ 근로장학금 신청자는 수강 시간표를 입력해주세요. 지원금 신청 시 근무상황부에서 <strong>수업시간과 겹치는 시간은 근로로 등록할 수 없습니다.</strong>
+              </div>
+              <TimetableEditor value={timetable} onChange={setTimetable} />
+              <div className="flex justify-end">
+                <button type="button" onClick={saveTimetable} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
+                  {ttSaving ? "저장 중..." : "시간표 저장"}
                 </button>
               </div>
             </div>

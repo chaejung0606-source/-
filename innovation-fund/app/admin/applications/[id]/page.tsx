@@ -87,7 +87,7 @@ export default function ApplicationDetailPage() {
     if (!loc) return [];
     const v = loc.scope === "overseas"
       ? `국외 · ${loc.country || ""}${loc.cityName ? ` ${loc.cityName}` : ""}`
-      : `국내 · ${loc.province || ""}${loc.city ? ` ${loc.city}` : ""}`;
+      : `국내 · ${loc.province || ""}${loc.city ? ` ${loc.city}` : ""}${loc.cityName ? ` ${loc.cityName}` : ""}`;
     return [["행사 장소", v]];
   };
 

@@ -18,6 +18,16 @@ export async function POST(req: NextRequest) {
   const b = await req.json();
   const admin = supabaseAdmin();
 
+  // 시간표만 단독 저장하는 경우(개인정보는 그대로 유지)
+  if (b.timetableOnly) {
+    const timetable = Array.isArray(b.timetable) ? b.timetable : [];
+    const { error } = await admin.auth.admin.updateUserById(user.id, {
+      user_metadata: { ...user.user_metadata, timetable },
+    });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
+
   const meta = {
     name: String(b.name || "").trim(),
     department: String(b.department || "").trim(),
@@ -27,6 +37,7 @@ export async function POST(req: NextRequest) {
     bankName: String(b.bankName || "").trim(),
     accountNumber: String(b.accountNumber || "").trim(),
     accountHolder: String(b.accountHolder || "").trim(),
+    ...(Array.isArray(b.timetable) ? { timetable: b.timetable } : {}),
   };
 
   const { error } = await admin.auth.admin.updateUserById(user.id, {

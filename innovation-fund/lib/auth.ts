@@ -2,6 +2,7 @@
 // 로그인은 학번 + 비밀번호. 학번을 합성 이메일로 매핑해 Auth에 사용(사용자는 학번만 입력).
 // 비밀번호는 Supabase가 bcrypt로 해시, 세션은 JWT(쿠키/스토리지) — 평문 저장/사칭 위험 제거.
 import { supabase } from "./supabase";
+import type { ClassTime } from "@/types";
 
 const APPLICANT_EMAIL_DOMAIN = "coss-applicant.kangwon.ac.kr";
 const emailForStudentId = (sid: string) => `${sid.trim().toLowerCase()}@${APPLICANT_EMAIL_DOMAIN}`;
@@ -16,6 +17,7 @@ export interface StudentUser {
   bankName: string;
   accountNumber: string;
   accountHolder: string;
+  timetable: ClassTime[];
 }
 
 export interface RegisterInput {
@@ -64,6 +66,9 @@ export async function currentUser(): Promise<StudentUser | null> {
   const user = data.user;
   if (!user) return null;
 
+  const meta = (user.user_metadata || {}) as Record<string, any>;
+  const timetable: ClassTime[] = Array.isArray(meta.timetable) ? meta.timetable : [];
+
   const { data: p } = await supabase
     .from("student_profiles").select("*").eq("id", user.id).maybeSingle();
   if (p) {
@@ -71,13 +76,15 @@ export async function currentUser(): Promise<StudentUser | null> {
       studentId: p.student_id, name: p.name, department: p.department || "",
       phone: p.phone || "", email: p.email || "", university: p.university || "강원대학교",
       bankName: p.bank_name || "", accountNumber: p.account_number || "", accountHolder: p.account_holder || "",
+      timetable,
     };
   }
   // 프로필이 없으면 user_metadata로 대체
-  const m = (user.user_metadata || {}) as Record<string, string>;
+  const m = meta as Record<string, string>;
   return {
     studentId: m.studentId || "", name: m.name || "", department: m.department || "",
     phone: m.phone || "", email: m.realEmail || "", university: m.university || "강원대학교",
     bankName: m.bankName || "", accountNumber: m.accountNumber || "", accountHolder: m.accountHolder || "",
+    timetable,
   };
 }

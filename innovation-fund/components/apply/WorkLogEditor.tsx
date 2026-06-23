@@ -1,16 +1,32 @@
 "use client";
 import { useState } from "react";
 import { Plus, Trash2, CalendarPlus, CalendarClock, X } from "lucide-react";
-import type { WorkLogEntry } from "@/types";
+import type { WorkLogEntry, ClassTime } from "@/types";
 
 interface Props {
   entries: WorkLogEntry[];
   onChange: (entries: WorkLogEntry[]) => void;
   withDetail?: boolean;   // 근로 상세내역 입력 여부 (근로장학금)
   hint?: string;          // 안내 문구
+  classTimes?: ClassTime[]; // 수강 시간표 (겹치는 시간엔 근로 불가)
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+const toMin = (t: string) => { const [h, m] = (t || "").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+
+// 해당 일자·시간이 수업시간과 겹치면 겹친 수업을 반환
+function classConflict(date: string, start: string, end: string, classTimes: ClassTime[]): ClassTime | null {
+  const d = new Date(date + "T00:00:00");
+  if (isNaN(d.getTime())) return null;
+  const day = d.getDay();
+  const s = toMin(start), e = toMin(end);
+  for (const c of classTimes) {
+    if (c.day !== day) continue;
+    if (s < toMin(c.end) && toMin(c.start) < e) return c;
+  }
+  return null;
+}
 
 export function diffHours(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -39,7 +55,7 @@ function sortEntries(list: WorkLogEntry[]): WorkLogEntry[] {
   return [...list].sort((a, b) => (a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date)));
 }
 
-export default function WorkLogEditor({ entries, onChange, withDetail, hint }: Props) {
+export default function WorkLogEditor({ entries, onChange, withDetail, hint, classTimes = [] }: Props) {
   // 개별 등록
   const [iDate, setIDate] = useState("");
   const [iStart, setIStart] = useState("09:00");
@@ -66,6 +82,8 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
     if (!iDate) { alert("날짜를 선택해주세요."); return; }
     if (iHours <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
     if (exists(iDate, iStart, iEnd)) { alert("이미 동일한 일시의 기록이 있습니다."); return; }
+    const conflict = classConflict(iDate, iStart, iEnd, classTimes);
+    if (conflict) { alert(`수강 시간(${WEEKDAYS[conflict.day]} ${conflict.start}~${conflict.end}${conflict.label ? ` ${conflict.label}` : ""})과 겹쳐 근로할 수 없습니다.`); return; }
     onChange(sortEntries([...entries, { date: iDate, startTime: iStart, endTime: iEnd, hours: iHours, detail: withDetail ? iDetail : undefined }]));
     setIDate(""); setIDetail("");
   };
@@ -81,11 +99,15 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint }: P
   const applyBatch = () => {
     if (pendingDates.length === 0) { alert("등록할 날짜를 한 개 이상 추가해주세요."); return; }
     if (bHours <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
+    const conflicts = pendingDates.filter((d) => classConflict(d, bStart, bEnd, classTimes));
+    if (conflicts.length) {
+      alert(`수강 시간과 겹쳐 등록할 수 없는 날짜가 있습니다:\n${conflicts.map((d) => `${d}(${weekday(d)})`).join(", ")}\n\n해당 날짜를 제외하고 등록합니다.`);
+    }
     const adds: WorkLogEntry[] = pendingDates
-      .filter((d) => !exists(d, bStart, bEnd))
+      .filter((d) => !exists(d, bStart, bEnd) && !classConflict(d, bStart, bEnd, classTimes))
       .map((d) => ({ date: d, startTime: bStart, endTime: bEnd, hours: bHours, detail: withDetail ? bDetail : undefined }));
     onChange(sortEntries([...entries, ...adds]));
-    setPendingDates([]);
+    setPendingDates(conflicts);
   };
 
   const removeEntry = (i: number) => onChange(entries.filter((_, idx) => idx !== i));

@@ -226,6 +226,14 @@ export interface WorkLogEntry {
   detail?: string;    // 근로 상세내역 (근로장학금 근무상황부)
 }
 
+// 수강 시간표 1칸 (근로장학금: 수업시간에는 근로 불가)
+export interface ClassTime {
+  day: number;    // 0=일 ~ 6=토
+  start: string;  // HH:mm
+  end: string;    // HH:mm
+  label?: string; // 과목명(선택)
+}
+
 export interface StaffDetail {
   programName: string;
   workPeriod: string;

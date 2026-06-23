@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application } from "@/types";
+import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
@@ -92,11 +92,15 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     applicationType === "activity" ? activityDetail.programId :
     undefined;
 
+  // 근로장학금: 마이페이지에서 입력한 수강 시간표 (수업시간엔 근로 불가)
+  const [classTimes, setClassTimes] = useState<ClassTime[]>([]);
+
   // 로그인한 신청자 정보 자동 채움
   useEffect(() => {
     (async () => {
       const u = await currentUser();
       if (u) {
+        setClassTimes(u.timetable || []);
         setBasicInfo((b) => ({
           ...b,
           name: b.name || u.name,
@@ -395,7 +399,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <CertificateDetailSection values={certDetail} onChange={setCertDetail} calculatedAmount={getCalculatedAmount()} />
       )}
       {step === 2 && applicationType === "labor" && (
-        <LaborDetailSection values={laborDetail} onChange={setLaborDetail} calculatedAmount={getCalculatedAmount()} preOnly={isPre} />
+        <LaborDetailSection values={laborDetail} onChange={setLaborDetail} calculatedAmount={getCalculatedAmount()} preOnly={isPre} classTimes={classTimes} />
       )}
       {step === 2 && applicationType === "activity" && (
         <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} preOnly={isPre} />
