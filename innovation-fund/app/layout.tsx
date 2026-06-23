@@ -23,7 +23,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className={handwriting.variable}>
-      <body>{children}</body>
+      <body>
+        {/* 영롱한 글리터 오버레이 (클릭 비차단, 콘텐츠 뒤) */}
+        <div className="glitter-overlay" aria-hidden="true" />
+        {children}
+      </body>
     </html>
   );
 }

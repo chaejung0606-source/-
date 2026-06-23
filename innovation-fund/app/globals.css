@@ -35,12 +35,54 @@
   body {
     color: var(--color-text);
     background:
-      radial-gradient(circle at 10% 10%, rgba(126, 231, 255, 0.40), transparent 30%),
-      radial-gradient(circle at 85% 15%, rgba(126, 242, 199, 0.34), transparent 32%),
-      radial-gradient(circle at 20% 90%, rgba(165, 180, 252, 0.30), transparent 30%),
-      linear-gradient(135deg, #d8e1ee 0%, #d5e6de 50%, #d7e2f0 100%);
+      radial-gradient(circle at 12% 12%, rgba(186, 230, 253, 0.50), transparent 30%),
+      radial-gradient(circle at 88% 10%, rgba(221, 214, 254, 0.50), transparent 32%),
+      radial-gradient(circle at 82% 82%, rgba(196, 253, 224, 0.45), transparent 32%),
+      radial-gradient(circle at 14% 86%, rgba(254, 226, 240, 0.50), transparent 30%),
+      radial-gradient(circle at 50% 50%, rgba(255, 247, 224, 0.35), transparent 42%),
+      linear-gradient(135deg, #fbfcff 0%, #f7fbff 50%, #fdf9ff 100%);
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  /* 영롱한 글리터 오버레이 — 빈 공간·모서리에서 반짝임 (동적) */
+  .glitter-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle, rgba(255, 255, 255, 0.95) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(186, 230, 253, 0.85) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(244, 214, 254, 0.85) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(196, 253, 224, 0.8) 1px, transparent 1.6px);
+    background-size: 130px 130px, 190px 190px, 250px 250px, 310px 310px;
+    background-position: 0 0, 40px 70px, 90px 25px, 150px 120px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 70% at center, transparent 28%, #000 88%);
+    mask-image: radial-gradient(ellipse 70% 70% at center, transparent 28%, #000 88%);
+    animation: glitter-twinkle 4.5s ease-in-out infinite;
+  }
+  .glitter-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255, 255, 255, 0.9) 1.4px, transparent 2px),
+      radial-gradient(circle, rgba(221, 214, 254, 0.8) 1.4px, transparent 2px);
+    background-size: 220px 220px, 300px 300px;
+    background-position: 110px 30px, 60px 160px;
+    animation: glitter-drift 7s ease-in-out infinite alternate;
+  }
+  @keyframes glitter-twinkle {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.95; }
+  }
+  @keyframes glitter-drift {
+    0% { opacity: 0.4; transform: translateY(0); }
+    100% { opacity: 0.85; transform: translateY(-10px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glitter-overlay, .glitter-overlay::after { animation: none; }
   }
 }
 
