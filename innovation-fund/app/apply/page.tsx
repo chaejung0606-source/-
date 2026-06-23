@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Shield, ArrowLeft, LogOut, Home as HomeIcon, FileText, ChevronRight, Plus } from "lucide-react";
+import { Shield, ArrowLeft, LogOut, Home as HomeIcon, FileText, ChevronRight, Plus, User } from "lucide-react";
 import type { ApplicationType, FundCategory, ApplicationPhase, Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE, categoryOfType } from "@/types";
 import { currentUser, logout } from "@/lib/auth";
@@ -135,6 +135,7 @@ function ApplyInner() {
           <span className="font-bold holo-text">{APPLICATION_PHASE_LABELS[mode]}</span>
           <div className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
+            <Link href="/mypage" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><User className="w-4 h-4" /> 마이페이지</Link>
             <Link href="/" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
             <button onClick={doLogout} className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-red-500"><LogOut className="w-4 h-4" /> 로그아웃</button>
           </div>

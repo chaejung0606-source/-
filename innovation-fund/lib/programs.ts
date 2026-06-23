@@ -29,7 +29,6 @@ const PROGRAM_TEMPLATES: { match: (name: string) => boolean; fields: ReportField
     match: (n) => n.toUpperCase().includes("TA") || n.includes("수업 운영"),
     fields: [
       { id: "ta-course", label: "교과목명", type: "text", required: true },
-      { id: "ta-professor", label: "담당교수", type: "text", required: true },
       { id: "ta-reason", label: "추천사유", type: "text", required: true },
       { id: "ta-pledge", label: "TA 서약서", type: "agreement", required: true, text: TA_PLEDGE },
       { id: "ta-sign", label: "추천인(교수) 서명", type: "signature", required: true },

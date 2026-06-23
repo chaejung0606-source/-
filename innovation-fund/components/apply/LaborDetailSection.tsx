@@ -26,6 +26,8 @@ export default function LaborDetailSection({ values, onChange, calculatedAmount,
 
   const selectedProgram = programs.find((x) => x.id === values.programId);
   const roleOptions = selectedProgram ? getProgramRoles(selectedProgram) : [];
+  // TA(수업 운영 지원) 프로그램은 신청정보 박스에서 담당교수(이름)를 입력
+  const isTA = !!selectedProgram && (selectedProgram.name.toUpperCase().includes("TA") || selectedProgram.name.includes("수업 운영"));
 
   const onLogChange = (log: WorkLogEntry[]) => {
     const dates = Array.from(new Set(log.map((e) => e.date)));
@@ -72,7 +74,12 @@ export default function LaborDetailSection({ values, onChange, calculatedAmount,
             <option value="graduate">대학원생 (시간당 20,000원)</option>
           </select>
         </div>
-        {!preOnly && (
+        {isTA ? (
+          <div>
+            <label className="label">담당교수 (이름) <span className="text-red-500">*</span></label>
+            <input className="input-field" value={values.supervisorName} onChange={(e) => set({ supervisorName: e.target.value })} placeholder="홍길동" />
+          </div>
+        ) : !preOnly && (
           <div>
             <label className="label">확인자 (지도교수·담당자)</label>
             <input className="input-field" value={values.supervisorName} onChange={(e) => set({ supervisorName: e.target.value })} placeholder="홍길동 교수" />

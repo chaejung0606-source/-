@@ -312,12 +312,15 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     if (applicationType === "labor") {
       if (!laborDetail.programId) e.push("• 신청 가능한 근로 프로그램을 선택해주세요.");
-      if (!laborDetail.supervisorName.trim()) e.push("• 확인자(지도교수·담당자)를 입력해주세요.");
-      if (laborDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
+      // 지원신청(pre)은 근무상황부·확인자 없이 신청 (근로는 활동 후 지원금 신청 단계에서 작성)
+      if (!isPre) {
+        if (!laborDetail.supervisorName.trim()) e.push("• 확인자(지도교수·담당자)를 입력해주세요.");
+        if (laborDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
+      }
     }
     if (applicationType === "activity") {
       if (!activityDetail.activityName.trim()) e.push("• 활동명을 입력해주세요.");
-      if (!(activityDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
+      if (!isPre && !(activityDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
     }
     if (applicationType === "certificate") {
       if (!certDetail.certName.trim()) e.push("• 자격증명을 입력해주세요.");

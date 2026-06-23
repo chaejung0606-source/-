@@ -49,7 +49,7 @@ export default function ProgramsAdminPage() {
   const renderFieldEditor = (p: Program, key: FieldKey, title: string, accent: string) => {
     const fields = fieldsOf(p, key);
     return (
-      <div className="rounded-2xl p-3" style={{ background: `${accent}0d`, border: `1px solid ${accent}33` }}>
+      <div className="mt-3 pt-3 border-t" style={{ borderColor: `${accent}33` }}>
         <div className="flex items-center justify-between mb-1">
           <label className="label mb-0" style={{ color: accent }}>{title}</label>
           <button onClick={() => addField(p, key)} className="text-xs hover:underline flex items-center gap-1" style={{ color: accent }}><Plus className="w-3.5 h-3.5" /> 항목 추가</button>
@@ -140,39 +140,8 @@ export default function ProgramsAdminPage() {
                       </div>
                     </div>
 
-                    {/* 신청 기간: 지원신청(활동 전) / 지원금 신청(활동 후) */}
-                    <div className="grid sm:grid-cols-2 gap-4 mt-3">
-                      <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                        <p className="text-sm font-semibold text-indigo-700 mb-2">지원신청 기간 (활동 전)</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="label">시작</label>
-                            <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
-                          </div>
-                          <div>
-                            <label className="label">마감</label>
-                            <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
-                      </div>
-                      <div className="rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)" }}>
-                        <p className="text-sm font-semibold text-emerald-700 mb-2">지원금 신청 기간 (활동 후)</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="label">시작</label>
-                            <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className="label">마감</label>
-                            <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 역할 (여러 개 입력 가능) */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
+                    {/* 역할 (여러 개 입력 가능) — 기간 입력 바로 위 */}
+                    <div className="mt-3">
                       <div className="flex items-center justify-between mb-2">
                         <label className="label mb-0">역할 (여러 개 입력 가능)</label>
                         <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
@@ -191,12 +160,37 @@ export default function ProgramsAdminPage() {
                       )}
                     </div>
 
-                    {/* 신청자 입력 항목 — 좌:지원신청 / 우:지원금 신청 */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <label className="label">신청자 입력 항목 (지원신청 / 지원금 신청 각각 설정)</label>
-                      <p className="text-xs text-gray-400 mb-2">지원신청·지원금 신청 시 신청자가 작성하는 내용을 단계별로 설정합니다.</p>
-                      <div className="grid md:grid-cols-2 gap-3">
+                    {/* 지원신청 / 지원금 신청 — 기간부터 입력 항목까지 좌우로 분리 */}
+                    <div className="grid md:grid-cols-2 gap-3 mt-4">
+                      {/* 왼쪽: 지원신청 (활동 전) */}
+                      <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                        <p className="text-sm font-bold text-indigo-700 mb-2">지원신청 (활동 전)</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="label">신청 시작</label>
+                            <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="label">신청 마감</label>
+                            <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
                         {renderFieldEditor(p, "preReportFields", "지원신청 입력 항목", "#6366f1")}
+                      </div>
+                      {/* 오른쪽: 지원금 신청 (활동 후) */}
+                      <div className="rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                        <p className="text-sm font-bold text-emerald-700 mb-2">지원금 신청 (활동 후)</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="label">신청 시작</label>
+                            <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="label">신청 마감</label>
+                            <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
+                          </div>
+                        </div>
                         {renderFieldEditor(p, "reportFields", "지원금 신청 입력 항목", "#10b981")}
                       </div>
                     </div>

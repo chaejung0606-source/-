@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2 } from "lucide-react";
+import { Save, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
 
@@ -34,6 +34,22 @@ export default function SiteSettingsPage() {
   };
   const removeFooterItem = (id: string) => {
     setConfig((c) => ({ ...c, footer: { ...c.footer, items: c.footer.items.filter((it) => it.id !== id) } })); setSaved(false);
+  };
+  const moveFooterItem = (id: string, dir: -1 | 1) => {
+    setConfig((c) => {
+      const arr = [...c.footer.items]; const i = arr.findIndex((x) => x.id === id); const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return c;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return { ...c, footer: { ...c.footer, items: arr } };
+    }); setSaved(false);
+  };
+  const moveLink = (id: string, dir: -1 | 1) => {
+    setConfig((c) => {
+      const arr = [...c.sidebarLinks]; const i = arr.findIndex((x) => x.id === id); const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return c;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return { ...c, sidebarLinks: arr };
+    }); setSaved(false);
   };
   const updateLink = (id: string, patch: Partial<SiteLink>) => {
     setConfig((c) => ({ ...c, sidebarLinks: c.sidebarLinks.map((l) => l.id === id ? { ...l, ...patch } : l) })); setSaved(false);
@@ -84,7 +100,11 @@ export default function SiteSettingsPage() {
               </div>
               <div className="sm:col-span-3"><label className="label">표시 텍스트</label><input className="input-field" value={it.label} onChange={(e) => updateFooterItem(it.id, { label: e.target.value })} placeholder="예: sducoss@kangwon.ac.kr" /></div>
               <div className="sm:col-span-3"><label className="label">값(이메일/전화/주소/URL)</label><input className="input-field" value={it.value} onChange={(e) => updateFooterItem(it.id, { value: e.target.value })} placeholder={it.type === "address" ? "지도 검색어" : "값"} /></div>
-              <div className="sm:col-span-1 flex justify-end"><button onClick={() => removeFooterItem(it.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div>
+              <div className="sm:col-span-1 flex justify-end items-center gap-1">
+                <button onClick={() => moveFooterItem(it.id, -1)} className="text-gray-300 hover:text-indigo-500" title="위로"><ChevronUp className="w-4 h-4" /></button>
+                <button onClick={() => moveFooterItem(it.id, 1)} className="text-gray-300 hover:text-indigo-500" title="아래로"><ChevronDown className="w-4 h-4" /></button>
+                <button onClick={() => removeFooterItem(it.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              </div>
             </div>
           ))}
           <button onClick={addFooterItem} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 연락처 항목 추가</button>
@@ -99,7 +119,11 @@ export default function SiteSettingsPage() {
               <div className="sm:col-span-4"><label className="label">링크(URL)</label><input className="input-field" value={l.href} onChange={(e) => updateLink(l.id, { href: e.target.value })} /></div>
               <div className="sm:col-span-2"><label className="label">아이콘</label><select className="input-field" value={l.iconName} onChange={(e) => updateLink(l.id, { iconName: e.target.value })}>{ICONS.map((i) => <option key={i}>{i}</option>)}</select></div>
               <div className="sm:col-span-2"><label className="label">색상</label><input type="color" className="input-field h-[52px] p-1" value={l.color} onChange={(e) => updateLink(l.id, { color: e.target.value })} /></div>
-              <div className="sm:col-span-1 flex justify-end"><button onClick={() => removeLink(l.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div>
+              <div className="sm:col-span-1 flex justify-end items-center gap-1">
+                <button onClick={() => moveLink(l.id, -1)} className="text-gray-300 hover:text-indigo-500" title="위로"><ChevronUp className="w-4 h-4" /></button>
+                <button onClick={() => moveLink(l.id, 1)} className="text-gray-300 hover:text-indigo-500" title="아래로"><ChevronDown className="w-4 h-4" /></button>
+                <button onClick={() => removeLink(l.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              </div>
               <label className="sm:col-span-12 flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={!!l.isKakao} onChange={(e) => updateLink(l.id, { isKakao: e.target.checked })} /> 카카오 스타일(노란 버튼)</label>
             </div>
           ))}
