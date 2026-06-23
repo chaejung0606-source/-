@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nanum_Pen_Script } from "next/font/google";
 import "./globals.css";
+import CursorGlitter from "@/components/common/CursorGlitter";
 
 const handwriting = Nanum_Pen_Script({
   weight: "400",
@@ -26,6 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {/* 영롱한 글리터 오버레이 (클릭 비차단, 콘텐츠 뒤) */}
         <div className="glitter-overlay" aria-hidden="true" />
+        {/* 마우스 포인터를 따라다니는 반짝이 */}
+        <CursorGlitter />
         {children}
       </body>
     </html>
