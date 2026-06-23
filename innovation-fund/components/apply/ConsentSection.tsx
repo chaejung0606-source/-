@@ -10,11 +10,18 @@ interface Props {
   signature: string;
   onSignatureChange: (s: string) => void;
   summary: { name: string; type: string; amount: number; calculatedAmount: number; };
+  isPre?: boolean;  // 지원신청: 계좌·금액 관련 항목 제외
 }
 
-export default function ConsentSection({ values, onChange, signature, onSignatureChange, summary }: Props) {
+export default function ConsentSection({ values, onChange, signature, onSignatureChange, summary, isPre = false }: Props) {
   const set = (k: keyof ConsentValues, v: boolean) => onChange({ ...values, [k]: v });
   const [sigMode, setSigMode] = useState<"draw" | "upload">("draw");
+  const consentItems = [
+    { key: "privacy" as const, label: "개인정보 수집·이용에 동의합니다." },
+    { key: "truth" as const, label: "제출한 자료가 사실과 다를 경우 지원 취소 및 환수 조치가 가능함을 확인했습니다." },
+    ...(isPre ? [] : [{ key: "account" as const, label: "본인 명의 계좌로만 지급 가능하며, 입력한 예금주와 제출하는 통장 사본의 예금주가 동일함을 확인했습니다." }]),
+  ];
+  const allAgreed = consentItems.every((i) => values[i.key]);
 
   const handleSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,9 +39,13 @@ export default function ConsentSection({ values, onChange, signature, onSignatur
         <div className="space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-gray-600">신청자</span><span className="font-medium">{summary.name || "-"}</span></div>
           <div className="flex justify-between"><span className="text-gray-600">신청 유형</span><span className="font-medium">{summary.type}</span></div>
-          <div className="flex justify-between"><span className="text-gray-600">자동 산정 금액</span><span className="font-medium text-primary-700">{summary.calculatedAmount.toLocaleString()}원</span></div>
-          {summary.amount !== summary.calculatedAmount && (
-            <div className="flex justify-between"><span className="text-gray-600">신청 금액</span><span className="font-medium">{summary.amount.toLocaleString()}원</span></div>
+          {!isPre && (
+            <>
+              <div className="flex justify-between"><span className="text-gray-600">자동 산정 금액</span><span className="font-medium text-primary-700">{summary.calculatedAmount.toLocaleString()}원</span></div>
+              {summary.amount !== summary.calculatedAmount && (
+                <div className="flex justify-between"><span className="text-gray-600">신청 금액</span><span className="font-medium">{summary.amount.toLocaleString()}원</span></div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -51,11 +62,7 @@ export default function ConsentSection({ values, onChange, signature, onSignatur
         </div>
 
         <div className="space-y-3">
-          {[
-            { key: "privacy" as const, label: "개인정보 수집·이용에 동의합니다." },
-            { key: "truth" as const, label: "제출한 자료가 사실과 다를 경우 지급 취소 및 환수 조치가 가능함을 확인했습니다." },
-            { key: "account" as const, label: "본인 명의 계좌로만 지급 가능하며, 입력한 예금주와 제출하는 통장 사본의 예금주가 동일함을 확인했습니다." },
-          ].map((item) => (
+          {consentItems.map((item) => (
             <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 transition-colors">
               <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${values[item.key] ? "bg-primary-600 border-primary-600" : "border-gray-300"}`}>
                 {values[item.key] && <CheckCircle className="w-3.5 h-3.5 text-white" />}
@@ -66,7 +73,7 @@ export default function ConsentSection({ values, onChange, signature, onSignatur
           ))}
         </div>
 
-        {(!values.privacy || !values.truth || !values.account) && (
+        {!allAgreed && (
           <p className="text-red-500 text-sm mt-3">모든 항목에 동의해야 신청을 제출할 수 있습니다.</p>
         )}
       </div>

@@ -12,6 +12,7 @@ interface BasicInfo {
 interface Props {
   values: BasicInfo;
   onChange: (v: BasicInfo) => void;
+  hideAccount?: boolean;  // 지원신청(활동 전): 계좌 정보 입력 생략
 }
 
 const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학교", "연세대학교(미래)", "상지대학교", "가톨릭관동대학교", "경동대학교"];
@@ -19,7 +20,7 @@ const GRADES = ["1", "2", "3", "4", "대학원"];
 const STATUSES = ["재학", "수료"];
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
 
-export default function BasicInfoSection({ values, onChange }: Props) {
+export default function BasicInfoSection({ values, onChange, hideAccount = false }: Props) {
   const set = (key: keyof BasicInfo, val: string) => onChange({ ...values, [key]: val });
 
   return (
@@ -112,7 +113,8 @@ export default function BasicInfoSection({ values, onChange }: Props) {
         </div>
       </div>
 
-      {/* 계좌 정보 */}
+      {/* 계좌 정보 (지원신청 시 생략) */}
+      {!hideAccount && (
       <div className="card">
         <h2 className="section-title">본인 명의 계좌 정보</h2>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-4">
@@ -141,6 +143,7 @@ export default function BasicInfoSection({ values, onChange }: Props) {
           </div>
         )}
       </div>
+      )}
 
       {/* 개인정보 수집·이용 동의 */}
       <div className="card">

@@ -29,6 +29,19 @@ export function categoryOfType(t: ApplicationType): FundCategory {
   return "innovation";
 }
 
+// 신청 단계: 지원신청(활동 전) / 지원금 신청(활동 후)
+export type ApplicationPhase = "pre" | "fund";
+export const APPLICATION_PHASE_LABELS: Record<ApplicationPhase, string> = {
+  pre: "지원신청",
+  fund: "지원금 신청",
+};
+// 지원신청(pre) 시 카테고리 → 기본 신청 유형 (참여 기반 유형으로 직접 매핑)
+export const PRE_CATEGORY_TYPE: Record<FundCategory, ApplicationType> = {
+  labor: "labor",
+  innovation: "program",
+  activity: "activity",
+};
+
 export type GradeSubType = "microdegree" | "minor" | "double";
 export type ContestScale = "A" | "B";
 export type ContestAward = "grand" | "silver" | "bronze" | "participation";
@@ -341,6 +354,9 @@ export interface Application {
 
   // 계좌 정보
   bankInfo: BankInfo;
+
+  // 신청 단계 (지원신청 / 지원금 신청)
+  applicationPhase?: ApplicationPhase;
 
   // 신청 유형
   applicationType: ApplicationType;

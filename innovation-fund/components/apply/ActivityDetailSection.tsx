@@ -12,7 +12,7 @@ interface ActivityDetail {
   paper: PaperDetail;
 }
 
-interface Props { values: ActivityDetail; onChange: (v: ActivityDetail) => void; }
+interface Props { values: ActivityDetail; onChange: (v: ActivityDetail) => void; preOnly?: boolean; }
 
 const EMPTY_PAPER: PaperDetail = {
   paperTitle: "", journalName: "", issn: "", volumeIssue: "", publishDate: "", publisher: "", requestFee: 0,
@@ -20,9 +20,9 @@ const EMPTY_PAPER: PaperDetail = {
 
 const ACTIVITY_TYPES = ["동아리 활동", "학생 자치활동", "학술 행사", "학회 참가", "봉사활동", "기타"];
 
-export default function ActivityDetailSection({ values, onChange }: Props) {
+export default function ActivityDetailSection({ values, onChange, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "activity"))); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "activity").filter((p) => !preOnly || p.preApply))); }, [preOnly]);
 
   const set = (patch: Partial<ActivityDetail>) => onChange({ ...values, ...patch });
   const isEvent = values.activityType === "학술 행사" || values.activityType === "학회 참가";

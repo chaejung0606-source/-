@@ -17,6 +17,7 @@ export interface Program {
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
   reportFields?: ReportField[]; // 신청자 보고서 입력 항목
+  preApply?: boolean;       // 지원신청(활동 전) 가능 여부
   applyStart: string;       // YYYY-MM-DD
   applyEnd: string;         // YYYY-MM-DD
   note: string;             // 비고
@@ -53,6 +54,7 @@ function rowToProgram(r: any): Program {
     role: r.role || undefined,
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
+    preApply: !!r.pre_apply,
     applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "",
   };
 }
@@ -63,6 +65,7 @@ export function programToRow(p: Program): Record<string, any> {
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
+    pre_apply: !!p.preApply,
     apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "",
   };
 }

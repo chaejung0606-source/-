@@ -70,9 +70,18 @@ export default function ProgramsAdminPage() {
                 const active = isProgramActive(p);
                 return (
                   <div key={p.id} className="card">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{active ? "신청 가능" : "신청 기간 아님"}</span>
-                      <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{active ? "신청 가능" : "신청 기간 아님"}</span>
+                        {p.preApply && <span className="badge bg-indigo-100 text-indigo-700">지원신청 가능</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                          <input type="checkbox" checked={!!p.preApply} onChange={(e) => update(p.id, { preApply: e.target.checked })} />
+                          지원신청(활동 전) 허용
+                        </label>
+                        <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      </div>
                     </div>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <div className="lg:col-span-3">
