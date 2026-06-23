@@ -127,19 +127,44 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-12 space-y-12">
-        {/* 본문 상단 신청 카드 (근로장학금 · 혁신인재지원금 · 학생활동지원비 순) */}
-        <section>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {CATEGORY_ORDER.map((c) => (
-              <div key={c} className="card flex flex-col">
-                <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
-                <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
-                <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
-                  신청하기 <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-            ))}
+        {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
+        <section className="space-y-6">
+          {/* 1행: 지원신청 (활동 전) */}
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+              <span className="text-xl">📝</span> 지원신청 <span className="text-sm font-normal text-gray-500">— 활동 시작 전 참여 신청</span>
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-3">
+              {CATEGORY_ORDER.map((c) => (
+                <div key={c} className="card flex flex-col">
+                  <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
+                  <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
+                  <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
+                  <Link href={`/apply?category=${c}&mode=pre`} className="btn-secondary w-full justify-center">
+                    지원신청하기 <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 2행: 지원금 신청 (활동 후) */}
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+              <span className="text-xl">💸</span> 지원금 신청 <span className="text-sm font-normal text-gray-500">— 활동 종료 후 지원금 신청</span>
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-3">
+              {CATEGORY_ORDER.map((c) => (
+                <div key={c} className="card flex flex-col">
+                  <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
+                  <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
+                  <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
+                  <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
+                    지원금 신청하기 <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

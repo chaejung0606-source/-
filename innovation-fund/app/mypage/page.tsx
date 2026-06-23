@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import type { Application } from "@/types";
-import { APPLICATION_TYPE_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
 
 export default function MyPage() {
@@ -111,6 +111,7 @@ export default function MyPage() {
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`badge ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
                         <span className="font-bold text-gray-800">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
                         <span className="text-xs text-gray-400">접수번호 {app.receiptNumber || "-"}</span>
                       </div>

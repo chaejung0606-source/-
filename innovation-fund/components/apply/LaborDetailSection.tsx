@@ -10,11 +10,11 @@ interface LaborDetail {
   workLog: WorkLogEntry[]; workDetail: string; supervisorName: string;
 }
 
-interface Props { values: LaborDetail; onChange: (v: LaborDetail) => void; calculatedAmount: number; }
+interface Props { values: LaborDetail; onChange: (v: LaborDetail) => void; calculatedAmount: number; preOnly?: boolean; }
 
-export default function LaborDetailSection({ values, onChange, calculatedAmount }: Props) {
+export default function LaborDetailSection({ values, onChange, calculatedAmount, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "labor"))); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "labor").filter((p) => !preOnly || p.preApply))); }, [preOnly]);
 
   const set = (patch: Partial<LaborDetail>) => onChange({ ...values, ...patch });
 

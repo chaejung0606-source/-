@@ -3,8 +3,8 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowLeft, LogOut, Home as HomeIcon } from "lucide-react";
-import type { ApplicationType, FundCategory } from "@/types";
-import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
+import type { ApplicationType, FundCategory, ApplicationPhase } from "@/types";
+import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE } from "@/types";
 import { currentUser, logout } from "@/lib/auth";
 import ApplyForm from "@/components/apply/ApplyForm";
 
@@ -35,6 +35,7 @@ function ApplyInner() {
   const params = useSearchParams();
   const [ready, setReady] = useState(false);
   const [userName, setUserName] = useState("");
+  const mode: ApplicationPhase = params.get("mode") === "pre" ? "pre" : "fund";
   const initCategory = (() => { const c = params.get("category"); return c && (c in CATEGORY_TYPES) ? (c as FundCategory) : null; })();
   const initType = (() => { const t = params.get("type"); return t && (t in APPLICATION_TYPE_LABELS) ? (t as ApplicationType) : null; })();
   const [category, setCategory] = useState<FundCategory | null>(initCategory);
@@ -50,10 +51,12 @@ function ApplyInner() {
     })();
   }, [router]);
 
-  // 단일 유형 카테고리는 바로 폼으로
+  // 단일 유형 카테고리는 바로 폼으로 / 지원신청(pre)은 카테고리별 참여 유형으로 직행
   useEffect(() => {
-    if (category && CATEGORY_TYPES[category].length === 1) setSelectedType(CATEGORY_TYPES[category][0]);
-  }, [category]);
+    if (!category) return;
+    if (mode === "pre") setSelectedType(PRE_CATEGORY_TYPE[category]);
+    else if (CATEGORY_TYPES[category].length === 1) setSelectedType(CATEGORY_TYPES[category][0]);
+  }, [category, mode]);
 
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-gray-400">확인 중...</div>;
 
@@ -65,7 +68,7 @@ function ApplyInner() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link href="/" className="text-indigo-500 hover:text-indigo-700"><ArrowLeft className="w-5 h-5" /></Link>
           <Shield className="w-6 h-6 text-indigo-600" />
-          <span className="font-bold holo-text">지원금 신청</span>
+          <span className="font-bold holo-text">{APPLICATION_PHASE_LABELS[mode]}</span>
           <div className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
             <Link href="/" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
@@ -78,17 +81,18 @@ function ApplyInner() {
         {selectedType ? (
           <ApplyForm
             applicationType={selectedType}
+            mode={mode}
             onBack={() => {
-              // 혁신인재지원금은 유형 선택으로, 그 외는 카테고리 선택으로
-              if (category && CATEGORY_TYPES[category].length > 1) setSelectedType(null);
+              // 지원신청(pre)·단일유형은 카테고리 선택으로, 혁신인재지원금(지원금)은 유형 선택으로
+              if (mode === "fund" && category && CATEGORY_TYPES[category].length > 1) setSelectedType(null);
               else { setSelectedType(null); setCategory(null); }
             }}
           />
         ) : !category ? (
           <>
             <div className="mb-8">
-              <h1 className="text-3xl font-extrabold holo-text mb-2">지원금 종류 선택</h1>
-              <p className="text-gray-600">신청할 지원금 종류를 선택해주세요.</p>
+              <h1 className="text-3xl font-extrabold holo-text mb-2">{APPLICATION_PHASE_LABELS[mode]} — 종류 선택</h1>
+              <p className="text-gray-600">{mode === "pre" ? "활동 시작 전 참여를 신청할 종류를 선택해주세요." : "신청할 지원금 종류를 선택해주세요."}</p>
             </div>
             <div className="grid sm:grid-cols-3 gap-4">
               {CATEGORY_ORDER.map((c) => (

@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Download, Search, FileText } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
 import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -159,7 +159,10 @@ export default function ApplicationsPage() {
                 <td className="font-medium whitespace-nowrap">{app.name}{app.accountMismatch && <span title="예금주 불일치 (본인명의 확인 필요)" className="ml-1 text-red-500">⚠️</span>}</td>
                 <td className="font-mono text-xs">{app.studentId}</td>
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
-                <td className="text-xs">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
+                <td className="text-xs whitespace-nowrap">
+                  <span className={`badge mr-1 ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
+                  {APPLICATION_TYPE_LABELS[app.applicationType]}
+                </td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>

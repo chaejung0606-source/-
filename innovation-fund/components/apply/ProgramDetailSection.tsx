@@ -11,7 +11,7 @@ interface ProgramDetail {
   programId: string; eventLocation?: EventLocation;
 }
 
-interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; }
+interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; preOnly?: boolean; }
 
 const PROGRAM_TYPES = ["교과", "비교과", "실험실습", "현장실습", "인턴십", "기업체 연계 방문·프로젝트", "학회 참석", "기타"];
 
@@ -33,9 +33,9 @@ function SmartDate({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-export default function ProgramDetailSection({ values, onChange }: Props) {
+export default function ProgramDetailSection({ values, onChange, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation"))); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation").filter((p) => !preOnly || p.preApply))); }, [preOnly]);
 
   const set = (patch: Partial<ProgramDetail>) => onChange({ ...values, ...patch });
   const isConference = values.programType === "학회 참석";

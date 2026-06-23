@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry } from "@/types";
-import { APPLICATION_TYPE_LABELS, calcSupportTotal } from "@/types";
+import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
@@ -27,11 +27,13 @@ import ConsentSection from "./ConsentSection";
 
 interface Props {
   applicationType: ApplicationType;
+  mode?: ApplicationPhase;
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, onBack }: Props) {
+export default function ApplyForm({ applicationType, mode = "fund", onBack }: Props) {
   const router = useRouter();
+  const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -144,8 +146,9 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   // 학생 서명 (base64)
   const [signature, setSignature] = useState<string>("");
 
-  // 계산 금액
+  // 계산 금액 (지원신청은 활동 전이므로 금액 없음)
   const getCalculatedAmount = (): number => {
+    if (isPre) return 0;
     if (applicationType === "staff") return calcStaffAmount(staffDetail.totalHours, staffDetail.studentType);
     if (applicationType === "labor") return calcStaffAmount(Math.min(laborDetail.totalHours, 40), laborDetail.studentType); // 월 40시간 이내
     if (applicationType === "grade") return calcGradeAmount(gradeDetail.subType);
@@ -156,6 +159,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   };
 
   const getRequestAmount = (): number => {
+    if (isPre) return 0;
     if (applicationType === "program") return calcSupportTotal(costDetail);
     if (applicationType === "activity") return activityDetail.requestAmount;
     return getCalculatedAmount();
@@ -191,7 +195,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!consent.privacy || !consent.truth || !consent.account) {
+    if (!consent.privacy || !consent.truth || (!isPre && !consent.account)) {
       alert("모든 동의 항목에 체크해주세요.");
       return;
     }
@@ -239,6 +243,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
+        applicationPhase: mode,
         applicationType,
         programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
         staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
@@ -252,7 +257,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         truthConsent: consent.truth,
         accountConsent: consent.account,
         signature,
-        accountMismatch: basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
+        accountMismatch: isPre ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
         requestAmount: getRequestAmount(),
         calculatedAmount: getCalculatedAmount(),
       };
@@ -283,7 +288,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       } catch { /* 동기화 실패는 무시 */ }
 
       router.push(
-        `/apply/complete?receipt=${inserted.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}`
+        `/apply/complete?receipt=${inserted.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}&phase=${mode}`
       );
     } catch (e) {
       alert("신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -300,8 +305,8 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <div className="text-sm text-primary-600 font-medium">{APPLICATION_TYPE_LABELS[applicationType]}</div>
-          <h1 className="text-xl font-bold text-gray-800">지원금 신청서 작성</h1>
+          <div className="text-sm text-primary-600 font-medium">{APPLICATION_PHASE_LABELS[mode]} · {APPLICATION_TYPE_LABELS[applicationType]}</div>
+          <h1 className="text-xl font-bold text-gray-800">{isPre ? "지원신청서 작성" : "지원금 신청서 작성"}</h1>
         </div>
       </div>
 
@@ -314,12 +319,12 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
 
       {/* 1단계: 기본 정보 */}
       {step === 1 && (
-        <BasicInfoSection values={basicInfo} onChange={setBasicInfo} />
+        <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
       )}
 
       {/* 2단계: 유형별 상세 */}
       {step === 2 && applicationType === "program" && (
-        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} />
+        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre} />
       )}
       {step === 2 && applicationType === "staff" && (
         <StaffDetailSection values={staffDetail} onChange={setStaffDetail} calculatedAmount={getCalculatedAmount()} />
@@ -334,12 +339,12 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         <CertificateDetailSection values={certDetail} onChange={setCertDetail} calculatedAmount={getCalculatedAmount()} />
       )}
       {step === 2 && applicationType === "labor" && (
-        <LaborDetailSection values={laborDetail} onChange={setLaborDetail} calculatedAmount={getCalculatedAmount()} />
+        <LaborDetailSection values={laborDetail} onChange={setLaborDetail} calculatedAmount={getCalculatedAmount()} preOnly={isPre} />
       )}
       {step === 2 && applicationType === "activity" && (
-        <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} />
+        <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} preOnly={isPre} />
       )}
-      {step === 2 && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
+      {step === 2 && !isPre && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
         <CostSection value={costDetail} onChange={setCostDetail} />
       )}
       {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity") && (
@@ -358,6 +363,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           onChange={setConsent}
           signature={signature}
           onSignatureChange={setSignature}
+          isPre={isPre}
           summary={{
             name: basicInfo.name,
             type: APPLICATION_TYPE_LABELS[applicationType],
@@ -378,13 +384,14 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           <button
             onClick={() => {
               if (step === 1) {
-                const errs = validateBasicFormat({
+                let errs = validateBasicFormat({
                   name: basicInfo.name, studentId: basicInfo.studentId, department: basicInfo.department,
                   phone: basicInfo.phone, email: basicInfo.email,
                   accountNumber: basicInfo.accountNumber, applicationDate: basicInfo.applicationDate,
                 });
-                if (!basicInfo.bankName.trim()) errs.push("• 은행명을 입력해주세요.");
-                if (!basicInfo.accountHolder.trim()) errs.push("• 예금주를 입력해주세요.");
+                if (isPre) errs = errs.filter((e) => !e.includes("계좌번호"));
+                if (!isPre && !basicInfo.bankName.trim()) errs.push("• 은행명을 입력해주세요.");
+                if (!isPre && !basicInfo.accountHolder.trim()) errs.push("• 예금주를 입력해주세요.");
                 if (basicInfo.privacyAgree !== "동의") errs.push("• 개인정보 수집·이용에 동의해야 합니다.");
                 if (errs.length) { alert("작성 예시와 동일한 형식으로 정확히 입력해주세요.\n\n" + errs.join("\n")); return; }
                 setConsent((c) => ({ ...c, privacy: true }));
@@ -402,7 +409,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting || !consent.privacy || !consent.truth || !consent.account || !signature}
+            disabled={submitting || !consent.privacy || !consent.truth || (!isPre && !consent.account) || !signature}
             className="btn-primary flex-1"
           >
             {submitting ? "제출 중..." : "신청 제출"}

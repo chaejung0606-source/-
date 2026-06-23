@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
 import {
   REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
 } from "@/config/status";
@@ -227,7 +227,10 @@ export default function ApplicationDetailPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <div className="text-sm text-gray-500">접수번호 {app.receiptNumber}</div>
+          <div className="text-sm text-gray-500 flex items-center gap-2">
+            접수번호 {app.receiptNumber}
+            <span className={`badge ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
+          </div>
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
