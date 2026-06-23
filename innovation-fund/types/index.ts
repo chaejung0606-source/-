@@ -401,6 +401,10 @@ export interface Application {
   approvedAmount?: number;
   requestAmount: number;
   calculatedAmount: number;
+
+  // 신청 취소
+  canceled?: boolean;
+  canceledAt?: string;
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

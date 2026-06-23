@@ -85,5 +85,7 @@ export function fromRow(r: any): Application {
     approvedAmount: r.approved_amount ?? undefined,
     requestAmount: r.request_amount ?? 0,
     calculatedAmount: r.calculated_amount ?? 0,
+    canceled: !!r.canceled,
+    canceledAt: r.canceled_at || undefined,
   };
 }

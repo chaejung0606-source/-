@@ -85,7 +85,7 @@ function ApplyInner() {
       const { data } = await supabase.from("applications").select("*")
         .eq("applicant_id", user.id).eq("application_phase", "pre")
         .order("created_at", { ascending: false });
-      const apps = (data || []).map(fromRow).filter((a) => categoryOfType(a.applicationType) === category);
+      const apps = (data || []).map(fromRow).filter((a) => categoryOfType(a.applicationType) === category && !a.canceled);
       setPreApps(apps);
       setPreChecked(true);
     })();

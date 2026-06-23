@@ -171,6 +171,9 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_start TEXT;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_end TEXT;
 -- applications: 신청 단계 컬럼(기존 테이블)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS application_phase TEXT DEFAULT 'fund';
+-- applications: 신청 취소
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled BOOLEAN DEFAULT FALSE;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여

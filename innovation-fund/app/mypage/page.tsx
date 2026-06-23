@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown, CalendarClock } from "lucide-react";
+import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown, CalendarClock, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
@@ -114,6 +114,20 @@ export default function MyPage() {
     } finally {
       setTtSaving(false);
     }
+  };
+
+  const cancelApp = async (app: Application) => {
+    if (app.canceled) return;
+    if (!confirm(`이 신청(${app.receiptNumber || "-"})을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`)) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/applications/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ id: app.id }),
+    });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (j.ok) load();
+    else alert("취소 실패: " + (j.error || "알 수 없는 오류"));
   };
 
   const setP = (key: keyof Profile, val: string) => setProfile((p) => ({ ...p, [key]: val }));
@@ -301,23 +315,30 @@ export default function MyPage() {
               const stepIdx = REVIEW_STATUS_ORDER.indexOf(app.reviewStatus);
               const totalSteps = REVIEW_STATUS_ORDER.length;
               return (
-                <div key={app.id} className="card">
+                <div key={app.id} className={`card ${app.canceled ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`badge ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
                         <span className="font-bold text-gray-800">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
                         <span className="text-xs text-gray-400">접수번호 {app.receiptNumber || "-"}</span>
+                        {app.canceled && <span className="badge bg-rose-100 text-rose-700">취소됨</span>}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">신청일 {fmtDate(app.createdAt)}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        신청일 {fmtDate(app.createdAt)}
+                        {app.canceled && app.canceledAt && ` · 취소일 ${fmtDate(app.canceledAt)}`}
+                      </div>
                     </div>
+                    {!app.canceled && (
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${rm?.badge || "bg-gray-100 text-gray-600"}`}>검토: {rm?.label || app.reviewStatus}</span>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${pm?.badge || "bg-gray-100 text-gray-600"}`}>지급: {pm?.label || app.paymentStatus}</span>
                     </div>
+                    )}
                   </div>
 
                   {/* 진행 단계 바 */}
+                  {!app.canceled && (
                   <div className="mt-4">
                     <div className="flex gap-1">
                       {REVIEW_STATUS_ORDER.map((s, i) => (
@@ -330,9 +351,10 @@ export default function MyPage() {
                     </div>
                     <div className="text-[11px] text-gray-400 mt-1">진행 {Math.max(0, stepIdx) + 1} / {totalSteps} 단계</div>
                   </div>
+                  )}
 
                   {/* 금액 (지원금 신청만) */}
-                  {app.applicationPhase !== "pre" && (
+                  {!app.canceled && app.applicationPhase !== "pre" && (
                   <div className="grid grid-cols-3 gap-2 mt-4">
                     <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(255,255,255,0.65)" }}>
                       <div className="text-[11px] text-gray-500">신청 금액</div>
@@ -350,7 +372,7 @@ export default function MyPage() {
                   )}
 
                   {/* 지원신청 → 지원금 신청 연계 */}
-                  {app.applicationPhase === "pre" && (
+                  {!app.canceled && app.applicationPhase === "pre" && (
                     <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
                       <span className="text-xs text-gray-600">활동을 마치셨다면 이 내역으로 지원금을 신청하세요. 중복 항목이 자동 입력됩니다.</span>
                       <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
@@ -362,6 +384,15 @@ export default function MyPage() {
                   {app.adminMemo && (
                     <div className="mt-3 text-xs text-gray-600 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.06)" }}>
                       <span className="font-semibold text-indigo-600">안내: </span>{app.adminMemo}
+                    </div>
+                  )}
+
+                  {/* 신청 취소 */}
+                  {!app.canceled && (
+                    <div className="mt-3 flex justify-end">
+                      <button onClick={() => cancelApp(app)} className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
+                        <XCircle className="w-3.5 h-3.5" /> 신청 취소
+                      </button>
                     </div>
                   )}
                 </div>
