@@ -2,10 +2,12 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Shield, ArrowLeft, LogOut, Home as HomeIcon } from "lucide-react";
-import type { ApplicationType, FundCategory, ApplicationPhase } from "@/types";
-import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE } from "@/types";
+import { Shield, ArrowLeft, LogOut, Home as HomeIcon, FileText, ChevronRight, Plus } from "lucide-react";
+import type { ApplicationType, FundCategory, ApplicationPhase, Application } from "@/types";
+import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE, categoryOfType } from "@/types";
 import { currentUser, logout } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { fromRow } from "@/lib/app-mapper";
 import ApplyForm from "@/components/apply/ApplyForm";
 
 const typeDescriptions: Record<ApplicationType, string> = {
@@ -36,10 +38,17 @@ function ApplyInner() {
   const [ready, setReady] = useState(false);
   const [userName, setUserName] = useState("");
   const mode: ApplicationPhase = params.get("mode") === "pre" ? "pre" : "fund";
+  const fromId = params.get("from");
   const initCategory = (() => { const c = params.get("category"); return c && (c in CATEGORY_TYPES) ? (c as FundCategory) : null; })();
   const initType = (() => { const t = params.get("type"); return t && (t in APPLICATION_TYPE_LABELS) ? (t as ApplicationType) : null; })();
   const [category, setCategory] = useState<FundCategory | null>(initCategory);
   const [selectedType, setSelectedType] = useState<ApplicationType | null>(initType);
+
+  // 지원신청 → 지원금 신청 연계 (중복 항목 자동입력)
+  const [prefill, setPrefill] = useState<Application | null>(null);
+  const [preApps, setPreApps] = useState<Application[]>([]);
+  const [preChecked, setPreChecked] = useState(false);
+  const [skipPre, setSkipPre] = useState(false);
 
   // 로그인 게이트
   useEffect(() => {
@@ -51,12 +60,50 @@ function ApplyInner() {
     })();
   }, [router]);
 
+  // 마이페이지의 "지원금 신청" 버튼 등에서 특정 지원신청 내역으로 진입
+  useEffect(() => {
+    if (!fromId) return;
+    (async () => {
+      const { data } = await supabase.from("applications").select("*").eq("id", fromId).maybeSingle();
+      if (data) {
+        const app = fromRow(data);
+        setPrefill(app);
+        setCategory(categoryOfType(app.applicationType));
+        setSelectedType(app.applicationType);
+        setPreChecked(true);
+      }
+    })();
+  }, [fromId]);
+
+  // 지원금 신청 + 분야 선택 시, 해당 분야의 지원신청 내역 조회
+  useEffect(() => {
+    if (mode !== "fund" || !category || fromId) return;
+    setPreChecked(false);
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setPreChecked(true); return; }
+      const { data } = await supabase.from("applications").select("*")
+        .eq("applicant_id", user.id).eq("application_phase", "pre")
+        .order("created_at", { ascending: false });
+      const apps = (data || []).map(fromRow).filter((a) => categoryOfType(a.applicationType) === category);
+      setPreApps(apps);
+      setPreChecked(true);
+    })();
+  }, [mode, category, fromId]);
+
   // 단일 유형 카테고리는 바로 폼으로 / 지원신청(pre)은 카테고리별 참여 유형으로 직행
+  // (지원금 신청은 지원신청 내역 확인 후, 내역이 없거나 '새로 작성' 선택 시에만 진행)
   useEffect(() => {
     if (!category) return;
-    if (mode === "pre") setSelectedType(PRE_CATEGORY_TYPE[category]);
-    else if (CATEGORY_TYPES[category].length === 1) setSelectedType(CATEGORY_TYPES[category][0]);
-  }, [category, mode]);
+    if (mode === "pre") { setSelectedType(PRE_CATEGORY_TYPE[category]); return; }
+    if (!preChecked) return;
+    if (preApps.length > 0 && !skipPre) return;
+    if (CATEGORY_TYPES[category].length === 1) setSelectedType(CATEGORY_TYPES[category][0]);
+  }, [category, mode, preChecked, preApps.length, skipPre]);
+
+  const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "");
+  const choosePre = (app: Application) => { setPrefill(app); setSelectedType(app.applicationType); };
+  const showPrePicker = mode === "fund" && !!category && !selectedType && preChecked && preApps.length > 0 && !skipPre;
 
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-gray-400">확인 중...</div>;
 
@@ -82,12 +129,44 @@ function ApplyInner() {
           <ApplyForm
             applicationType={selectedType}
             mode={mode}
+            prefill={prefill}
             onBack={() => {
+              setPrefill(null);
               // 지원신청(pre)·단일유형은 카테고리 선택으로, 혁신인재지원금(지원금)은 유형 선택으로
-              if (mode === "fund" && category && CATEGORY_TYPES[category].length > 1) setSelectedType(null);
-              else { setSelectedType(null); setCategory(null); }
+              if (mode === "fund" && category && CATEGORY_TYPES[category].length > 1 && skipPre) setSelectedType(null);
+              else { setSelectedType(null); setCategory(null); setSkipPre(false); }
             }}
           />
+        ) : showPrePicker ? (
+          <>
+            <button onClick={() => { setCategory(null); setSkipPre(false); }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 분야 다시 선택</button>
+            <div className="mb-6">
+              <h1 className="text-2xl font-extrabold holo-text mb-1">{FUND_CATEGORY_LABELS[category!]} — 지원신청 내역에서 선택</h1>
+              <p className="text-gray-600">이전에 지원신청한 내역을 선택하면 중복되는 내용이 자동으로 입력됩니다. 새로 작성할 수도 있습니다.</p>
+            </div>
+            <div className="space-y-3">
+              {preApps.map((app) => {
+                const pname = app.programDetail?.programName || app.laborDetail?.programName || app.activityDetail?.activityName || "(이름 없음)";
+                return (
+                  <button key={app.id} onClick={() => choosePre(app)} className="card w-full text-left hover:-translate-y-0.5 transition-transform duration-300 cursor-pointer flex items-center gap-4">
+                    <div className="text-2xl shrink-0">📝</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="badge bg-indigo-100 text-indigo-700">지원신청</span>
+                        <span className="font-bold text-gray-800">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1 truncate">{pname}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">신청일 {fmtDate(app.createdAt)} · 접수번호 {app.receiptNumber || "-"}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 shrink-0" />
+                  </button>
+                );
+              })}
+              <button onClick={() => setSkipPre(true)} className="w-full btn-secondary justify-center flex items-center gap-1.5">
+                <Plus className="w-4 h-4" /> 지원신청 내역 없이 새로 작성
+              </button>
+            </div>
+          </>
         ) : !category ? (
           <>
             <div className="mb-8">
@@ -106,7 +185,7 @@ function ApplyInner() {
           </>
         ) : (
           <>
-            <button onClick={() => setCategory(null)} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 종류 다시 선택</button>
+            <button onClick={() => { setCategory(null); setSkipPre(false); }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 종류 다시 선택</button>
             <div className="mb-6">
               <h1 className="text-2xl font-extrabold holo-text mb-1">{FUND_CATEGORY_LABELS[category]} — 신청 유형 선택</h1>
               <p className="text-gray-600">해당하는 유형을 선택해주세요.</p>

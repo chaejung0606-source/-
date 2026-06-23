@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry } from "@/types";
+import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
@@ -29,10 +29,11 @@ import ConsentChecklist from "./ConsentChecklist";
 interface Props {
   applicationType: ApplicationType;
   mode?: ApplicationPhase;
+  prefill?: Application | null;  // 이전 지원신청 내역 → 중복 항목 자동입력
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, mode = "fund", onBack }: Props) {
+export default function ApplyForm({ applicationType, mode = "fund", prefill = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   const [step, setStep] = useState(1);
@@ -111,6 +112,57 @@ export default function ApplyForm({ applicationType, mode = "fund", onBack }: Pr
       }
     })();
   }, []);
+  // 이전 지원신청 내역에서 중복 항목 자동입력 (금액·계좌·비용 등 지원금 전용 항목 제외)
+  useEffect(() => {
+    if (!prefill) return;
+    setBasicInfo((b) => ({
+      ...b,
+      name: prefill.name || b.name,
+      studentId: prefill.studentId || b.studentId,
+      university: prefill.university || b.university,
+      department: prefill.department || b.department,
+      grade: prefill.grade || b.grade,
+      academicStatus: prefill.academicStatus || b.academicStatus,
+      gradCompletion: prefill.gradCompletion || b.gradCompletion,
+      completedYears: prefill.completedYears || b.completedYears,
+      currentSemester: prefill.currentSemester || b.currentSemester,
+      phone: prefill.phone || b.phone,
+      email: prefill.email || b.email,
+    }));
+    if (applicationType === "program" && prefill.programDetail) {
+      const d = prefill.programDetail;
+      setProgramDetail((p) => ({
+        ...p,
+        programId: d.programId || "", programName: d.programName || "", programType: d.programType || "",
+        startDate: d.startDate || "", endDate: d.endDate || "", participationPeriod: d.participationPeriod || "",
+        participationContent: d.participationContent || "", supervisorName: d.supervisorName || "",
+        eventLocation: d.eventLocation,
+      }));
+      if (d.reportEntries) setReportEntries(d.reportEntries);
+    }
+    if (applicationType === "labor" && prefill.laborDetail) {
+      const d = prefill.laborDetail;
+      setLaborDetail((p) => ({
+        ...p,
+        programId: d.programId || "", programName: d.programName || "", role: d.role || "",
+        workPeriod: d.workPeriod || "", studentType: d.studentType || "undergraduate",
+        workDetail: d.workDetail || "", supervisorName: d.supervisorName || "",
+      }));
+      if (d.reportEntries) setReportEntries(d.reportEntries);
+    }
+    if (applicationType === "activity" && prefill.activityDetail) {
+      const d = prefill.activityDetail;
+      setActivityDetail((p) => ({
+        ...p,
+        programId: d.programId || "", activityName: d.activityName || "", activityType: d.activityType || "",
+        activityPeriod: d.activityPeriod || "", activityContent: d.activityContent || "",
+        eventLocation: d.eventLocation, activityKind: d.activityKind || "conference",
+      }));
+      if (d.reportEntries) setReportEntries(d.reportEntries);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, applicationType]);
+
   const [gradeDetail, setGradeDetail] = useState<{
     subType: "microdegree" | "minor" | "double";
     courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;

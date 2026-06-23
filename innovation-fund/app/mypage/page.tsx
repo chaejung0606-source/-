@@ -276,7 +276,8 @@ export default function MyPage() {
                     <div className="text-[11px] text-gray-400 mt-1">진행 {Math.max(0, stepIdx) + 1} / {totalSteps} 단계</div>
                   </div>
 
-                  {/* 금액 */}
+                  {/* 금액 (지원금 신청만) */}
+                  {app.applicationPhase !== "pre" && (
                   <div className="grid grid-cols-3 gap-2 mt-4">
                     <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(255,255,255,0.65)" }}>
                       <div className="text-[11px] text-gray-500">신청 금액</div>
@@ -291,6 +292,17 @@ export default function MyPage() {
                       <div className="font-bold text-indigo-700 text-sm">{app.approvedAmount != null ? `${fmt(app.approvedAmount)}원` : "-"}</div>
                     </div>
                   </div>
+                  )}
+
+                  {/* 지원신청 → 지원금 신청 연계 */}
+                  {app.applicationPhase === "pre" && (
+                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <span className="text-xs text-gray-600">활동을 마치셨다면 이 내역으로 지원금을 신청하세요. 중복 항목이 자동 입력됩니다.</span>
+                      <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
+                        지원금 신청 <ChevronRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  )}
 
                   {app.adminMemo && (
                     <div className="mt-3 text-xs text-gray-600 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.06)" }}>

@@ -14,10 +14,10 @@ const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, Graduatio
 const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
 
 // 본문 상단 신청 카드
-const categoryCard: Record<FundCategory, { icon: string; desc: string }> = {
-  labor: { icon: "🛠️", desc: "사업단 프로그램에 근로학생으로 참여 — 근무상황부 기준 근로장학금 지급" },
-  innovation: { icon: "🎯", desc: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 · 자격증 취득" },
-  activity: { icon: "🚀", desc: "학술대회 발표·논문 게재 등 학생 학술활동 지원 (혁신인재지원금과 별개)" },
+const categoryCard: Record<FundCategory, { icon: string; desc: string; fields: string }> = {
+  labor: { icon: "🛠️", desc: "사업단 프로그램에 근로학생으로 참여 — 근무상황부 기준 근로장학금 지급", fields: "COSS 서포터즈 · 수업 운영 지원(TA) · 학사지원 멘토단 등 사업단 근로 프로그램" },
+  innovation: { icon: "🎯", desc: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 · 자격증 취득", fields: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 입상 · 자격증 취득" },
+  activity: { icon: "🚀", desc: "학술대회 발표·논문 게재 등 학생 학술활동 지원 (혁신인재지원금과 별개)", fields: "학생 자치·동아리 활동 · 학술 행사·학회 참가 · 논문 게재료" },
 };
 
 // 유형 분석 카드 (클릭 시 세부내용 모달)
@@ -139,7 +139,10 @@ export default function Home() {
                 <div key={c} className="card flex flex-col">
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
-                  <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
+                  <div className="mb-5 flex-1">
+                    <p className="text-sm text-gray-600">{categoryCard[c].desc}</p>
+                    <p className="text-sm text-gray-600 mt-2">신청 가능 분야: {categoryCard[c].fields}</p>
+                  </div>
                   <Link href={`/apply?category=${c}&mode=pre`} className="btn-secondary w-full justify-center">
                     지원신청하기 <ChevronRight className="w-4 h-4" />
                   </Link>
@@ -158,7 +161,10 @@ export default function Home() {
                 <div key={c} className="card flex flex-col">
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
-                  <p className="text-sm text-gray-600 mb-5 flex-1">{categoryCard[c].desc}</p>
+                  <div className="mb-5 flex-1">
+                    <p className="text-sm text-gray-600">{categoryCard[c].desc}</p>
+                    <p className="text-sm text-gray-600 mt-2">신청 가능 분야: {categoryCard[c].fields}</p>
+                  </div>
                   <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
                     지원금 신청하기 <ChevronRight className="w-4 h-4" />
                   </Link>
