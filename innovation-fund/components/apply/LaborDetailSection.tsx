@@ -14,7 +14,7 @@ interface Props { values: LaborDetail; onChange: (v: LaborDetail) => void; calcu
 
 export default function LaborDetailSection({ values, onChange, calculatedAmount, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "labor").filter((p) => !preOnly || p.preApply))); }, [preOnly]);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "labor", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
 
   const set = (patch: Partial<LaborDetail>) => onChange({ ...values, ...patch });
 

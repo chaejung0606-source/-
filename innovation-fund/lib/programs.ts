@@ -17,9 +17,11 @@ export interface Program {
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
   reportFields?: ReportField[]; // 신청자 보고서 입력 항목
-  preApply?: boolean;       // 지원신청(활동 전) 가능 여부
-  applyStart: string;       // YYYY-MM-DD
-  applyEnd: string;         // YYYY-MM-DD
+  preApply?: boolean;       // 지원신청(활동 전) 가능 여부 (구버전 호환)
+  preApplyStart?: string;   // 지원신청 시작 YYYY-MM-DD
+  preApplyEnd?: string;     // 지원신청 마감 YYYY-MM-DD
+  applyStart: string;       // 지원금 신청 시작 YYYY-MM-DD
+  applyEnd: string;         // 지원금 신청 마감 YYYY-MM-DD
   note: string;             // 비고
 }
 
@@ -55,6 +57,8 @@ function rowToProgram(r: any): Program {
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
     preApply: !!r.pre_apply,
+    preApplyStart: r.pre_apply_start || undefined,
+    preApplyEnd: r.pre_apply_end || undefined,
     applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "",
   };
 }
@@ -65,7 +69,9 @@ export function programToRow(p: Program): Record<string, any> {
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
-    pre_apply: !!p.preApply,
+    pre_apply: !!(p.preApplyStart && p.preApplyEnd) || !!p.preApply,
+    pre_apply_start: p.preApplyStart || null,
+    pre_apply_end: p.preApplyEnd || null,
     apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "",
   };
 }
@@ -77,15 +83,27 @@ export async function fetchPrograms(): Promise<Program[]> {
   return (data as any[]).map(rowToProgram);
 }
 
-// 지정 날짜에 신청 가능 여부 (기본: 오늘)
-export function isProgramActive(p: Program, date?: string): boolean {
-  const d = date || new Date().toISOString().split("T")[0];
-  return p.applyStart <= d && d <= p.applyEnd;
+export type ApplyPhase = "pre" | "fund";
+
+// 단계별 신청 기간. 지원신청(pre)은 지원신청 기간을 쓰되,
+// 미설정 시 지원금 신청 기간으로 폴백 → 기본적으로 지원금 신청과 동일한 목록이 노출됨.
+export function applyWindow(p: Program, phase: ApplyPhase = "fund"): { start: string; end: string } {
+  if (phase === "pre") {
+    return { start: p.preApplyStart || p.applyStart, end: p.preApplyEnd || p.applyEnd };
+  }
+  return { start: p.applyStart, end: p.applyEnd };
 }
 
-// 목록을 카테고리 + 날짜로 필터
-export function filterActive(list: Program[], category: FundCategory, date?: string): Program[] {
-  return list.filter((p) => p.category === category && isProgramActive(p, date));
+// 지정 날짜에 신청 가능 여부 (기본: 오늘)
+export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "fund"): boolean {
+  const d = date || new Date().toISOString().split("T")[0];
+  const { start, end } = applyWindow(p, phase);
+  return !!start && !!end && start <= d && d <= end;
+}
+
+// 목록을 카테고리 + 날짜 + 단계(pre/fund)로 필터
+export function filterActive(list: Program[], category: FundCategory, date?: string, phase: ApplyPhase = "fund"): Program[] {
+  return list.filter((p) => p.category === category && isProgramActive(p, date, phase));
 }
 
 export function newProgramId(): string {
