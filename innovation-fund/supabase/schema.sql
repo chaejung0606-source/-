@@ -166,6 +166,9 @@ CREATE TABLE IF NOT EXISTS programs (
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS report_fields JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply BOOLEAN DEFAULT FALSE;
+-- programs: 지원신청(활동 전) 기간
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_start TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_end TEXT;
 -- applications: 신청 단계 컬럼(기존 테이블)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS application_phase TEXT DEFAULT 'fund';
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;

@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, newFieldId, getProgramRoles, isProgramActive, type Program, type ReportField } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, newFieldId, isProgramActive, type Program, type ReportField } from "@/lib/programs";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
 const today = () => new Date().toISOString().split("T")[0];
@@ -25,11 +25,16 @@ export default function ProgramsAdminPage() {
     setSaved(false);
   };
 
-  // 역할 다중
+  // 역할 다중 (편집 중에는 빈 칸도 유지해야 하므로 raw 배열을 직접 사용)
+  const rawRoles = (p: Program): string[] => p.roles || [];
   const setRoles = (id: string, roles: string[]) => update(id, { roles });
-  const addRole = (p: Program) => setRoles(p.id, [...getProgramRoles(p), ""]);
-  const updateRole = (p: Program, i: number, val: string) => setRoles(p.id, getProgramRoles(p).map((r, idx) => (idx === i ? val : r)));
-  const removeRole = (p: Program, i: number) => setRoles(p.id, getProgramRoles(p).filter((_, idx) => idx !== i));
+  const addRole = (p: Program) => setRoles(p.id, [...rawRoles(p), ""]);
+  const updateRole = (p: Program, i: number, val: string) => setRoles(p.id, rawRoles(p).map((r, idx) => (idx === i ? val : r)));
+  const removeRole = (p: Program, i: number) => setRoles(p.id, rawRoles(p).filter((_, idx) => idx !== i));
+
+  // 지원신청 기간 — 처음 입력 시 지원금 신청기간에도 동일하게 채움
+  const updatePreStart = (p: Program, val: string) => update(p.id, p.preApplyStart ? { preApplyStart: val } : { preApplyStart: val, applyStart: val });
+  const updatePreEnd = (p: Program, val: string) => update(p.id, p.preApplyEnd ? { preApplyEnd: val } : { preApplyEnd: val, applyEnd: val });
 
   // 보고서 입력 항목 설정
   const setFields = (id: string, reportFields: ReportField[]) => update(id, { reportFields });
@@ -67,21 +72,16 @@ export default function ProgramsAdminPage() {
                 <p className="text-sm text-gray-400">등록된 프로그램이 없습니다.</p>
               )}
               {list.filter((p) => p.category === cat).map((p) => {
-                const active = isProgramActive(p);
+                const active = isProgramActive(p, undefined, "fund");
+                const preActive = isProgramActive(p, undefined, "pre");
                 return (
                   <div key={p.id} className="card">
                     <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>{active ? "신청 가능" : "신청 기간 아님"}</span>
-                        {p.preApply && <span className="badge bg-indigo-100 text-indigo-700">지원신청 가능</span>}
+                        <span className={`badge ${preActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>지원신청 {preActive ? "가능" : "기간 아님"}</span>
+                        <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>지원금 신청 {active ? "가능" : "기간 아님"}</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
-                          <input type="checkbox" checked={!!p.preApply} onChange={(e) => update(p.id, { preApply: e.target.checked })} />
-                          지원신청(활동 전) 허용
-                        </label>
-                        <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                      </div>
+                      <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <div className="lg:col-span-3">
@@ -89,16 +89,39 @@ export default function ProgramsAdminPage() {
                         <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
                       </div>
                       <div>
-                        <label className="label">신청 시작</label>
-                        <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label">신청 마감</label>
-                        <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
-                      </div>
-                      <div>
                         <label className="label">비고</label>
                         <input className="input-field" value={p.note} onChange={(e) => update(p.id, { note: e.target.value })} placeholder="예: 30명 내외" />
+                      </div>
+                    </div>
+
+                    {/* 신청 기간: 지원신청(활동 전) / 지원금 신청(활동 후) */}
+                    <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                      <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
+                        <p className="text-sm font-semibold text-indigo-700 mb-2">지원신청 기간 (활동 전)</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="label">시작</label>
+                            <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="label">마감</label>
+                            <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
+                      </div>
+                      <div className="rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)" }}>
+                        <p className="text-sm font-semibold text-emerald-700 mb-2">지원금 신청 기간 (활동 후)</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="label">시작</label>
+                            <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="label">마감</label>
+                            <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -108,11 +131,11 @@ export default function ProgramsAdminPage() {
                         <label className="label mb-0">역할 (여러 개 입력 가능)</label>
                         <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
                       </div>
-                      {getProgramRoles(p).length === 0 ? (
+                      {rawRoles(p).length === 0 ? (
                         <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
                       ) : (
                         <div className="space-y-2">
-                          {getProgramRoles(p).map((r, i) => (
+                          {rawRoles(p).map((r, i) => (
                             <div key={i} className="flex items-center gap-2">
                               <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
                               <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
