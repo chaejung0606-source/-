@@ -182,6 +182,23 @@ ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여
 
+-- 미래융합가상학과 재학생 명단 (엑셀 업로드, 특정 지원유형은 가상학과 학생만 신청 가능)
+CREATE TABLE IF NOT EXISTS virtual_students (
+  student_id TEXT PRIMARY KEY,
+  name TEXT,
+  vdept TEXT,          -- 가상학과
+  department TEXT,     -- 본소속학과
+  grade TEXT,
+  gpa NUMERIC,
+  credits INT,
+  phone TEXT,
+  email TEXT,
+  raw JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE virtual_students ENABLE ROW LEVEL SECURITY;
+-- 접근은 service_role(서버 라우트)만 → 정책 미부여
+
 -- ---------------------------------------------------------------------
 -- 4) 유형 세부내용(홈 모달) — 공개 읽기, 쓰기는 관리자만
 -- ---------------------------------------------------------------------

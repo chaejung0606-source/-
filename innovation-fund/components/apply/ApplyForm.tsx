@@ -131,6 +131,24 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       }
     })();
   }, []);
+
+  // 미래융합가상학과 전용 유형 자격 검사 (명단에 없으면 신청 차단)
+  const [vdeptBlocked, setVdeptBlocked] = useState<boolean | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await fetch("/api/vdept-config").then((r) => r.json());
+        const required: string[] = cfg.requiredTypes || [];
+        if (!required.includes(applicationType)) { setVdeptBlocked(false); return; }
+        const u = await currentUser();
+        const res = await fetch("/api/virtual-check", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "" }),
+        }).then((r) => r.json());
+        setVdeptBlocked(!res.isVirtual);
+      } catch { setVdeptBlocked(false); }
+    })();
+  }, [applicationType]);
+
   // 이전 지원신청 내역에서 중복 항목 자동입력 (금액·계좌·비용 등 지원금 전용 항목 제외)
   useEffect(() => {
     if (!prefill) return;
@@ -450,6 +468,24 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       setSubmitting(false);
     }
   };
+
+  // 가상학과 전용 유형인데 명단에 없는 경우 신청 차단
+  if (vdeptBlocked === true) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="text-xl font-bold text-gray-800">{APPLICATION_TYPE_LABELS[applicationType]}</h1>
+        </div>
+        <div className="card text-center py-14">
+          <div className="text-4xl mb-3">🔒</div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">미래융합가상학과 학생만 신청할 수 있습니다</h2>
+          <p className="text-sm text-gray-500">이 지원 유형은 미래융합가상학과 재학생 명단에 등록된 학생만 신청 가능합니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
+          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
