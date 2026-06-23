@@ -10,13 +10,24 @@ export interface SiteLink {
   isKakao?: boolean;
 }
 
+// 푸터 연락처 항목 (사이드바 링크처럼 추가·수정·삭제 가능)
+export interface FooterItem {
+  id: string;
+  type: "email" | "phone" | "address" | "link";  // 클릭 동작 결정
+  iconName: string;   // Mail | Phone | MapPin | Globe | Link ...
+  label: string;      // 표시 텍스트
+  value: string;      // 이메일 / 전화 / 주소(지도검색) / URL
+}
+
 export interface FooterConfig {
   organization: string;
-  email: string;
-  phone: string;
-  address: string;
+  items: FooterItem[];
   version: string;
   updateDate: string;
+  // 구버전 호환(있으면 items로 자동 변환)
+  email?: string;
+  phone?: string;
+  address?: string;
 }
 
 export interface SiteConfig {
@@ -27,9 +38,11 @@ export interface SiteConfig {
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   footer: {
     organization: "강원대학교 데이터보안·활용 혁신융합대학사업단",
-    email: "sducoss@kangwon.ac.kr",
-    phone: "033-250-7879",
-    address: "강원대학교 한빛관 1층 105호",
+    items: [
+      { id: "f1", type: "email", iconName: "Mail", label: "sducoss@kangwon.ac.kr", value: "sducoss@kangwon.ac.kr" },
+      { id: "f2", type: "phone", iconName: "Phone", label: "033-250-7879", value: "033-250-7879" },
+      { id: "f3", type: "address", iconName: "MapPin", label: "강원대학교 한빛관 1층 105호", value: "강원대학교춘천캠퍼스한빛관" },
+    ],
     // 빌드(업데이트)마다 자동 갱신 (next.config.mjs 주입)
     version: process.env.NEXT_PUBLIC_BUILD_VERSION || "v1.0.0",
     updateDate: process.env.NEXT_PUBLIC_BUILD_DATE || new Date().toISOString().slice(0, 16).replace("T", " "),
@@ -42,17 +55,34 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   ],
 };
 
+// 구버전(email/phone/address) 설정을 items 리스트로 변환
+function normalizeFooter(footer: any): FooterConfig {
+  const base = { ...DEFAULT_SITE_CONFIG.footer, ...(footer || {}) };
+  let items: FooterItem[] = Array.isArray(footer?.items) ? footer.items : [];
+  if (items.length === 0) {
+    items = [];
+    if (base.email) items.push({ id: "f1", type: "email", iconName: "Mail", label: base.email, value: base.email });
+    if (base.phone) items.push({ id: "f2", type: "phone", iconName: "Phone", label: base.phone, value: base.phone });
+    if (base.address) items.push({ id: "f3", type: "address", iconName: "MapPin", label: base.address, value: "강원대학교춘천캠퍼스한빛관" });
+    if (items.length === 0) items = DEFAULT_SITE_CONFIG.footer.items;
+  }
+  return {
+    organization: base.organization,
+    items,
+    // version/updateDate는 항상 빌드 시점 값 사용 (DB 박제 방지)
+    version: DEFAULT_SITE_CONFIG.footer.version,
+    updateDate: DEFAULT_SITE_CONFIG.footer.updateDate,
+  };
+}
+
 // 클라이언트에서 현재 사이트 설정 조회 (실패 시 기본값)
-// version/updateDate는 DB 저장값을 무시하고 항상 빌드 시점 값을 사용한다.
-// (관리자가 사이트 설정을 저장할 때 옛 버전이 DB에 박제되어 버전이 고정되는 문제 방지)
 export async function fetchSiteConfig(): Promise<SiteConfig> {
-  const buildMeta = { version: DEFAULT_SITE_CONFIG.footer.version, updateDate: DEFAULT_SITE_CONFIG.footer.updateDate };
   try {
     const r = await fetch("/api/site-config");
     if (r.ok) {
       const d = await r.json();
       return {
-        footer: { ...DEFAULT_SITE_CONFIG.footer, ...(d?.footer || {}), ...buildMeta },
+        footer: normalizeFooter(d?.footer),
         sidebarLinks: d?.sidebarLinks || DEFAULT_SITE_CONFIG.sidebarLinks,
       };
     }

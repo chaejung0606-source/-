@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2 } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
 const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText };
+const FOOTER_ICONS: Record<string, typeof Globe> = { Mail, Phone, MapPin, Globe, Link2, MessageCircle, GraduationCap, BookOpen };
 
 const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
 
@@ -63,7 +64,7 @@ export default function Home() {
   const doLogout = async () => { await logout(); setLoggedIn(false); };
 
   // 엔드바 이메일 복사
-  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState<string>("");
   const copyEmail = async (email: string) => {
     try { await navigator.clipboard.writeText(email); }
     catch {
@@ -72,10 +73,9 @@ export default function Home() {
       try { document.execCommand("copy"); } catch {}
       document.body.removeChild(ta);
     }
-    setCopiedEmail(true);
-    setTimeout(() => setCopiedEmail(false), 1800);
+    setCopiedEmail(email);
+    setTimeout(() => setCopiedEmail(""), 1800);
   };
-  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent("강원대학교춘천캠퍼스한빛관")}`;
 
   return (
     <div className="min-h-screen">
@@ -261,20 +261,28 @@ export default function Home() {
             <div className="text-left">
               <p className="font-bold holo-text mb-3">{site.footer.organization}</p>
               <div className="flex flex-col items-start gap-2 text-gray-500">
-                {/* 메일: 클릭 시 복사 */}
-                <button type="button" onClick={() => copyEmail(site.footer.email)} title="클릭하면 이메일 주소가 복사됩니다"
-                  className="flex items-center gap-1.5 hover:text-[#4f8cff] transition-colors">
-                  {copiedEmail ? (<><CheckCircle className="w-4 h-4 text-green-500" /> <span className="text-green-600">복사됨!</span></>)
-                    : (<><Mail className="w-4 h-4" /> {site.footer.email}</>)}
-                </button>
-                <a href={`tel:${site.footer.phone}`} className="flex items-center gap-1.5 hover:text-[#4f8cff]">
-                  <Phone className="w-4 h-4" /> {site.footer.phone}
-                </a>
-                {/* 주소: 클릭 시 네이버 지도(강원대학교한빛관111동) */}
-                <a href={naverMapUrl} target="_blank" rel="noopener noreferrer" title="클릭하면 네이버 지도에서 위치를 확인합니다"
-                  className="flex items-center gap-1.5 hover:text-[#4f8cff] transition-colors">
-                  <MapPin className="w-4 h-4" /> {site.footer.address}
-                </a>
+                {site.footer.items.map((it) => {
+                  const Icon = FOOTER_ICONS[it.iconName] || Globe;
+                  if (it.type === "email") {
+                    return (
+                      <button key={it.id} type="button" onClick={() => copyEmail(it.value)} title="클릭하면 복사됩니다"
+                        className="flex items-center gap-1.5 hover:text-[#4f8cff] transition-colors">
+                        {copiedEmail === it.value ? (<><CheckCircle className="w-4 h-4 text-green-500" /> <span className="text-green-600">복사됨!</span></>)
+                          : (<><Icon className="w-4 h-4" /> {it.label}</>)}
+                      </button>
+                    );
+                  }
+                  const href = it.type === "phone" ? `tel:${it.value}`
+                    : it.type === "address" ? `https://map.naver.com/p/search/${encodeURIComponent(it.value)}`
+                    : it.value;
+                  const external = it.type !== "phone";
+                  return (
+                    <a key={it.id} href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                      className="flex items-center gap-1.5 hover:text-[#4f8cff] transition-colors">
+                      <Icon className="w-4 h-4" /> {it.label}
+                    </a>
+                  );
+                })}
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <Link href="/privacy" className="text-xs text-gray-500 hover:text-indigo-500 font-medium">개인정보 처리방침</Link>

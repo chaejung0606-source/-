@@ -1,13 +1,64 @@
 // 사업단 프로그램 관리 — Supabase `programs` 테이블 기반(공개 읽기, 쓰기는 관리자 서버 라우트).
 import { supabase } from "./supabase";
-import type { FundCategory } from "@/types";
+import type { FundCategory, ReportFieldType } from "@/types";
 
 // 신청자가 작성해야 하는 보고서/증빙 항목 (프로그램별 관리자 설정)
 export interface ReportField {
   id: string;
   label: string;            // 항목명 (예: 활동 내용, 결과 보고)
-  type: "text" | "file";    // 서술형 입력 / 파일 업로드
+  type: ReportFieldType;    // 서술형 / 파일 / 서약(동의) / 서명 / 드롭다운
   required?: boolean;       // 필수 여부
+  text?: string;            // 서약(agreement) 본문
+  options?: string[];       // 드롭다운(select) 선택지
+}
+
+// COSS 서포터즈 / TA 등 프로그램별 기본 입력 항목 템플릿
+// (관리자가 reportFields를 직접 설정하지 않은 경우 프로그램명으로 자동 적용)
+const TA_PLEDGE = "위의 추천을 받아 피추천인은 TA로서의 역할을 성실히 수행할 것을 서약하며 다음의 사항을 준수할 것을 약속합니다.\n1. 학습자 지원과 교수 보조 업무를 성실히 수행할 것\n2. 학내 규정을 준수하고, 교과목 관련 업무를 충실히 이행할 것\n3. TA로서의 역할에 대한 비밀유지 의무를 준수할 것\n4. 정당한 이유 없이 TA 업무를 게을리 하지 않을 것";
+
+const PROGRAM_TEMPLATES: { match: (name: string) => boolean; fields: ReportField[] }[] = [
+  {
+    match: (n) => n.includes("서포터즈") || n.toUpperCase().includes("COSS"),
+    fields: [
+      { id: "coss-intro", label: "자기소개서 및 지원동기", type: "text", required: true },
+      { id: "coss-promo", label: "홍보 활동 경력", type: "text" },
+      { id: "coss-ability", label: "개인역량 (자료 업로드)", type: "file" },
+    ],
+  },
+  {
+    match: (n) => n.toUpperCase().includes("TA") || n.includes("수업 운영"),
+    fields: [
+      { id: "ta-course", label: "교과목명", type: "text", required: true },
+      { id: "ta-reason", label: "추천사유", type: "text", required: true },
+      { id: "ta-pledge", label: "TA 서약서", type: "agreement", required: true, text: TA_PLEDGE },
+      { id: "ta-sign", label: "추천인(교수) 서명", type: "signature", required: true },
+    ],
+  },
+  {
+    // 학사지원 멘토단 / 사업단 근로(기타 상시 사업 운영 지원)
+    match: (n) => n.includes("멘토") || n.includes("사업 운영") || n.includes("사업단 근로") || n.includes("상시"),
+    fields: [
+      { id: "mentor-role", label: "역할", type: "text", required: true },
+      { id: "mentor-career", label: "관련 경력", type: "text" },
+      { id: "mentor-free", label: "자율 작성란", type: "text" },
+    ],
+  },
+];
+
+// 프로그램·단계(지원신청 pre / 지원금 신청 fund)에 적용할 입력 항목.
+// 관리자 설정값 우선, 없으면 지원신청(pre)에 한해 프로그램명 기반 기본 템플릿 적용.
+export function effectiveReportFields(
+  p?: { name?: string; reportFields?: ReportField[]; preReportFields?: ReportField[] } | null,
+  phase: "pre" | "fund" = "fund",
+): ReportField[] {
+  if (!p) return [];
+  const fields = phase === "pre" ? p.preReportFields : p.reportFields;
+  if (fields && fields.length) return fields;
+  if (phase === "pre") {
+    const tpl = PROGRAM_TEMPLATES.find((t) => t.match(p.name || ""));
+    if (tpl) return tpl.fields;
+  }
+  return [];
 }
 
 export interface Program {
@@ -16,7 +67,8 @@ export interface Program {
   name: string;
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
-  reportFields?: ReportField[]; // 신청자 보고서 입력 항목
+  reportFields?: ReportField[];    // 지원금 신청(fund) 신청자 입력 항목
+  preReportFields?: ReportField[]; // 지원신청(pre) 신청자 입력 항목
   preApply?: boolean;       // 지원신청(활동 전) 가능 여부 (구버전 호환)
   preApplyStart?: string;   // 지원신청 시작 YYYY-MM-DD
   preApplyEnd?: string;     // 지원신청 마감 YYYY-MM-DD
@@ -56,6 +108,7 @@ function rowToProgram(r: any): Program {
     role: r.role || undefined,
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
+    preReportFields: Array.isArray(r.pre_report_fields) ? r.pre_report_fields : [],
     preApply: !!r.pre_apply,
     preApplyStart: r.pre_apply_start || undefined,
     preApplyEnd: r.pre_apply_end || undefined,
@@ -69,6 +122,7 @@ export function programToRow(p: Program): Record<string, any> {
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
+    pre_report_fields: p.preReportFields || [],
     pre_apply: !!(p.preApplyStart && p.preApplyEnd) || !!p.preApply,
     pre_apply_start: p.preApplyStart || null,
     pre_apply_end: p.preApplyEnd || null,

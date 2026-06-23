@@ -13,6 +13,9 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // 신청 / 취소 목록 분리
+  const [view, setView] = useState<"active" | "canceled">("active");
+
   // 필터 상태
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<ApplicationType | "">("");
@@ -26,8 +29,13 @@ export default function ApplicationsPage() {
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
   }, []);
 
+  const canceledCount = useMemo(() => apps.filter((a) => a.canceled).length, [apps]);
+  const activeCount = apps.length - canceledCount;
+
   const filtered = useMemo(() => {
     return apps.filter((a) => {
+      if (view === "active" && a.canceled) return false;
+      if (view === "canceled" && !a.canceled) return false;
       if (search && !a.name.includes(search) && !a.studentId.includes(search)) return false;
       if (typeFilter && a.applicationType !== typeFilter) return false;
       if (reviewFilter && a.reviewStatus !== reviewFilter) return false;
@@ -36,7 +44,7 @@ export default function ApplicationsPage() {
       if (dateTo && a.applicationDate > dateTo) return false;
       return true;
     });
-  }, [apps, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo]);
+  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -59,16 +67,26 @@ export default function ApplicationsPage() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">신청 목록</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => handleExport(selected.size > 0 ? apps.filter((a) => selected.has(a.id)) : filtered)} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" />
             {selected.size > 0 ? `선택(${selected.size}) 다운로드` : "엑셀 다운로드"}
           </button>
-          <button onClick={() => handleExport(apps)} className="btn-secondary flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> 전체 다운로드
+          <button onClick={() => handleExport(filtered)} className="btn-secondary flex items-center gap-2 text-sm">
+            <Download className="w-4 h-4" /> 현재 목록 다운로드
           </button>
         </div>
+      </div>
+
+      {/* 신청 / 취소 목록 탭 */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => { setView("active"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "active" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>
+          신청 목록 ({activeCount})
+        </button>
+        <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
+          취소 목록 ({canceledCount})
+        </button>
       </div>
 
       {/* 월별 심의요청서 */}

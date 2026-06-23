@@ -2,16 +2,18 @@
 import { useEffect, useState } from "react";
 import { Upload, X, FileText } from "lucide-react";
 import type { ReportEntry } from "@/types";
-import { fetchPrograms, type ReportField } from "@/lib/programs";
+import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/programs";
 import { supabase } from "@/lib/supabase";
+import SignaturePad from "./SignaturePad";
 
 interface Props {
   programId?: string;
+  phase?: "pre" | "fund";
   value?: ReportEntry[];
   onChange: (v: ReportEntry[]) => void;
 }
 
-export default function ReportSection({ programId, value, onChange }: Props) {
+export default function ReportSection({ programId, phase = "fund", value, onChange }: Props) {
   const [fields, setFields] = useState<ReportField[]>([]);
   const [uploading, setUploading] = useState(false);
   const entries = value || [];
@@ -20,9 +22,9 @@ export default function ReportSection({ programId, value, onChange }: Props) {
     if (!programId) { setFields([]); return; }
     fetchPrograms().then((all) => {
       const p = all.find((x) => x.id === programId);
-      setFields(p?.reportFields || []);
+      setFields(effectiveReportFields(p, phase));
     });
-  }, [programId]);
+  }, [programId, phase]);
 
   if (!programId || fields.length === 0) return null;
 
@@ -67,6 +69,31 @@ export default function ReportSection({ programId, value, onChange }: Props) {
             <label className="label">{f.label || "항목"} {f.required && <span className="text-red-500">*</span>}</label>
             {f.type === "text" ? (
               <textarea className="input-field h-24 resize-none" value={en.value || ""} onChange={(e) => setEntry(f, { value: e.target.value })} placeholder="내용을 입력해주세요." />
+            ) : f.type === "select" ? (
+              <select className="input-field" value={en.value || ""} onChange={(e) => setEntry(f, { value: e.target.value })}>
+                <option value="">선택</option>
+                {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : f.type === "agreement" ? (
+              <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(0,0,0,0.06)" }}>
+                {f.text && <p className="text-sm text-gray-600 whitespace-pre-line mb-3">{f.text}</p>}
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="checkbox" checked={en.value === "동의"} onChange={(e) => setEntry(f, { value: e.target.checked ? "동의" : "" })} />
+                  위 내용에 동의하며 서약합니다.
+                </label>
+              </div>
+            ) : f.type === "signature" ? (
+              <div className="rounded-2xl p-3 space-y-2" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(0,0,0,0.06)" }}>
+                {en.value ? (
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={en.value} alt="서명" className="h-14 border border-gray-200 rounded-lg bg-white px-2" />
+                    <button type="button" onClick={() => setEntry(f, { value: "" })} className="text-xs text-red-500 hover:underline">다시 서명</button>
+                  </div>
+                ) : (
+                  <SignaturePad onChange={(s) => setEntry(f, { value: s })} />
+                )}
+              </div>
             ) : en.filePath ? (
               <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2.5">
                 <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />

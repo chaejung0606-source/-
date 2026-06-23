@@ -12,7 +12,8 @@ interface Props { type: ApplicationType | null; onClose: () => void; }
 export default function FundTypeModal({ type, onClose }: Props) {
   const [content, setContent] = useState<TypeContent | null>(null);
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [programs, setPrograms] = useState<Program[]>([]);
+  const [preProgs, setPreProgs] = useState<Program[]>([]);
+  const [fundProgs, setFundProgs] = useState<Program[]>([]);
 
   useEffect(() => {
     if (!type) return;
@@ -21,7 +22,11 @@ export default function FundTypeModal({ type, onClose }: Props) {
 
   useEffect(() => {
     if (!type) return;
-    fetchPrograms().then((all) => setPrograms(filterActive(all, categoryOfType(type), date)));
+    const cat = categoryOfType(type);
+    fetchPrograms().then((all) => {
+      setPreProgs(filterActive(all, cat, date, "pre"));
+      setFundProgs(filterActive(all, cat, date, "fund"));
+    });
   }, [type, date]);
 
   if (!type || !content) return null;
@@ -42,20 +47,40 @@ export default function FundTypeModal({ type, onClose }: Props) {
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs" />
               </label>
             </div>
-            {programs.length === 0 ? (
-              <p className="text-sm text-gray-400">해당 날짜에 신청 가능한 프로그램이 없습니다.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {programs.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-2 text-sm bg-white rounded-xl px-3 py-2 border border-gray-100">
-                    <div>
-                      <div className="font-semibold text-gray-800">{p.name}{p.role ? <span className="text-gray-400 font-normal"> · {p.role}</span> : null}</div>
-                      <div className="text-xs text-gray-400">{p.applyStart} ~ {p.applyEnd}{p.note ? ` · ${p.note}` : ""}</div>
-                    </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {/* 지원신청 가능 (활동 전) */}
+              <div className="rounded-xl p-2.5 bg-white/70 border border-indigo-100">
+                <p className="text-xs font-bold text-indigo-700 mb-1.5">지원신청 가능 (활동 전)</p>
+                {preProgs.length === 0 ? (
+                  <p className="text-xs text-gray-400">해당 날짜에 지원신청 가능한 프로그램이 없습니다.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {preProgs.map((p) => (
+                      <div key={p.id} className="text-sm bg-white rounded-lg px-2.5 py-1.5 border border-gray-100">
+                        <div className="font-semibold text-gray-800">{p.name}</div>
+                        <div className="text-[11px] text-gray-400">{(p.preApplyStart || p.applyStart)} ~ {(p.preApplyEnd || p.applyEnd)}{p.note ? ` · ${p.note}` : ""}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
+              {/* 지원금 신청 가능 (활동 후) */}
+              <div className="rounded-xl p-2.5 bg-white/70 border border-emerald-100">
+                <p className="text-xs font-bold text-emerald-700 mb-1.5">지원금 신청 가능 (활동 후)</p>
+                {fundProgs.length === 0 ? (
+                  <p className="text-xs text-gray-400">해당 날짜에 지원금 신청 가능한 프로그램이 없습니다.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {fundProgs.map((p) => (
+                      <div key={p.id} className="text-sm bg-white rounded-lg px-2.5 py-1.5 border border-gray-100">
+                        <div className="font-semibold text-gray-800">{p.name}</div>
+                        <div className="text-[11px] text-gray-400">{p.applyStart} ~ {p.applyEnd}{p.note ? ` · ${p.note}` : ""}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

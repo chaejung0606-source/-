@@ -94,12 +94,15 @@ export type DocumentType =
   | "certificate_copy"        // 자격증 사본
   | "other";                  // 기타
 
+// 신청자 입력 항목 종류: 서술형 / 파일 / 서약(동의) / 서명 / 드롭다운(선택)
+export type ReportFieldType = "text" | "file" | "agreement" | "signature" | "select";
+
 // 프로그램별 신청자 보고서 입력값 (관리자가 설정한 항목에 대응)
 export interface ReportEntry {
   fieldId: string;
   label: string;
-  type: "text" | "file";
-  value?: string;      // 서술형 입력값
+  type: ReportFieldType;
+  value?: string;      // 서술형 입력값 / 서약 동의("동의") / 서명 이미지(dataURL)
   filePath?: string;   // 파일 업로드 경로
   fileName?: string;   // 파일명(표시용)
 }
@@ -224,6 +227,14 @@ export interface WorkLogEntry {
   endTime: string;    // HH:mm
   hours: number;      // 해당 일자 근무 시간 (자동 계산)
   detail?: string;    // 근로 상세내역 (근로장학금 근무상황부)
+}
+
+// 수강 시간표 1칸 (근로장학금: 수업시간에는 근로 불가)
+export interface ClassTime {
+  day: number;    // 0=일 ~ 6=토
+  start: string;  // HH:mm
+  end: string;    // HH:mm
+  label?: string; // 과목명(선택)
 }
 
 export interface StaffDetail {
@@ -393,6 +404,14 @@ export interface Application {
   approvedAmount?: number;
   requestAmount: number;
   calculatedAmount: number;
+
+  // 신청 취소
+  canceled?: boolean;
+  canceledAt?: string;
+
+  // 임시저장 (작성 중)
+  isDraft?: boolean;
+  draftStep?: number;
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
