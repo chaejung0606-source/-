@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Upload, Trash2, Plus, GraduationCap, Save } from "lucide-react";
+import { Search, Upload, Trash2, Plus, GraduationCap, Save, Eye, EyeOff } from "lucide-react";
 import * as XLSX from "xlsx";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { ApplicationType } from "@/types";
@@ -12,6 +12,13 @@ interface VStudent {
 }
 
 const ALL_TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate", "labor", "activity"];
+
+const maskName = (n?: string) => !n ? "-" : n.length <= 1 ? n : n[0] + "○".repeat(n.length - 1);
+const matchTerms = (s: VStudent, q: string) => {
+  const terms = q.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);
+  if (terms.length === 0) return true;
+  return terms.some((t) => (s.student_id || "").includes(t) || (s.name || "").includes(t));
+};
 
 // 엑셀 헤더 → 필드 매핑
 function rowToStudent(r: Record<string, any>): VStudent | null {
@@ -40,6 +47,17 @@ export default function VirtualStudentsPage() {
   const [cfgSaved, setCfgSaved] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newStu, setNewStu] = useState<VStudent>({ student_id: "", name: "", vdept: "", department: "" });
+  const [revealed, setRevealed] = useState(false);
+
+  const toggleReveal = async () => {
+    if (revealed) { setRevealed(false); return; }
+    const pw = window.prompt("개인정보 전체를 보려면 관리자 비밀번호를 입력하세요.");
+    if (pw == null) return;
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
+    const j = await res.json().catch(() => ({ success: false }));
+    if (j.success) setRevealed(true);
+    else alert("비밀번호가 올바르지 않습니다.");
+  };
 
   const load = () => {
     setLoading(true);
@@ -50,11 +68,7 @@ export default function VirtualStudentsPage() {
     fetch("/api/vdept-config").then((r) => r.json()).then((d) => setRequiredTypes(d.requiredTypes || []));
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = search.trim();
-    if (!q) return list;
-    return list.filter((s) => (s.student_id || "").includes(q) || (s.name || "").includes(q));
-  }, [list, search]);
+  const filtered = useMemo(() => list.filter((s) => matchTerms(s, search)), [list, search]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,9 +153,12 @@ export default function VirtualStudentsPage() {
           <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleUpload} disabled={uploading} />
         </label>
         <button onClick={() => setAdding((v) => !v)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 학생 추가</button>
+        <button onClick={toggleReveal} className="btn-secondary text-sm flex items-center gap-1.5">
+          {revealed ? <><EyeOff className="w-4 h-4" /> 가리기</> : <><Eye className="w-4 h-4" /> 전체 정보 보기</>}
+        </button>
         <div className="relative ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input className="input-field pl-9 w-auto" placeholder="학번 또는 이름 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표)" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
 
@@ -180,7 +197,7 @@ export default function VirtualStudentsPage() {
                 ) : filtered.map((s) => (
                   <tr key={s.student_id}>
                     <td className="font-mono text-xs">{s.student_id}</td>
-                    <td className="font-medium whitespace-nowrap">{s.name || "-"}</td>
+                    <td className="font-medium whitespace-nowrap">{revealed ? (s.name || "-") : maskName(s.name)}</td>
                     <td className="text-gray-600 whitespace-nowrap">{s.vdept || "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{s.department || "-"}</td>
                     <td className="text-gray-600">{s.grade || "-"}</td>

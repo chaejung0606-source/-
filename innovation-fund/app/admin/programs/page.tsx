@@ -112,7 +112,25 @@ export default function ProgramsAdminPage() {
         <h1 className="text-2xl font-bold text-gray-800">신청내용 관리</h1>
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
-      <p className="text-gray-500 text-sm mb-6">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
+      <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
+
+      {/* 프로그램 빠른 이동 — 클릭 시 해당 프로그램 수정 위치로 이동 */}
+      {list.length > 0 && (
+        <div className="card mb-5">
+          <p className="text-xs font-semibold text-gray-500 mb-2">프로그램 바로가기 (클릭하면 수정 위치로 이동)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {list.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => document.getElementById(`prog-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-white/70 border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 transition"
+              >
+                {p.name || "(이름 없음)"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
       <div className="space-y-8">
@@ -130,7 +148,7 @@ export default function ProgramsAdminPage() {
                 const active = isProgramActive(p, undefined, "fund");
                 const preActive = isProgramActive(p, undefined, "pre");
                 return (
-                  <div key={p.id} className="card">
+                  <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
                     <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`badge ${preActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>지원신청 {preActive ? "가능" : "기간 아님"}</span>

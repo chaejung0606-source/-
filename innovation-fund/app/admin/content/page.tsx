@@ -46,7 +46,23 @@ export default function ContentAdminPage() {
         <h1 className="text-2xl font-bold text-gray-800">유형 세부내용 관리</h1>
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
-      <p className="text-gray-500 text-sm mb-6">홈 화면에서 각 지원금 유형을 클릭하면 표시되는 세부내용(모달)을 편집합니다. 항목은 한 줄에 하나씩 입력하세요.</p>
+      <p className="text-gray-500 text-sm mb-4">홈 화면에서 각 지원금 유형을 클릭하면 표시되는 세부내용(모달)을 편집합니다. 항목은 한 줄에 하나씩 입력하세요.</p>
+
+      {/* 유형 빠른 이동 — 클릭 시 해당 유형 수정 위치로 이동 */}
+      <div className="card mb-5">
+        <p className="text-xs font-semibold text-gray-500 mb-2">유형 바로가기 (클릭하면 수정 위치로 이동)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {TYPES.map((t) => (
+            <button
+              key={t}
+              onClick={() => document.getElementById(`type-${t}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              className="px-2.5 py-1 rounded-full text-xs font-medium bg-white/70 border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 transition"
+            >
+              {APPLICATION_TYPE_LABELS[t]}
+            </button>
+          ))}
+        </div>
+      </div>
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
       <div className="space-y-5">
@@ -54,7 +70,7 @@ export default function ContentAdminPage() {
           const tc = content[t];
           if (!tc) return null;
           return (
-            <div key={t} className="card">
+            <div key={t} id={`type-${t}`} className="card scroll-mt-20">
               <h2 className="font-bold text-gray-800 mb-3">{APPLICATION_TYPE_LABELS[t]}</h2>
               <div className="mb-4">
                 <label className="label">소개 문구</label>

@@ -4,6 +4,7 @@ import { Upload, X, FileText, Plus, Trash2 } from "lucide-react";
 import type { CostDetail, TransportItem, TransportMode, TransportRegion, LodgingDetail } from "@/types";
 import { TRANSPORT_MODE_LABELS, calcSupportTotal, canSelectAir } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
 
 interface Props { value?: CostDetail; onChange: (v: CostDetail) => void; }
 
@@ -30,6 +31,7 @@ export default function CostSection({ value, onChange }: Props) {
 
   // 공통: 증빙 파일 업로드 → { path, name }
   const uploadDoc = async (f: File): Promise<{ path: string; name: string } | null> => {
+    if (!isAllowedDoc(f)) { alert(DOC_GUIDE); return null; }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("로그인이 필요합니다."); return null; }
     const ext = f.name.includes(".") ? f.name.split(".").pop() : "";
@@ -121,7 +123,7 @@ export default function CostSection({ value, onChange }: Props) {
             ) : (
               <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
                 <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "증빙 파일 선택"}
-                <input type="file" className="hidden" onChange={handleProofUpload} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+                <input type="file" className="hidden" onChange={handleProofUpload} accept={ACCEPT_DOC} disabled={uploading} />
               </label>
             )}
           </div>
@@ -223,7 +225,7 @@ export default function CostSection({ value, onChange }: Props) {
                   ) : (
                     <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
                       <Upload className="w-4 h-4" /> 증빙 파일 선택
-                      <input type="file" className="hidden" onChange={(e) => handleTransportProof(t.id, e)} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+                      <input type="file" className="hidden" onChange={(e) => handleTransportProof(t.id, e)} accept={ACCEPT_DOC} disabled={uploading} />
                     </label>
                   )}
                 </div>
@@ -293,7 +295,7 @@ export default function CostSection({ value, onChange }: Props) {
           ) : (
             <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
               <Upload className="w-4 h-4" /> 증빙 파일 선택
-              <input type="file" className="hidden" onChange={handleLodgingProof} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+              <input type="file" className="hidden" onChange={handleLodgingProof} accept={ACCEPT_DOC} disabled={uploading} />
             </label>
           )}
         </div>

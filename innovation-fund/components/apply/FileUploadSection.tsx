@@ -4,6 +4,7 @@ import { Upload, X, FileText } from "lucide-react";
 import type { ApplicationType, DocumentType, UploadedFile } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc } from "@/lib/upload";
 
 interface Props {
   files: UploadedFile[];
@@ -49,6 +50,8 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || []);
     if (newFiles.length === 0) return;
+    const bad = newFiles.find((f) => !isAllowedDoc(f));
+    if (bad) { alert(`${UPLOAD_GUIDE}\n(거부됨: ${bad.name})`); e.target.value = ""; return; }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -75,7 +78,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
       <div className="card">
         <h2 className="section-title">서류 업로드</h2>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-4">
-          여러 파일을 개별로 업로드하고 자료 유형을 선택해주세요. (PDF, 이미지, 엑셀 등 가능)
+          여러 파일을 개별로 업로드하고 자료 유형을 선택해주세요. <strong>{UPLOAD_GUIDE}</strong>
         </div>
         <div className="flex gap-3 mb-4">
           <div className="flex-1">
@@ -89,7 +92,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
           <div className="flex items-end">
             <label className={`btn-secondary cursor-pointer flex items-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
               <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "파일 선택"}
-              <input type="file" multiple className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+              <input type="file" multiple className="hidden" onChange={handleFileChange} accept={ACCEPT_DOC} disabled={uploading} />
             </label>
           </div>
         </div>
@@ -98,7 +101,7 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
           <div className="upload-card p-8 text-center text-gray-400 flex flex-col items-center justify-center" style={{ minHeight: 160 }}>
             <Upload className="w-10 h-10 mx-auto mb-2 text-[#4f8cff] opacity-60" />
             <p className="text-sm">자료 유형을 선택하고 파일을 업로드해주세요.</p>
-            <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · XLSX</p>
+            <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · WEBP</p>
           </div>
         ) : (
           <div className="space-y-2">
