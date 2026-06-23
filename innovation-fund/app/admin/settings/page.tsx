@@ -32,7 +32,7 @@ export default function SettingsPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">내보내기 설정</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-2">파일 저장 경로</h1>
       <p className="text-gray-500 text-sm mb-6">혁신인재지원금 유형별로 PDF 저장 파일명과 보관 경로(메모)를 설정할 수 있습니다.</p>
 
       <div className="card mb-4 flex items-start gap-2 text-sm text-blue-700" style={{ background: "rgba(59,130,246,0.08)" }}>

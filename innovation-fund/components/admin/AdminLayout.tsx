@@ -9,10 +9,10 @@ const NAV = [
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
   { href: "/admin/applicants", label: "신청자 정보", icon: Users },
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
-  { href: "/admin/programs", label: "신청내용", icon: CalendarRange },
-  { href: "/admin/content", label: "유형 세부내용", icon: ListChecks },
+  { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
+  { href: "/admin/content", label: "유형별 세부내용", icon: ListChecks },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
-  { href: "/admin/settings", label: "내보내기 설정", icon: Settings },
+  { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

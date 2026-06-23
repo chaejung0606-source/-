@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Download, Search, FileText } from "lucide-react";
+import { Download, Search, FileText, Lock } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
@@ -9,6 +9,20 @@ import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 export default function ApplicationsPage() {
+  // 신청 목록 진입 비밀번호 게이트 (세션 동안 유지)
+  const [unlocked, setUnlocked] = useState(false);
+  const [gatePw, setGatePw] = useState("");
+  const [gateErr, setGateErr] = useState("");
+  useEffect(() => { if (typeof window !== "undefined" && sessionStorage.getItem("apps_unlocked") === "1") setUnlocked(true); }, []);
+  const tryUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGateErr("");
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
+    const j = await res.json().catch(() => ({ success: false }));
+    if (j.success) { sessionStorage.setItem("apps_unlocked", "1"); setUnlocked(true); }
+    else setGateErr("비밀번호가 올바르지 않습니다.");
+  };
+
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -68,6 +82,21 @@ export default function ApplicationsPage() {
     if (res.ok) setApps((prev) => prev.filter((a) => a.id !== id));
     else alert("삭제 실패");
   };
+
+  if (!unlocked) return (
+    <AdminLayout>
+      <div className="max-w-sm mx-auto mt-16 card text-center">
+        <div className="glass-pill w-14 h-14 flex items-center justify-center mx-auto mb-3"><Lock className="w-7 h-7 text-indigo-600" /></div>
+        <h1 className="text-lg font-bold text-gray-800 mb-1">신청 목록 접근 확인</h1>
+        <p className="text-sm text-gray-500 mb-4">신청자 개인정보 보호를 위해 관리자 비밀번호를 다시 입력해주세요.</p>
+        <form onSubmit={tryUnlock} className="space-y-3">
+          <input type="password" className="input-field" value={gatePw} onChange={(e) => setGatePw(e.target.value)} placeholder="관리자 비밀번호" autoFocus />
+          {gateErr && <p className="text-red-500 text-sm">{gateErr}</p>}
+          <button type="submit" disabled={!gatePw} className="btn-primary w-full">확인</button>
+        </form>
+      </div>
+    </AdminLayout>
+  );
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 

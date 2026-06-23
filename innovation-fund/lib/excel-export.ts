@@ -61,6 +61,9 @@ export function exportToExcel(apps: Application[], filename?: string): void {
     은행명: app.bankInfo.bankName,
     계좌번호: app.bankInfo.accountNumber,
     예금주: app.bankInfo.accountHolder,
+    "확인은행(관리자)": app.verifiedAccount?.bankName || "",
+    "확인계좌번호(관리자)": app.verifiedAccount?.accountNumber || "",
+    "확인예금주(관리자)": app.verifiedAccount?.accountHolder || "",
     첨부파일목록: app.files.map((f) => f.name).join(", "),
     최종수정일: app.updatedAt ? format(new Date(app.updatedAt), "yyyy-MM-dd HH:mm") : "",
   }));

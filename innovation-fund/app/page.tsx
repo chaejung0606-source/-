@@ -58,6 +58,10 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
   useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => setIsAdmin(!!d.admin)).catch(() => {}); }, []);
+
+  // 홈 팝업 공지
+  const [popup, setPopup] = useState<{ enabled: boolean; title: string; content: string } | null>(null);
+  useEffect(() => { fetch("/api/popup").then((r) => r.json()).then((d) => { if (d?.enabled && (d.title || d.content)) setPopup(d); }).catch(() => {}); }, []);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
@@ -82,6 +86,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* 팝업 공지 */}
+      {popup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setPopup(null)} />
+          <div className="modal relative w-full max-w-md p-6">
+            <button onClick={() => setPopup(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+            {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
+            <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>
+            <button onClick={() => setPopup(null)} className="btn-primary w-full mt-5">확인</button>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 (상단바) */}
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -136,6 +153,7 @@ export default function Home() {
           <p className="text-gray-600 text-lg mb-2">
             강원대학교 데이터보안·활용 혁신융합대학사업단이 우수 학생의 성장을 지원합니다.
           </p>
+          <p className="text-sm text-gray-500">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
       </section>
 
@@ -258,11 +276,6 @@ export default function Home() {
               ))}
             </ul>
           </section>
-        </div>
-
-        {/* 신청 안내 */}
-        <div className="text-center py-2">
-          <p className="text-sm text-gray-500">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
       </div>
 

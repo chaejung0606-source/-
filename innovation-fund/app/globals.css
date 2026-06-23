@@ -35,10 +35,10 @@
   body {
     color: var(--color-text);
     background:
-      radial-gradient(circle at 10% 10%, rgba(126, 231, 255, 0.35), transparent 28%),
-      radial-gradient(circle at 85% 15%, rgba(126, 242, 199, 0.3), transparent 30%),
-      radial-gradient(circle at 20% 90%, rgba(217, 249, 157, 0.3), transparent 28%),
-      linear-gradient(135deg, #f5f8fc 0%, #ecfdf5 50%, #eff6ff 100%);
+      radial-gradient(circle at 10% 10%, rgba(126, 231, 255, 0.40), transparent 30%),
+      radial-gradient(circle at 85% 15%, rgba(126, 242, 199, 0.34), transparent 32%),
+      radial-gradient(circle at 20% 90%, rgba(165, 180, 252, 0.30), transparent 30%),
+      linear-gradient(135deg, #d8e1ee 0%, #d5e6de 50%, #d7e2f0 100%);
     background-attachment: fixed;
     min-height: 100vh;
   }

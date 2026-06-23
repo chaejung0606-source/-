@@ -41,6 +41,7 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     is_draft: !!p.isDraft,
     draft_step: p.draftStep ?? null,
     is_test: !!p.isTest,
+    verified_account: p.verifiedAccount ?? null,
   };
 }
 
@@ -95,5 +96,6 @@ export function fromRow(r: any): Application {
     isDraft: !!r.is_draft,
     draftStep: r.draft_step ?? undefined,
     isTest: !!r.is_test,
+    verifiedAccount: r.verified_account ?? undefined,
   };
 }

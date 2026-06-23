@@ -182,6 +182,8 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS draft_step INT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE;
 -- applications: 강원대 캠퍼스
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS campus TEXT;
+-- applications: 관리자가 통장사본 확인 후 직접 입력(인쇄/내보내기 전용, 화면 마스킹)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS verified_account JSONB;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여

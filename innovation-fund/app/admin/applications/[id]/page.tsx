@@ -24,6 +24,8 @@ export default function ApplicationDetailPage() {
   const [adminMemo, setAdminMemo] = useState("");
   const [approvedAmount, setApprovedAmount] = useState<number | "">("");
   const [syncing, setSyncing] = useState(false);
+  // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
+  const [vAccount, setVAccount] = useState<{ bankName: string; accountNumber: string; accountHolder: string }>({ bankName: "", accountNumber: "", accountHolder: "" });
 
   // 인쇄양식(첨부 삽입 포함) 미리보기 — 크기 조정·이동 가능한 작은 새 창
   const openPreview = (doc: string) => {
@@ -58,6 +60,11 @@ export default function ApplicationDetailPage() {
       setPaymentStatus(d.paymentStatus);
       setAdminMemo(d.adminMemo);
       setApprovedAmount(d.approvedAmount ?? "");
+      setVAccount({
+        bankName: d.verifiedAccount?.bankName || "",
+        accountNumber: d.verifiedAccount?.accountNumber || "",
+        accountHolder: d.verifiedAccount?.accountHolder || "",
+      });
       setLoading(false);
     });
   }, [id]);
@@ -72,6 +79,7 @@ export default function ApplicationDetailPage() {
         paymentStatus,
         adminMemo,
         approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount),
+        verifiedAccount: vAccount,
       }),
     });
     setSaving(false);
@@ -315,6 +323,18 @@ export default function ApplicationDetailPage() {
                 </div>
               );
             })()}
+
+            {/* 관리자 확인 입력 — 화면에서는 마스킹, 인쇄/내보내기에만 전체 표시 */}
+            <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <p className="text-xs font-semibold text-emerald-700 mb-1">관리자 확인 계좌정보 입력</p>
+              <p className="text-[11px] text-gray-400 mb-2">통장사본을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
+              <div className="grid sm:grid-cols-3 gap-2">
+                <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
+                <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
+                <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">※ 저장하려면 아래 &lsquo;상태 관리&rsquo;의 저장 버튼을 누르세요.</p>
+            </div>
           </div>
 
           <div className="card">

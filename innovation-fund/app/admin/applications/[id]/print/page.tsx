@@ -340,6 +340,15 @@ function PrintContent() {
             <tr className="total-row"><th>합계</th><td colSpan={3}>{(app.approvedAmount ?? app.calculatedAmount).toLocaleString()}원</td></tr>
           </tbody></table>
 
+          <div className="sec">지급 계좌 (관리자 확인)</div>
+          <table className="form"><tbody>
+            <tr>
+              <th>은행</th><td>{app.verifiedAccount?.bankName || app.bankInfo.bankName}</td>
+              <th>예금주</th><td>{app.verifiedAccount?.accountHolder || app.bankInfo.accountHolder}</td>
+            </tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.verifiedAccount?.accountNumber || app.bankInfo.accountNumber}</td></tr>
+          </tbody></table>
+
           <p style={{ marginTop: 20, fontSize: 12, color: "#555" }}>※ 위 금액을 신청인 본인 명의 계좌로 지급함.</p>
         </>
       )}

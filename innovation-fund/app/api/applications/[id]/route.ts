@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.paymentStatus !== undefined) patch.payment_status = body.paymentStatus;
   if (body.adminMemo !== undefined) patch.admin_memo = body.adminMemo;
   if (body.approvedAmount !== undefined) patch.approved_amount = body.approvedAmount;
+  if (body.verifiedAccount !== undefined) patch.verified_account = body.verifiedAccount;
 
   const { data, error } = await supabaseAdmin().from("applications").update(patch).eq("id", id).select("*").maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
