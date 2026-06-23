@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, UploadedFile, WorkLogEntry, TransportInfo, EventLocation, ActivityKind, PaperDetail, ExtraCosts } from "@/types";
-import { APPLICATION_TYPE_LABELS } from "@/types";
+import type { ApplicationType, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail } from "@/types";
+import { APPLICATION_TYPE_LABELS, calcSupportTotal } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
@@ -17,8 +17,7 @@ import ProgramDetailSection from "./ProgramDetailSection";
 import StaffDetailSection from "./StaffDetailSection";
 import LaborDetailSection from "./LaborDetailSection";
 import ActivityDetailSection from "./ActivityDetailSection";
-import TransportSection from "./TransportSection";
-import ExtraCostsSection from "./ExtraCostsSection";
+import CostSection from "./CostSection";
 import GradeDetailSection from "./GradeDetailSection";
 import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
@@ -73,13 +72,12 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     } as PaperDetail,
   });
 
-  // 교통비 (프로그램 참여지원비 / 진행요원비 / 학생활동지원비 공통)
-  const [transport, setTransport] = useState<TransportInfo>({
-    region: "domestic", isJeju: false, mode: "bus", route: "", amount: 0,
+  // 비용 입력 (등록비·교통비 다중·숙박비) — program/staff/activity 공통
+  const [costDetail, setCostDetail] = useState<CostDetail>({
+    registrationFee: 0,
+    transports: [],
+    lodging: { usage: "personal", roomAmount: 0, personalAmount: 0 },
   });
-
-  // 등록비·숙박비 (교통비와 동일하게 program/staff/activity 공통)
-  const [extraCosts, setExtraCosts] = useState<ExtraCosts>({});
 
   // 로그인한 신청자 정보 자동 채움
   useEffect(() => {
@@ -142,11 +140,11 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     if (applicationType === "contest") return calcContestAmount(contestDetail.scale, contestDetail.awardLevel, contestDetail.isTeam);
     if (applicationType === "certificate") return calcCertAmount(certDetail.difficulty);
     if (applicationType === "activity") return activityDetail.requestAmount;
-    return programDetail.requestAmount;
+    return calcSupportTotal(costDetail);
   };
 
   const getRequestAmount = (): number => {
-    if (applicationType === "program") return programDetail.requestAmount;
+    if (applicationType === "program") return calcSupportTotal(costDetail);
     if (applicationType === "activity") return activityDetail.requestAmount;
     return getCalculatedAmount();
   };
@@ -156,7 +154,6 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     const e: string[] = [];
     if (applicationType === "program") {
       if (!programDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
-      if (!(programDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
     }
     if (applicationType === "staff") {
       if (!staffDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
@@ -224,8 +221,6 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     }
     setSubmitting(true);
     try {
-      const transportPayload = transport.amount > 0 || transport.route.trim() ? transport : undefined;
-      const extraCostsPayload = (extraCosts.registrationFee || extraCosts.lodgingFee || extraCosts.lodgingNights) ? extraCosts : undefined;
       const payload = {
         name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
         department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
@@ -233,10 +228,10 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationType,
-        programDetail: applicationType === "program" ? { ...programDetail, transport: transportPayload, extraCosts: extraCostsPayload } : undefined,
-        staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), transport: transportPayload, extraCosts: extraCostsPayload } : undefined,
+        programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail } : undefined,
+        staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
         laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount() } : undefined,
-        activityDetail: applicationType === "activity" ? { ...activityDetail, transport: transportPayload, extraCosts: extraCostsPayload } : undefined,
+        activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail } : undefined,
         gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
@@ -333,10 +328,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} />
       )}
       {step === 2 && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
-        <>
-          <TransportSection values={transport} onChange={setTransport} />
-          <ExtraCostsSection value={extraCosts} onChange={setExtraCosts} />
-        </>
+        <CostSection value={costDetail} onChange={setCostDetail} />
       )}
 
       {/* 3단계: 파일 업로드 */}

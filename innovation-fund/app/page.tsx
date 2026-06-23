@@ -75,7 +75,7 @@ export default function Home() {
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 1800);
   };
-  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent("강원대학교한빛관111동")}`;
+  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent("강원대학교춘천캠퍼스한빛관111동")}`;
 
   return (
     <div className="min-h-screen">

@@ -89,8 +89,9 @@ export interface ProgramDetail {
   participationContent: string;
   supervisorName: string;
   requestAmount: number;
-  transport?: TransportInfo;     // 교통비
-  extraCosts?: ExtraCosts;       // 등록비·숙박비
+  transport?: TransportInfo;     // 교통비 (구버전)
+  extraCosts?: ExtraCosts;       // 등록비·숙박비 (구버전)
+  costDetail?: CostDetail;       // 비용 입력 (신버전: 등록비·교통비 다중·숙박비)
   eventLocation?: EventLocation; // 행사(학회) 장소
   programId?: string;            // 선택한 사업단 프로그램 ID
 }
@@ -130,6 +131,40 @@ export interface ExtraCosts {
   lodgingNights?: number;    // 숙박 일수 (선택)
 }
 
+// 교통비 1건 (일자별·동일 일자에도 여러 건 가능)
+export interface TransportItem {
+  id: string;
+  date: string;        // 사용일자 (yyyy-mm-dd)
+  mode: TransportMode; // 교통수단
+  route: string;       // 이동구간 (예: 춘천 → 서울)
+  amount: number;      // 금액
+}
+
+// 숙박비 (개인사용 / 단체사용)
+export interface LodgingDetail {
+  usage: "personal" | "group";  // 개인사용 / 단체사용
+  roomAmount: number;     // 개인사용: 숙소 결제금액 / 단체사용: 숙소 전체금액
+  personalAmount: number; // 단체사용 시 개인 부담금액 (개인사용이면 미사용)
+}
+
+// 비용 입력 통합 (등록비·교통비·숙박비)
+export interface CostDetail {
+  registrationFee: number;          // 등록비
+  registrationProofPath?: string;   // 등록비 증빙(학회 참가확인서) Supabase storage 경로
+  registrationProofName?: string;   // 증빙 파일명(표시용)
+  transports: TransportItem[];      // 교통비(다중)
+  lodging?: LodgingDetail;          // 숙박비
+}
+
+// 지원비 합계: 교통비 합 + min(숙박 개인부담, 70000). 등록비 제외.
+export function calcSupportTotal(c?: CostDetail): number {
+  if (!c) return 0;
+  const trans = (c.transports || []).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const lodgingPersonal = c.lodging ? (c.lodging.usage === "personal" ? c.lodging.roomAmount : c.lodging.personalAmount) : 0;
+  const lodge = Math.min(Number(lodgingPersonal) || 0, 70000);
+  return trans + lodge;
+}
+
 // 학생활동지원비 상세
 export interface ActivityDetail {
   programId?: string;
@@ -141,7 +176,8 @@ export interface ActivityDetail {
   requestAmount: number;
   transport?: TransportInfo;
   eventLocation?: EventLocation;
-  extraCosts?: ExtraCosts;     // 등록비·숙박비
+  extraCosts?: ExtraCosts;     // 등록비·숙박비 (구버전)
+  costDetail?: CostDetail;     // 비용 입력 (신버전)
   paper?: PaperDetail;         // 논문게재료 신청 시 사용
 }
 
@@ -163,8 +199,9 @@ export interface StaffDetail {
   calculatedAmount: number;
   taskDescription: string;
   workLog?: WorkLogEntry[];   // 구조화된 근무상황부 (일괄 등록 지원)
-  transport?: TransportInfo;  // 교통비
-  extraCosts?: ExtraCosts;    // 등록비·숙박비
+  transport?: TransportInfo;  // 교통비 (구버전)
+  extraCosts?: ExtraCosts;    // 등록비·숙박비 (구버전)
+  costDetail?: CostDetail;    // 비용 입력 (신버전)
 }
 
 // 교통비 (행사·학회 참석 등 이동 발생 시)

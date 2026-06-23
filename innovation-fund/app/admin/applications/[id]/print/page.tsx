@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import type { Application } from "@/types";
 import {
   APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
+  TRANSPORT_MODE_LABELS, calcSupportTotal,
 } from "@/types";
 import { buildFilename } from "@/lib/export-settings";
 
@@ -21,11 +22,11 @@ function subTypeName(app: Application): string {
 function typeDetailRows(app: Application): [string, string][] {
   if (app.programDetail) {
     const d = app.programDetail;
-    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent], ...extraCostRows(d.extraCosts)];
+    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent], ...costRows(d.costDetail, d.extraCosts)];
   }
   if (app.staffDetail) {
     const d = app.staffDetail;
-    return [["프로그램명", d.programName], ["근무 기간", d.workPeriod], ["근무 일자", d.workDates], ["총 근무시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "대학생"], ["담당 업무", d.taskDescription], ...extraCostRows(d.extraCosts)];
+    return [["프로그램명", d.programName], ["근무 기간", d.workPeriod], ["근무 일자", d.workDates], ["총 근무시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "대학생"], ["담당 업무", d.taskDescription], ...costRows(d.costDetail, d.extraCosts)];
   }
   if (app.gradeDetail) {
     const d = app.gradeDetail;
@@ -76,7 +77,7 @@ function typeDetailRows(app: Application): [string, string][] {
       ["활동명", d.activityName], ["활동 유형", d.activityType],
       ["활동 기간", d.activityPeriod], ["활동 내용", d.activityContent],
     ];
-    rows.push(...extraCostRows(d.extraCosts));
+    rows.push(...costRows(d.costDetail, d.extraCosts));
     return rows;
   }
   return [];
@@ -88,6 +89,28 @@ function extraCostRows(x?: import("@/types").ExtraCosts): [string, string][] {
   if (x.registrationFee) rows.push(["등록비·참가비", `${x.registrationFee.toLocaleString()}원`]);
   if (x.lodgingFee) rows.push(["숙박비", `${x.lodgingFee.toLocaleString()}원${x.lodgingNights ? ` (${x.lodgingNights}박)` : ""}`]);
   return rows;
+}
+
+function costDetailRows(c?: import("@/types").CostDetail): [string, string][] {
+  if (!c) return [];
+  const rows: [string, string][] = [];
+  if (c.registrationFee) rows.push(["등록비", `${c.registrationFee.toLocaleString()}원${c.registrationProofName ? ` (증빙: ${c.registrationProofName})` : ""}`]);
+  (c.transports || []).forEach((t, i) => {
+    rows.push([`교통비 ${i + 1}`, `${t.date || "-"} · ${TRANSPORT_MODE_LABELS[t.mode]} · ${t.route || "-"} · ${(t.amount || 0).toLocaleString()}원`]);
+  });
+  if (c.lodging) {
+    const l = c.lodging;
+    rows.push(["숙박비", l.usage === "personal"
+      ? `개인사용 · 결제 ${(l.roomAmount || 0).toLocaleString()}원`
+      : `단체사용 · 전체 ${(l.roomAmount || 0).toLocaleString()}원 · 개인부담 ${(l.personalAmount || 0).toLocaleString()}원`]);
+  }
+  rows.push(["지원비 합계", `${calcSupportTotal(c).toLocaleString()}원`]);
+  return rows;
+}
+
+// costDetail(신버전) 우선, 없으면 구버전 extraCosts
+function costRows(c?: import("@/types").CostDetail, x?: import("@/types").ExtraCosts): [string, string][] {
+  return c ? costDetailRows(c) : extraCostRows(x);
 }
 
 // 지원금 그룹별 명칭
