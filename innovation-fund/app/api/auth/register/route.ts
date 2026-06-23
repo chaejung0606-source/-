@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
     phone: String(b.phone || "").trim(),
     realEmail: String(b.email || "").trim(),
     university: String(b.university || "강원대학교").trim(),
+    bankName: String(b.bankName || "").trim(),
+    accountNumber: String(b.accountNumber || "").trim(),
+    accountHolder: String(b.accountHolder || "").trim(),
   };
 
   const { data, error } = await admin.auth.admin.createUser({
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
     await admin.from("student_profiles").upsert({
       id: uid, student_id: studentId, name: meta.name, department: meta.department,
       phone: meta.phone, email: meta.realEmail, university: meta.university,
+      bank_name: meta.bankName, account_number: meta.accountNumber, account_holder: meta.accountHolder,
     });
   }
 

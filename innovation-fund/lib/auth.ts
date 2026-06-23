@@ -13,11 +13,15 @@ export interface StudentUser {
   phone: string;
   email: string;
   university: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
 }
 
 export interface RegisterInput {
   studentId: string; password: string; name: string;
   department: string; phone: string; email: string; university?: string;
+  bankName?: string; accountNumber?: string; accountHolder?: string;
 }
 
 export async function register(input: RegisterInput): Promise<{ ok: boolean; error?: string }> {
@@ -33,6 +37,7 @@ export async function register(input: RegisterInput): Promise<{ ok: boolean; err
       studentId, password: input.password, name: input.name.trim(),
       department: input.department.trim(), phone: input.phone.trim(),
       email: input.email.trim(), university: input.university || "강원대학교",
+      bankName: input.bankName || "", accountNumber: input.accountNumber || "", accountHolder: input.accountHolder || "",
     }),
   });
   const j = await res.json().catch(() => ({ ok: false, error: "서버 응답 오류" }));
@@ -65,6 +70,7 @@ export async function currentUser(): Promise<StudentUser | null> {
     return {
       studentId: p.student_id, name: p.name, department: p.department || "",
       phone: p.phone || "", email: p.email || "", university: p.university || "강원대학교",
+      bankName: p.bank_name || "", accountNumber: p.account_number || "", accountHolder: p.account_holder || "",
     };
   }
   // 프로필이 없으면 user_metadata로 대체
@@ -72,5 +78,6 @@ export async function currentUser(): Promise<StudentUser | null> {
   return {
     studentId: m.studentId || "", name: m.name || "", department: m.department || "",
     phone: m.phone || "", email: m.realEmail || "", university: m.university || "강원대학교",
+    bankName: m.bankName || "", accountNumber: m.accountNumber || "", accountHolder: m.accountHolder || "",
   };
 }

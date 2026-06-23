@@ -45,7 +45,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
 
   // 유형별 상세
   const [programDetail, setProgramDetail] = useState({
-    programName: "", programType: "", participationPeriod: "", participationContent: "",
+    programName: "", programType: "", startDate: "", endDate: "", participationPeriod: "", participationContent: "",
     supervisorName: "", requestAmount: 0,
   });
   const [staffDetail, setStaffDetail] = useState({
@@ -92,6 +92,9 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
           phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,
           university: u.university || b.university,
+          bankName: b.bankName || u.bankName,
+          accountNumber: b.accountNumber || u.accountNumber,
+          accountHolder: b.accountHolder || u.accountHolder,
         }));
       }
     })();

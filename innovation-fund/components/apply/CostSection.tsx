@@ -28,6 +28,17 @@ export default function CostSection({ value, onChange }: Props) {
   const update = (patch: Partial<CostDetail>) => onChange({ ...v, ...patch });
   const updateLodging = (patch: Partial<LodgingDetail>) => update({ lodging: { ...lodging, ...patch } });
 
+  // 공통: 증빙 파일 업로드 → { path, name }
+  const uploadDoc = async (f: File): Promise<{ path: string; name: string } | null> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { alert("로그인이 필요합니다."); return null; }
+    const ext = f.name.includes(".") ? f.name.split(".").pop() : "";
+    const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+    const { error } = await supabase.storage.from("documents").upload(path, f, { upsert: false });
+    if (error) { alert(`업로드 실패: ${error.message}`); return null; }
+    return { path, name: f.name };
+  };
+
   // ① 등록비 증빙 업로드
   const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = (e.target.files || [])[0];
@@ -35,23 +46,39 @@ export default function CostSection({ value, onChange }: Props) {
     if (!f) return;
     setUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { alert("로그인이 필요합니다."); return; }
-      const ext = f.name.includes(".") ? f.name.split(".").pop() : "";
-      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
-      const { error } = await supabase.storage.from("documents").upload(path, f, { upsert: false });
-      if (error) { alert(`업로드 실패: ${error.message}`); return; }
-      update({ registrationProofPath: path, registrationProofName: f.name });
-    } finally {
-      setUploading(false);
-    }
+      const r = await uploadDoc(f);
+      if (r) update({ registrationProofPath: r.path, registrationProofName: r.name });
+    } finally { setUploading(false); }
+  };
+  const removeProof = () => update({ registrationProofPath: undefined, registrationProofName: undefined });
+
+  // 교통비 행별 증빙
+  const handleTransportProof = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = (e.target.files || [])[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const r = await uploadDoc(f);
+      if (r) updateTransport(id, { proofPath: r.path, proofName: r.name });
+    } finally { setUploading(false); }
   };
 
-  const removeProof = () => update({ registrationProofPath: undefined, registrationProofName: undefined });
+  // 숙박비 증빙
+  const handleLodgingProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = (e.target.files || [])[0];
+    e.target.value = "";
+    if (!f) return;
+    setUploading(true);
+    try {
+      const r = await uploadDoc(f);
+      if (r) updateLodging({ proofPath: r.path, proofName: r.name });
+    } finally { setUploading(false); }
+  };
 
   // ② 교통비 다중
   const addTransport = () => update({
-    transports: [...(v.transports || []), { id: uid(), date: "", mode: "bus", route: "", amount: 0 } as TransportItem],
+    transports: [...(v.transports || []), { id: uid(), date: "", mode: "bus", departure: "", arrival: "", amount: 0 } as TransportItem],
   });
   const updateTransport = (id: string, patch: Partial<TransportItem>) => update({
     transports: (v.transports || []).map((t) => (t.id === id ? { ...t, ...patch } : t)),
@@ -119,28 +146,51 @@ export default function CostSection({ value, onChange }: Props) {
         ) : (
           <div className="space-y-3">
             {(v.transports || []).map((t) => (
-              <div key={t.id} className="grid sm:grid-cols-[1fr_1fr_1.4fr_1fr_auto] gap-3 items-end bg-gray-50 rounded-xl p-3">
-                <div>
-                  <label className="label">사용일자</label>
-                  <input className="input-field" type="date" value={t.date} onChange={(e) => updateTransport(t.id, { date: e.target.value })} />
+              <div key={t.id} className="bg-gray-50 rounded-xl p-3 space-y-3">
+                <div className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
+                  <div>
+                    <label className="label">사용일자</label>
+                    <input className="input-field" type="date" value={t.date} onChange={(e) => updateTransport(t.id, { date: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">교통수단</label>
+                    <select className="input-field" value={t.mode} onChange={(e) => updateTransport(t.id, { mode: e.target.value as TransportMode })}>
+                      {MODES.map((m) => <option key={m} value={m}>{TRANSPORT_MODE_LABELS[m]}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">금액 (원)</label>
+                    <input className="input-field" type="number" min="0" value={t.amount || ""} onChange={(e) => updateTransport(t.id, { amount: Number(e.target.value) })} placeholder="0" />
+                  </div>
+                  <button type="button" onClick={() => removeTransport(t.id)} className="btn-danger flex items-center justify-center h-[42px] px-3" title="삭제">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">출발지</label>
+                    <input className="input-field" value={t.departure || ""} onChange={(e) => updateTransport(t.id, { departure: e.target.value })} placeholder="예: 춘천" />
+                  </div>
+                  <div>
+                    <label className="label">도착지</label>
+                    <input className="input-field" value={t.arrival || ""} onChange={(e) => updateTransport(t.id, { arrival: e.target.value })} placeholder="예: 서울" />
+                  </div>
                 </div>
                 <div>
-                  <label className="label">교통수단</label>
-                  <select className="input-field" value={t.mode} onChange={(e) => updateTransport(t.id, { mode: e.target.value as TransportMode })}>
-                    {MODES.map((m) => <option key={m} value={m}>{TRANSPORT_MODE_LABELS[m]}</option>)}
-                  </select>
+                  <label className="label">증빙 업로드 (해당 일자 교통비 영수증 등)</label>
+                  {t.proofPath ? (
+                    <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2.5">
+                      <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                      <span className="text-sm flex-1 truncate">{t.proofName || "증빙 파일"}</span>
+                      <button type="button" onClick={() => updateTransport(t.id, { proofPath: undefined, proofName: undefined })} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                      <Upload className="w-4 h-4" /> 증빙 파일 선택
+                      <input type="file" className="hidden" onChange={(e) => handleTransportProof(t.id, e)} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+                    </label>
+                  )}
                 </div>
-                <div>
-                  <label className="label">이동구간</label>
-                  <input className="input-field" value={t.route} onChange={(e) => updateTransport(t.id, { route: e.target.value })} placeholder="예: 춘천 → 서울" />
-                </div>
-                <div>
-                  <label className="label">금액 (원)</label>
-                  <input className="input-field" type="number" min="0" value={t.amount || ""} onChange={(e) => updateTransport(t.id, { amount: Number(e.target.value) })} placeholder="0" />
-                </div>
-                <button type="button" onClick={() => removeTransport(t.id)} className="btn-danger flex items-center justify-center h-[42px] px-3" title="삭제">
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
             ))}
           </div>
@@ -194,6 +244,22 @@ export default function CostSection({ value, onChange }: Props) {
             1인 70,000원 한도까지 지원 가능합니다. 초과분은 합계에서 제외됩니다.
           </div>
         )}
+
+        <div>
+          <label className="label">증빙 업로드 (숙박 영수증·숙박확인증 등)</label>
+          {lodging.proofPath ? (
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2.5">
+              <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
+              <span className="text-sm flex-1 truncate">{lodging.proofName || "증빙 파일"}</span>
+              <button type="button" onClick={() => updateLodging({ proofPath: undefined, proofName: undefined })} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+              <Upload className="w-4 h-4" /> 증빙 파일 선택
+              <input type="file" className="hidden" onChange={handleLodgingProof} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+            </label>
+          )}
+        </div>
       </div>
 
       {/* ④ 지원비 합계 */}
