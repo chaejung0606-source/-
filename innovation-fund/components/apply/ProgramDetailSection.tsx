@@ -8,7 +8,7 @@ interface ProgramDetail {
   programName: string; programType: string;
   startDate: string; endDate: string; participationPeriod: string;
   participationContent: string; supervisorName: string; requestAmount: number;
-  programId?: string; eventLocation?: EventLocation;
+  programId: string; eventLocation?: EventLocation;
 }
 
 interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; }

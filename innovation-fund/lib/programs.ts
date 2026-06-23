@@ -2,14 +2,34 @@
 import { supabase } from "./supabase";
 import type { FundCategory } from "@/types";
 
+// 신청자가 작성해야 하는 보고서/증빙 항목 (프로그램별 관리자 설정)
+export interface ReportField {
+  id: string;
+  label: string;            // 항목명 (예: 활동 내용, 결과 보고)
+  type: "text" | "file";    // 서술형 입력 / 파일 업로드
+  required?: boolean;       // 필수 여부
+}
+
 export interface Program {
   id: string;
   category: FundCategory;   // labor / innovation / activity
   name: string;
-  role?: string;            // 근로장학금 역할
+  role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
+  roles?: string[];         // 역할 목록 (여러 개 입력 가능)
+  reportFields?: ReportField[]; // 신청자 보고서 입력 항목
   applyStart: string;       // YYYY-MM-DD
   applyEnd: string;         // YYYY-MM-DD
   note: string;             // 비고
+}
+
+// 프로그램의 역할 목록 (roles 우선, 없으면 단일 role 폴백)
+export function getProgramRoles(p: Program): string[] {
+  if (p.roles && p.roles.length) return p.roles.filter((r) => r.trim());
+  return p.role ? [p.role] : [];
+}
+
+export function newFieldId(): string {
+  return "f-" + Math.random().toString(36).slice(2, 9);
 }
 
 // 운영 계획(안) 기반 기본 프로그램 (DB가 비어있을 때 관리자 화면 초기값)
@@ -27,10 +47,24 @@ export const SEED: Program[] = [
 ];
 
 function rowToProgram(r: any): Program {
-  return { id: r.id, category: r.category, name: r.name, role: r.role || undefined, applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "" };
+  const roles: string[] = Array.isArray(r.roles) ? r.roles : (r.role ? [r.role] : []);
+  return {
+    id: r.id, category: r.category, name: r.name,
+    role: r.role || undefined,
+    roles,
+    reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
+    applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "",
+  };
 }
 export function programToRow(p: Program): Record<string, any> {
-  return { id: p.id, category: p.category, name: p.name, role: p.role || null, apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "" };
+  const roles = (p.roles && p.roles.length) ? p.roles.filter((r) => r.trim()) : (p.role ? [p.role] : []);
+  return {
+    id: p.id, category: p.category, name: p.name,
+    role: roles[0] || null,          // 구버전 호환 단일 값
+    roles,
+    report_fields: p.reportFields || [],
+    apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "",
+  };
 }
 
 // 전체 프로그램 (공개 읽기)

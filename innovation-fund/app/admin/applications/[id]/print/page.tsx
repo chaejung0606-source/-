@@ -19,10 +19,14 @@ function subTypeName(app: Application): string {
   return "-";
 }
 
+function reportRows(entries?: import("@/types").ReportEntry[]): [string, string][] {
+  return (entries || []).map((e) => [e.label || "보고서 항목", e.type === "file" ? `파일: ${e.fileName || "업로드됨"}` : (e.value || "-")] as [string, string]);
+}
+
 function typeDetailRows(app: Application): [string, string][] {
   if (app.programDetail) {
     const d = app.programDetail;
-    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent], ...costRows(d.costDetail, d.extraCosts)];
+    return [["프로그램명", d.programName], ["프로그램 유형", d.programType], ["참여 기간", d.participationPeriod], ["지도교수/담당자", d.supervisorName], ["참여 내용", d.participationContent], ...costRows(d.costDetail, d.extraCosts), ...reportRows(d.reportEntries)];
   }
   if (app.staffDetail) {
     const d = app.staffDetail;
@@ -58,7 +62,7 @@ function typeDetailRows(app: Application): [string, string][] {
   }
   if (app.laborDetail) {
     const d = app.laborDetail;
-    return [["프로그램", d.programName], ["역할", d.role], ["근로 기간", d.workPeriod], ["총 근로시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "학부생"], ["확인자", d.supervisorName], ["근로 내용", d.workDetail]];
+    return [["프로그램", d.programName], ["역할", d.role], ["근로 기간", d.workPeriod], ["총 근로시간", `${d.totalHours}시간`], ["학생 구분", d.studentType === "graduate" ? "대학원생" : "학부생"], ["확인자", d.supervisorName], ["근로 내용", d.workDetail], ...reportRows(d.reportEntries)];
   }
   if (app.activityDetail) {
     const d = app.activityDetail;
@@ -78,6 +82,7 @@ function typeDetailRows(app: Application): [string, string][] {
       ["활동 기간", d.activityPeriod], ["활동 내용", d.activityContent],
     ];
     rows.push(...costRows(d.costDetail, d.extraCosts));
+    rows.push(...reportRows(d.reportEntries));
     return rows;
   }
   return [];

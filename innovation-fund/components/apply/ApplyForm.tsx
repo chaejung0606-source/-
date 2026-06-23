@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail } from "@/types";
+import type { ApplicationType, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry } from "@/types";
 import { APPLICATION_TYPE_LABELS, calcSupportTotal } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
@@ -18,6 +18,7 @@ import StaffDetailSection from "./StaffDetailSection";
 import LaborDetailSection from "./LaborDetailSection";
 import ActivityDetailSection from "./ActivityDetailSection";
 import CostSection from "./CostSection";
+import ReportSection from "./ReportSection";
 import GradeDetailSection from "./GradeDetailSection";
 import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
@@ -45,7 +46,7 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
 
   // 유형별 상세
   const [programDetail, setProgramDetail] = useState({
-    programName: "", programType: "", startDate: "", endDate: "", participationPeriod: "", participationContent: "",
+    programId: "", programName: "", programType: "", startDate: "", endDate: "", participationPeriod: "", participationContent: "",
     supervisorName: "", requestAmount: 0,
   });
   const [staffDetail, setStaffDetail] = useState({
@@ -78,6 +79,14 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
     transports: [],
     lodging: { usage: "personal", roomAmount: 0, personalAmount: 0 },
   });
+
+  // 프로그램별 보고서 입력값 (관리자가 설정한 항목)
+  const [reportEntries, setReportEntries] = useState<ReportEntry[]>([]);
+  const selectedProgramId =
+    applicationType === "program" ? programDetail.programId :
+    applicationType === "labor" ? laborDetail.programId :
+    applicationType === "activity" ? activityDetail.programId :
+    undefined;
 
   // 로그인한 신청자 정보 자동 채움
   useEffect(() => {
@@ -231,10 +240,10 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationType,
-        programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail } : undefined,
+        programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
         staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
-        laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount() } : undefined,
-        activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail } : undefined,
+        laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount(), reportEntries } : undefined,
+        activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail, reportEntries } : undefined,
         gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
         certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
@@ -332,6 +341,9 @@ export default function ApplyForm({ applicationType, onBack }: Props) {
       )}
       {step === 2 && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
         <CostSection value={costDetail} onChange={setCostDetail} />
+      )}
+      {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity") && (
+        <ReportSection programId={selectedProgramId} value={reportEntries} onChange={setReportEntries} />
       )}
 
       {/* 3단계: 파일 업로드 */}
