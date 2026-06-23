@@ -32,7 +32,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     address: "강원대학교 한빛관 1층 105호",
     // 빌드(업데이트)마다 자동 갱신 (next.config.mjs 주입)
     version: process.env.NEXT_PUBLIC_BUILD_VERSION || "v1.0.0",
-    updateDate: process.env.NEXT_PUBLIC_BUILD_DATE || new Date().toISOString().split("T")[0],
+    updateDate: process.env.NEXT_PUBLIC_BUILD_DATE || new Date().toISOString().slice(0, 16).replace("T", " "),
   },
   sidebarLinks: [
     { id: "1", label: "사업단\n홈페이지", href: "https://sducoss.ac.kr/ko/index", iconName: "Globe", color: "#4f8cff" },
