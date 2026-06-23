@@ -24,6 +24,7 @@ import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
 import FileUploadSection from "./FileUploadSection";
 import ConsentSection from "./ConsentSection";
+import ConsentChecklist from "./ConsentChecklist";
 
 interface Props {
   applicationType: ApplicationType;
@@ -317,9 +318,12 @@ export default function ApplyForm({ applicationType, mode = "fund", onBack }: Pr
         ))}
       </div>
 
-      {/* 1단계: 기본 정보 */}
+      {/* 1단계: 기본 정보 + 개인정보 동의(한 번에) */}
       {step === 1 && (
-        <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
+        <>
+          <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
+          <ConsentChecklist values={consent} onChange={setConsent} isPre={isPre} />
+        </>
       )}
 
       {/* 2단계: 유형별 상세 */}
@@ -356,11 +360,9 @@ export default function ApplyForm({ applicationType, mode = "fund", onBack }: Pr
         <FileUploadSection files={files} onChange={setFiles} applicationType={applicationType} />
       )}
 
-      {/* 4단계: 동의 */}
+      {/* 4단계: 신청 내용 확인 + 서명 (동의는 1단계에서 완료) */}
       {step === 4 && (
         <ConsentSection
-          values={consent}
-          onChange={setConsent}
           signature={signature}
           onSignatureChange={setSignature}
           isPre={isPre}
@@ -392,9 +394,8 @@ export default function ApplyForm({ applicationType, mode = "fund", onBack }: Pr
                 if (isPre) errs = errs.filter((e) => !e.includes("계좌번호"));
                 if (!isPre && !basicInfo.bankName.trim()) errs.push("• 은행명을 입력해주세요.");
                 if (!isPre && !basicInfo.accountHolder.trim()) errs.push("• 예금주를 입력해주세요.");
-                if (basicInfo.privacyAgree !== "동의") errs.push("• 개인정보 수집·이용에 동의해야 합니다.");
+                if (!consent.privacy || !consent.truth || (!isPre && !consent.account)) errs.push("• 개인정보 수집·이용 및 신청 동의 항목에 모두 체크해야 합니다.");
                 if (errs.length) { alert("작성 예시와 동일한 형식으로 정확히 입력해주세요.\n\n" + errs.join("\n")); return; }
-                setConsent((c) => ({ ...c, privacy: true }));
               }
               if (step === 2) {
                 const e2 = validateStep2();
