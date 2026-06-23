@@ -94,12 +94,15 @@ export type DocumentType =
   | "certificate_copy"        // 자격증 사본
   | "other";                  // 기타
 
+// 신청자 입력 항목 종류: 서술형 / 파일 / 서약(동의) / 서명
+export type ReportFieldType = "text" | "file" | "agreement" | "signature";
+
 // 프로그램별 신청자 보고서 입력값 (관리자가 설정한 항목에 대응)
 export interface ReportEntry {
   fieldId: string;
   label: string;
-  type: "text" | "file";
-  value?: string;      // 서술형 입력값
+  type: ReportFieldType;
+  value?: string;      // 서술형 입력값 / 서약 동의("동의") / 서명 이미지(dataURL)
   filePath?: string;   // 파일 업로드 경로
   fileName?: string;   // 파일명(표시용)
 }
@@ -405,6 +408,10 @@ export interface Application {
   // 신청 취소
   canceled?: boolean;
   canceledAt?: string;
+
+  // 임시저장 (작성 중)
+  isDraft?: boolean;
+  draftStep?: number;
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

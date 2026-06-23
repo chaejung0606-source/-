@@ -157,16 +157,23 @@ export default function ProgramsAdminPage() {
                       ) : (
                         <div className="space-y-2">
                           {(p.reportFields || []).map((f) => (
-                            <div key={f.id} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                              <input className="input-field flex-1 min-w-[140px]" value={f.label} onChange={(e) => updateField(p, f.id, { label: e.target.value })} placeholder="항목명 (예: 활동 내용)" />
-                              <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, f.id, { type: e.target.value as ReportField["type"] })}>
-                                <option value="text">서술형</option>
-                                <option value="file">파일 업로드</option>
-                              </select>
-                              <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
-                                <input type="checkbox" checked={!!f.required} onChange={(e) => updateField(p, f.id, { required: e.target.checked })} /> 필수
-                              </label>
-                              <button onClick={() => removeField(p, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                            <div key={f.id} className="space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                <input className="input-field flex-1 min-w-[140px]" value={f.label} onChange={(e) => updateField(p, f.id, { label: e.target.value })} placeholder="항목명 (예: 활동 내용)" />
+                                <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, f.id, { type: e.target.value as ReportField["type"] })}>
+                                  <option value="text">서술형</option>
+                                  <option value="file">파일 업로드</option>
+                                  <option value="agreement">서약(동의)</option>
+                                  <option value="signature">서명</option>
+                                </select>
+                                <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+                                  <input type="checkbox" checked={!!f.required} onChange={(e) => updateField(p, f.id, { required: e.target.checked })} /> 필수
+                                </label>
+                                <button onClick={() => removeField(p, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                              {f.type === "agreement" && (
+                                <textarea className="input-field h-20 resize-none text-sm" value={f.text || ""} onChange={(e) => updateField(p, f.id, { text: e.target.value })} placeholder="서약 본문 내용" />
+                              )}
                             </div>
                           ))}
                         </div>

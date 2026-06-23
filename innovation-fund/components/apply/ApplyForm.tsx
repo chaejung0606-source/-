@@ -30,14 +30,18 @@ interface Props {
   applicationType: ApplicationType;
   mode?: ApplicationPhase;
   prefill?: Application | null;  // 이전 지원신청 내역 → 중복 항목 자동입력
+  draft?: Application | null;    // 임시저장 이어쓰기 → 전체 복원
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, mode = "fund", prefill = null, onBack }: Props) {
+export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(draft?.draftStep || 1);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(draft?.id || null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string>("");
 
   // 기본 정보
   const [basicInfo, setBasicInfo] = useState({
@@ -203,6 +207,31 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   // 학생 서명 (base64)
   const [signature, setSignature] = useState<string>("");
 
+  // 임시저장 이어쓰기: 전체 상태 복원
+  useEffect(() => {
+    if (!draft) return;
+    setBasicInfo((b) => ({
+      ...b,
+      name: draft.name || b.name, studentId: draft.studentId || b.studentId, university: draft.university || b.university,
+      department: draft.department || b.department, grade: draft.grade || b.grade, academicStatus: draft.academicStatus || b.academicStatus,
+      gradCompletion: draft.gradCompletion || b.gradCompletion, completedYears: draft.completedYears || b.completedYears, currentSemester: draft.currentSemester || b.currentSemester,
+      phone: draft.phone || b.phone, email: draft.email || b.email, applicationDate: draft.applicationDate || b.applicationDate,
+      bankName: draft.bankInfo?.bankName || b.bankName, accountNumber: draft.bankInfo?.accountNumber || b.accountNumber, accountHolder: draft.bankInfo?.accountHolder || b.accountHolder,
+    }));
+    setConsent({ privacy: !!draft.privacyConsent, truth: !!draft.truthConsent, account: !!draft.accountConsent });
+    if (draft.signature) setSignature(draft.signature);
+    if (draft.files) setFiles(draft.files);
+    const pd = draft.programDetail as any, ld = draft.laborDetail as any, ad = draft.activityDetail as any, sd = draft.staffDetail as any;
+    if (pd) { setProgramDetail((p) => ({ ...p, ...pd })); if (pd.costDetail) setCostDetail(pd.costDetail); if (pd.reportEntries) setReportEntries(pd.reportEntries); }
+    if (sd) { setStaffDetail((p) => ({ ...p, ...sd })); if (sd.costDetail) setCostDetail(sd.costDetail); }
+    if (ld) { setLaborDetail((p) => ({ ...p, ...ld })); if (ld.reportEntries) setReportEntries(ld.reportEntries); }
+    if (ad) { setActivityDetail((p) => ({ ...p, ...ad })); if (ad.costDetail) setCostDetail(ad.costDetail); if (ad.reportEntries) setReportEntries(ad.reportEntries); }
+    if (draft.gradeDetail) setGradeDetail((p) => ({ ...p, ...(draft.gradeDetail as any) }));
+    if (draft.contestDetail) setContestDetail((p) => ({ ...p, ...(draft.contestDetail as any) }));
+    if (draft.certificateDetail) setCertDetail((p) => ({ ...p, ...(draft.certificateDetail as any) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
+
   // 계산 금액 (지원신청은 활동 전이므로 금액 없음)
   const getCalculatedAmount = (): number => {
     if (isPre) return 0;
@@ -220,6 +249,55 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (applicationType === "program") return calcSupportTotal(costDetail);
     if (applicationType === "activity") return activityDetail.requestAmount;
     return getCalculatedAmount();
+  };
+
+  // 제출/임시저장 공통 payload 생성
+  const buildPayload = (asDraft: boolean) => ({
+    name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
+    department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
+    gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
+    phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
+    bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
+    applicationPhase: mode,
+    applicationType,
+    programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
+    staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
+    laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount(), reportEntries } : undefined,
+    activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail, reportEntries } : undefined,
+    gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+    contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+    certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+    files,
+    privacyConsent: consent.privacy,
+    truthConsent: consent.truth,
+    accountConsent: consent.account,
+    signature,
+    accountMismatch: isPre ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
+    requestAmount: getRequestAmount(),
+    calculatedAmount: getCalculatedAmount(),
+    isDraft: asDraft,
+    draftStep: asDraft ? step : undefined,
+  });
+
+  // 임시저장 (검증 없이 현재까지 작성 내용 저장)
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const { data: { user }, } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!user || !session) { alert("로그인이 필요합니다."); router.push("/login?next=/apply"); return; }
+      const row = toRow(buildPayload(true), user.id);
+      const res = await fetch("/api/applications/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id: draftId, row, finalize: false }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (j.ok) { setDraftId(j.id); setDraftSavedAt(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })); }
+      else alert("임시저장 실패: " + (j.error || "알 수 없는 오류"));
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   // 2단계(신청 내용) 필수·형식 검증
@@ -294,45 +372,37 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     setSubmitting(true);
     try {
-      const payload = {
-        name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
-        department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
-        gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
-        phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
-        bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
-        applicationPhase: mode,
-        applicationType,
-        programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
-        staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
-        laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount(), reportEntries } : undefined,
-        activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail, reportEntries } : undefined,
-        gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
-        contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
-        certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
-        files,
-        privacyConsent: consent.privacy,
-        truthConsent: consent.truth,
-        accountConsent: consent.account,
-        signature,
-        accountMismatch: isPre ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
-        requestAmount: getRequestAmount(),
-        calculatedAmount: getCalculatedAmount(),
-      };
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("로그인이 필요합니다. 다시 로그인해 주세요.");
         router.push("/login?next=/apply");
         return;
       }
-      const { data: inserted, error } = await supabase
-        .from("applications")
-        .insert(toRow(payload, user.id))
-        .select("id,receipt_number")
-        .single();
-      if (error) {
-        alert("신청 저장 중 오류가 발생했습니다.\n" + error.message);
-        return;
+      const row = toRow(buildPayload(false), user.id);
+
+      let inserted: { id: string; receipt_number: string };
+      if (draftId) {
+        // 임시저장 건을 최종 제출로 전환 (RLS상 서버 라우트로 update)
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/applications/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ id: draftId, row, finalize: true }),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("신청 제출 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
+        inserted = { id: j.id, receipt_number: j.receiptNumber };
+      } else {
+        const { data, error } = await supabase
+          .from("applications")
+          .insert(row)
+          .select("id,receipt_number")
+          .single();
+        if (error) {
+          alert("신청 저장 중 오류가 발생했습니다.\n" + error.message);
+          return;
+        }
+        inserted = data;
       }
 
       // Google Drive 동기화 (비민감 정보만, 실패해도 신청은 정상 처리)
@@ -431,6 +501,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         />
       )}
 
+      {/* 임시저장 안내 */}
+      {draftSavedAt && (
+        <p className="text-xs text-emerald-600 text-right -mb-2">임시저장됨 · {draftSavedAt} (마이페이지에서 이어서 작성할 수 있습니다)</p>
+      )}
+
       {/* 하단 버튼 */}
       <div className="flex gap-3 pt-4">
         {step > 1 && (
@@ -438,6 +513,9 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
             이전
           </button>
         )}
+        <button onClick={saveDraft} disabled={savingDraft} className="btn-secondary flex-1 disabled:opacity-60">
+          {savingDraft ? "저장 중..." : "임시저장"}
+        </button>
         {step < 4 ? (
           <button
             onClick={() => {

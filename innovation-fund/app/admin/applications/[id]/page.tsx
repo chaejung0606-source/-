@@ -81,7 +81,14 @@ export default function ApplicationDetailPage() {
   };
 
   const reportRows = (entries?: import("@/types").ReportEntry[]): [string, string][] =>
-    (entries || []).map((e) => [e.label || "보고서 항목", e.type === "file" ? `파일: ${e.fileName || "업로드됨"}` : (e.value || "-")] as [string, string]);
+    (entries || []).map((e) => {
+      let v: string;
+      if (e.type === "file") v = `파일: ${e.fileName || "업로드됨"}`;
+      else if (e.type === "agreement") v = e.value === "동의" ? "동의함" : "미동의";
+      else if (e.type === "signature") v = e.value ? "서명 완료" : "미서명";
+      else v = e.value || "-";
+      return [e.label || "보고서 항목", v] as [string, string];
+    });
 
   const locationRows = (loc?: import("@/types").EventLocation): [string, string][] => {
     if (!loc) return [];

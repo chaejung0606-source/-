@@ -39,6 +39,7 @@ function ApplyInner() {
   const [userName, setUserName] = useState("");
   const mode: ApplicationPhase = params.get("mode") === "pre" ? "pre" : "fund";
   const fromId = params.get("from");
+  const draftId = params.get("draft");
   const initCategory = (() => { const c = params.get("category"); return c && (c in CATEGORY_TYPES) ? (c as FundCategory) : null; })();
   const initType = (() => { const t = params.get("type"); return t && (t in APPLICATION_TYPE_LABELS) ? (t as ApplicationType) : null; })();
   const [category, setCategory] = useState<FundCategory | null>(initCategory);
@@ -49,6 +50,22 @@ function ApplyInner() {
   const [preApps, setPreApps] = useState<Application[]>([]);
   const [preChecked, setPreChecked] = useState(false);
   const [skipPre, setSkipPre] = useState(false);
+
+  // 임시저장 이어쓰기
+  const [draftApp, setDraftApp] = useState<Application | null>(null);
+  useEffect(() => {
+    if (!draftId) return;
+    (async () => {
+      const { data } = await supabase.from("applications").select("*").eq("id", draftId).maybeSingle();
+      if (data) {
+        const app = fromRow(data);
+        setDraftApp(app);
+        setCategory(categoryOfType(app.applicationType));
+        setSelectedType(app.applicationType);
+        setPreChecked(true);
+      }
+    })();
+  }, [draftId]);
 
   // 로그인 게이트
   useEffect(() => {
@@ -77,7 +94,7 @@ function ApplyInner() {
 
   // 지원금 신청 + 분야 선택 시, 해당 분야의 지원신청 내역 조회
   useEffect(() => {
-    if (mode !== "fund" || !category || fromId) return;
+    if (mode !== "fund" || !category || fromId || draftId) return;
     setPreChecked(false);
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -130,6 +147,7 @@ function ApplyInner() {
             applicationType={selectedType}
             mode={mode}
             prefill={prefill}
+            draft={draftApp}
             onBack={() => {
               setPrefill(null);
               // 지원신청(pre)·단일유형은 카테고리 선택으로, 혁신인재지원금(지원금)은 유형 선택으로

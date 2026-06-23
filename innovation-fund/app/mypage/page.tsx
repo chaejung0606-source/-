@@ -135,6 +135,9 @@ export default function MyPage() {
   const fmt = (n: number) => (n || 0).toLocaleString("ko-KR");
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "-");
 
+  const drafts = apps.filter((a) => a.isDraft && !a.canceled);
+  const submitted = apps.filter((a) => !a.isDraft);
+
   return (
     <div className="min-h-screen">
       {/* 헤더 */}
@@ -165,7 +168,7 @@ export default function MyPage() {
             <h1 className="text-2xl font-extrabold text-gray-800">
               {name ? `${name}님` : "신청자"}의 마이페이지
             </h1>
-            <p className="text-sm text-gray-500 mt-1">학번 {studentId || "-"} · 신청 내역 {apps.length}건</p>
+            <p className="text-sm text-gray-500 mt-1">학번 {studentId || "-"} · 신청 내역 {submitted.length}건{drafts.length > 0 ? ` · 임시저장 ${drafts.length}건` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={load} className="btn-secondary text-sm flex items-center gap-1.5">
@@ -297,19 +300,44 @@ export default function MyPage() {
           )}
         </div>
 
+        {/* 임시저장 (작성 중) */}
+        {!loading && drafts.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-gray-700">임시저장 (작성 중)</h2>
+            {drafts.map((d) => (
+              <div key={d.id} className="card flex items-center justify-between gap-3 flex-wrap" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="badge bg-amber-100 text-amber-700">임시저장</span>
+                    <span className="badge bg-gray-100 text-gray-600">{APPLICATION_PHASE_LABELS[d.applicationPhase || "fund"]}</span>
+                    <span className="font-bold text-gray-800">{APPLICATION_TYPE_LABELS[d.applicationType]}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">마지막 저장 {fmtDate(d.updatedAt || d.createdAt)}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => cancelApp(d)} className="text-xs text-gray-400 hover:text-rose-500">삭제</button>
+                  <Link href={`/apply?draft=${d.id}&mode=${d.applicationPhase || "fund"}`} className="btn-primary text-sm flex items-center gap-1.5">
+                    이어서 신청 <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20 text-gray-400">불러오는 중...</div>
-        ) : apps.length === 0 ? (
+        ) : submitted.length === 0 ? (
           <div className="card text-center py-16">
             <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 mb-4">아직 신청 내역이 없습니다.</p>
+            <p className="text-gray-500 mb-4">아직 제출한 신청 내역이 없습니다.</p>
             <Link href="/apply" className="btn-primary inline-flex items-center gap-1.5">
               지원금 신청하기 <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {apps.map((app) => {
+            {submitted.map((app) => {
               const rm = REVIEW_STATUS_META[app.reviewStatus];
               const pm = PAYMENT_STATUS_META[app.paymentStatus];
               const stepIdx = REVIEW_STATUS_ORDER.indexOf(app.reviewStatus);
