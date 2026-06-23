@@ -8,6 +8,8 @@ import { logout, verifyPassword } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
 import TimetableEditor from "@/components/mypage/TimetableEditor";
+import DepartmentInput from "@/components/common/DepartmentInput";
+import { CAMPUSES } from "@/lib/departments";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
@@ -16,7 +18,7 @@ const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학�
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
 
 interface Profile {
-  name: string; department: string; phone: string; email: string;
+  name: string; campus: string; department: string; phone: string; email: string;
   university: string; bankName: string; accountNumber: string; accountHolder: string;
 }
 
@@ -28,7 +30,7 @@ export default function MyPage() {
   const [apps, setApps] = useState<Application[]>([]);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile>({ name: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
+  const [profile, setProfile] = useState<Profile>({ name: "", campus: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileOk, setProfileOk] = useState(false);
 
@@ -77,6 +79,7 @@ export default function MyPage() {
     setStudentId(m.studentId || "");
     setProfile({
       name: m.name || "",
+      campus: m.campus || "",
       department: m.department || "",
       phone: m.phone || "",
       email: m.realEmail || "",
@@ -238,9 +241,22 @@ export default function MyPage() {
                     {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
                   </select>
                 </div>
+                {profile.university === "강원대학교" && (
+                  <div>
+                    <label className="label">캠퍼스</label>
+                    <select className="input-field" value={profile.campus} onChange={(e) => setP("campus", e.target.value)}>
+                      <option value="">선택</option>
+                      {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="label">학과/전공</label>
-                  <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
+                  {profile.university === "강원대학교" ? (
+                    <DepartmentInput value={profile.department} onChange={(v) => setP("department", v)} campus={profile.campus} />
+                  ) : (
+                    <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
+                  )}
                 </div>
                 <div>
                   <label className="label">연락처</label>

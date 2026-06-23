@@ -47,7 +47,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   // 기본 정보
   const [basicInfo, setBasicInfo] = useState({
-    name: "", studentId: "", university: "강원대학교", department: "", grade: "1",
+    name: "", studentId: "", university: "강원대학교", campus: "춘천", department: "", grade: "1",
     academicStatus: "재학", phone: "", email: "", applicationDate: new Date().toISOString().split("T")[0],
     bankName: "", accountNumber: "", accountHolder: "",
     gradCompletion: "재학", completedYears: "", currentSemester: "",
@@ -121,6 +121,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           ...b,
           name: b.name || u.name,
           studentId: b.studentId || u.studentId,
+          campus: b.campus || u.campus || b.campus,
           department: b.department || u.department,
           phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,
@@ -159,6 +160,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       name: prefill.name || b.name,
       studentId: prefill.studentId || b.studentId,
       university: prefill.university || b.university,
+      campus: prefill.campus || b.campus,
       department: prefill.department || b.department,
       grade: prefill.grade || b.grade,
       academicStatus: prefill.academicStatus || b.academicStatus,
@@ -243,7 +245,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (!draft) return;
     setBasicInfo((b) => ({
       ...b,
-      name: draft.name || b.name, studentId: draft.studentId || b.studentId, university: draft.university || b.university,
+      name: draft.name || b.name, studentId: draft.studentId || b.studentId, university: draft.university || b.university, campus: draft.campus || b.campus,
       department: draft.department || b.department, grade: draft.grade || b.grade, academicStatus: draft.academicStatus || b.academicStatus,
       gradCompletion: draft.gradCompletion || b.gradCompletion, completedYears: draft.completedYears || b.completedYears, currentSemester: draft.currentSemester || b.currentSemester,
       phone: draft.phone || b.phone, email: draft.email || b.email, applicationDate: draft.applicationDate || b.applicationDate,
@@ -284,7 +286,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   // 제출/임시저장 공통 payload 생성
   const buildPayload = (asDraft: boolean) => ({
-    name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
+    name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university, campus: basicInfo.campus,
     department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
     gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
     phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,

@@ -10,6 +10,7 @@ const emailForStudentId = (sid: string) => `${sid.trim().toLowerCase()}@${APPLIC
 export interface StudentUser {
   studentId: string;
   name: string;
+  campus: string;
   department: string;
   phone: string;
   email: string;
@@ -22,7 +23,7 @@ export interface StudentUser {
 
 export interface RegisterInput {
   studentId: string; password: string; name: string;
-  department: string; phone: string; email: string; university?: string;
+  campus?: string; department: string; phone: string; email: string; university?: string;
   bankName?: string; accountNumber?: string; accountHolder?: string;
 }
 
@@ -37,7 +38,7 @@ export async function register(input: RegisterInput): Promise<{ ok: boolean; err
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       studentId, password: input.password, name: input.name.trim(),
-      department: input.department.trim(), phone: input.phone.trim(),
+      campus: input.campus || "", department: input.department.trim(), phone: input.phone.trim(),
       email: input.email.trim(), university: input.university || "강원대학교",
       bankName: input.bankName || "", accountNumber: input.accountNumber || "", accountHolder: input.accountHolder || "",
     }),
@@ -82,7 +83,7 @@ export async function currentUser(): Promise<StudentUser | null> {
     .from("student_profiles").select("*").eq("id", user.id).maybeSingle();
   if (p) {
     return {
-      studentId: p.student_id, name: p.name, department: p.department || "",
+      studentId: p.student_id, name: p.name, campus: p.campus || meta.campus || "", department: p.department || "",
       phone: p.phone || "", email: p.email || "", university: p.university || "강원대학교",
       bankName: p.bank_name || "", accountNumber: p.account_number || "", accountHolder: p.account_holder || "",
       timetable,
@@ -91,7 +92,7 @@ export async function currentUser(): Promise<StudentUser | null> {
   // 프로필이 없으면 user_metadata로 대체
   const m = meta as Record<string, string>;
   return {
-    studentId: m.studentId || "", name: m.name || "", department: m.department || "",
+    studentId: m.studentId || "", name: m.name || "", campus: m.campus || "", department: m.department || "",
     phone: m.phone || "", email: m.realEmail || "", university: m.university || "강원대학교",
     bankName: m.bankName || "", accountNumber: m.accountNumber || "", accountHolder: m.accountHolder || "",
     timetable,

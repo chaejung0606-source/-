@@ -180,6 +180,8 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS draft_step INT;
 -- applications: 관리자 테스트 신청
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE;
+-- applications: 강원대 캠퍼스
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS campus TEXT;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여

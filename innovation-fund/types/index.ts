@@ -355,6 +355,7 @@ export interface Application {
   name: string;
   studentId: string;
   university: string;
+  campus?: string;           // 강원대 캠퍼스 (춘천/원주/삼척/강릉/도계)
   department: string;
   grade: string;
   academicStatus: string;
