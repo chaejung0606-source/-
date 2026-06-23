@@ -163,6 +163,8 @@ export interface TransportItem {
   id: string;
   date: string;        // 사용일자 (yyyy-mm-dd)
   mode: TransportMode; // 교통수단
+  region?: TransportRegion; // 국내/국외 (항공 가능 여부 판단)
+  isJeju?: boolean;    // 국내 중 제주도 여부 (항공 가능)
   route?: string;      // 이동구간 (구버전 호환)
   departure?: string;  // 출발지
   arrival?: string;    // 도착지
