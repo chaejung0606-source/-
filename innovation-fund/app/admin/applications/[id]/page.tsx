@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
 import {
   REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
 } from "@/config/status";
@@ -96,6 +96,30 @@ export default function ApplicationDetailPage() {
     return rows;
   };
 
+  const costDetailRows = (c?: import("@/types").CostDetail): [string, string][] => {
+    if (!c) return [];
+    const rows: [string, string][] = [];
+    if (c.registrationFee) rows.push(["등록비", `${c.registrationFee.toLocaleString()}원${c.registrationProofName ? ` (증빙: ${c.registrationProofName})` : ""}`]);
+    (c.transports || []).forEach((t, i) => {
+      rows.push([`교통비 ${i + 1}`, `${t.date || "-"} · ${TRANSPORT_MODE_LABELS[t.mode]} · ${t.route || "-"} · ${(t.amount || 0).toLocaleString()}원`]);
+    });
+    if (c.lodging) {
+      const l = c.lodging;
+      rows.push(["숙박비", l.usage === "personal"
+        ? `개인사용 · 결제 ${(l.roomAmount || 0).toLocaleString()}원`
+        : `단체사용 · 전체 ${(l.roomAmount || 0).toLocaleString()}원 · 개인부담 ${(l.personalAmount || 0).toLocaleString()}원`]);
+    }
+    rows.push(["지원비 합계", `${calcSupportTotal(c).toLocaleString()}원`]);
+    return rows;
+  };
+
+  // costDetail(신버전) 우선, 없으면 구버전 transport/extraCosts
+  const costRows = (
+    c?: import("@/types").CostDetail,
+    t?: import("@/types").TransportInfo,
+    x?: import("@/types").ExtraCosts,
+  ): [string, string][] => (c ? costDetailRows(c) : [...transportRows(t), ...extraCostRows(x)]);
+
   const getDetail = (): [string, string][] => {
     if (app.programDetail) return [
       ["프로그램명", app.programDetail.programName],
@@ -104,8 +128,7 @@ export default function ApplicationDetailPage() {
       ["지도교수", app.programDetail.supervisorName],
       ["참여 내용", app.programDetail.participationContent],
       ...locationRows(app.programDetail.eventLocation),
-      ...transportRows(app.programDetail.transport),
-      ...extraCostRows(app.programDetail.extraCosts),
+      ...costRows(app.programDetail.costDetail, app.programDetail.transport, app.programDetail.extraCosts),
     ];
     if (app.staffDetail) return [
       ["프로그램명", app.staffDetail.programName],
@@ -114,8 +137,7 @@ export default function ApplicationDetailPage() {
       ["총 근무 시간", `${app.staffDetail.totalHours}시간`],
       ["학생 구분", app.staffDetail.studentType === "graduate" ? "대학원생" : "대학생"],
       ["담당 업무", app.staffDetail.taskDescription],
-      ...transportRows(app.staffDetail.transport),
-      ...extraCostRows(app.staffDetail.extraCosts),
+      ...costRows(app.staffDetail.costDetail, app.staffDetail.transport, app.staffDetail.extraCosts),
     ];
     if (app.gradeDetail) return [
       ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[app.gradeDetail.subType]],
@@ -176,8 +198,7 @@ export default function ApplicationDetailPage() {
         ["활동 기간", a.activityPeriod],
         ["활동 내용", a.activityContent],
         ...locationRows(a.eventLocation),
-        ...transportRows(a.transport),
-        ...extraCostRows(a.extraCosts),
+        ...costRows(a.costDetail, a.transport, a.extraCosts),
       ];
     }
     return [];

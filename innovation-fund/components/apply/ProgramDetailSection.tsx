@@ -58,11 +58,8 @@ export default function ProgramDetailSection({ values, onChange }: Props) {
           <label className="label">참여 내용</label>
           <textarea className="input-field h-24 resize-none" value={values.participationContent} onChange={(e) => set({ participationContent: e.target.value })} placeholder="참여 내용을 상세히 기술해주세요." />
         </div>
-        <div>
-          <label className="label">신청 금액 (원) <span className="text-red-500">*</span></label>
-          <input className="input-field" type="number" value={values.requestAmount || ""} onChange={(e) => set({ requestAmount: Number(e.target.value) })} placeholder="0" />
-        </div>
       </div>
+      <p className="text-xs text-gray-500">※ 신청 금액은 아래 비용 입력(교통비·숙박비)에서 자동 계산됩니다.</p>
 
       {isConference && (
         <EventLocationSection values={values.eventLocation || { scope: "domestic" }} onChange={(loc) => set({ eventLocation: loc })} />
