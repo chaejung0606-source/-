@@ -144,33 +144,6 @@ export default function BasicInfoSection({ values, onChange, hideAccount = false
         )}
       </div>
       )}
-
-      {/* 개인정보 수집·이용 동의 */}
-      <div className="card">
-        <h2 className="section-title">개인정보 수집·이용 동의</h2>
-        <div className="rounded-2xl p-4 text-xs text-gray-600 mb-4 leading-relaxed" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
-          <p className="font-semibold text-gray-800 mb-1">수집·이용 안내</p>
-          <p>• 수집 항목: 이름, 학번, 소속, 학과, 연락처, 이메일, 계좌정보</p>
-          <p>• 수집 목적: 혁신인재지원금 신청 접수 및 지급 관리</p>
-          <p>• 보유 기간: 지원금 지급 완료 후 5년</p>
-          <p className="mt-1">※ 동의하지 않으실 경우 지원금 신청이 불가합니다.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[{ v: "동의", label: "동의합니다" }, { v: "미동의", label: "동의하지 않습니다" }].map((o) => (
-            <button
-              key={o.v}
-              type="button"
-              onClick={() => set("privacyAgree", o.v)}
-              className={`rounded-2xl p-3 text-center text-sm font-semibold transition-all ${values.privacyAgree === o.v ? (o.v === "동의" ? "btn-primary" : "btn-danger !py-3") : "btn-secondary"}`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        {values.privacyAgree === "미동의" && (
-          <p className="text-red-500 text-sm mt-3">개인정보 수집·이용에 동의해야 신청을 진행할 수 있습니다.</p>
-        )}
-      </div>
     </div>
   );
 }
