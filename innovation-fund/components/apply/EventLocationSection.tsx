@@ -4,9 +4,9 @@ import { MapPin, Search } from "lucide-react";
 import type { EventLocation } from "@/types";
 import { DOMESTIC, PROVINCES, COUNTRIES, searchDomestic, searchCountries } from "@/lib/locations";
 
-interface Props { values: EventLocation; onChange: (v: EventLocation) => void; }
+interface Props { values: EventLocation; onChange: (v: EventLocation) => void; title?: string; }
 
-export default function EventLocationSection({ values, onChange }: Props) {
+export default function EventLocationSection({ values, onChange, title = "행사(학회) 장소" }: Props) {
   const [domQuery, setDomQuery] = useState("");
   const [intlQuery, setIntlQuery] = useState("");
   const [showDom, setShowDom] = useState(false);
@@ -19,7 +19,7 @@ export default function EventLocationSection({ values, onChange }: Props) {
 
   return (
     <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
-      <h3 className="font-bold text-gray-800 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-indigo-500" /> 행사(학회) 장소</h3>
+      <h3 className="font-bold text-gray-800 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-indigo-500" /> {title}</h3>
 
       {/* 국내/국외 */}
       <div className="flex gap-2">
@@ -101,7 +101,7 @@ export default function EventLocationSection({ values, onChange }: Props) {
               <option value="">국가 선택</option>
               {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <input className="input-field" value={values.cityName || ""} onChange={(e) => update({ cityName: e.target.value })} placeholder="세부 도시 (직접 입력)" />
+            <input className="input-field" value={values.cityName || ""} onChange={(e) => update({ cityName: e.target.value })} placeholder="자세한 주소 (직접 입력)" />
           </div>
           {values.country && (
             <p className="text-xs text-indigo-600">선택: {values.country}{values.cityName ? ` · ${values.cityName}` : ""}</p>

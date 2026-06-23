@@ -91,9 +91,11 @@ export default function ProgramDetailSection({ values, onChange, preOnly = false
       </div>
       <p className="text-xs text-gray-500">※ 신청 금액은 아래 비용 입력(교통비·숙박비)에서 자동 계산됩니다.</p>
 
-      {isConference && (
-        <EventLocationSection values={values.eventLocation || { scope: "domestic" }} onChange={(loc) => set({ eventLocation: loc })} />
-      )}
+      <EventLocationSection
+        title={isConference ? "행사(학회) 장소" : "활동(참여) 장소"}
+        values={values.eventLocation || { scope: "domestic" }}
+        onChange={(loc) => set({ eventLocation: loc })}
+      />
     </div>
   );
 }
