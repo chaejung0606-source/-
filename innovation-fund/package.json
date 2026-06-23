@@ -1,12 +1,13 @@
 {
   "name": "innovation-fund",
-  "version": "1.1.0",
+  "version": "1.1.58",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-version": "node scripts/sync-version.mjs"
   },
   "dependencies": {
     "next": "15.5.7",

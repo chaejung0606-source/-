@@ -1,25 +1,19 @@
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function tryGit(cmd) {
-  try { return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); }
-  catch { return ""; }
-}
-
-// 버전: major.minor 는 package.json, patch 는 깃허브 푸시(커밋) 건수로 자동 결정
-let base = "1.0";
+// 버전: package.json의 version을 그대로 사용.
+// (Vercel은 git을 얕게 클론해 빌드 시 커밋 수를 못 세므로, 푸시 건수는
+//  커밋 시점에 scripts/sync-version.mjs로 package.json에 미리 기록한다.)
+let pkgVersion = "1.0.0";
 try {
   const pkg = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8"));
-  const parts = String(pkg.version || "1.0.0").split(".");
-  base = `${parts[0] || "1"}.${parts[1] || "0"}`;
+  pkgVersion = pkg.version || pkgVersion;
 } catch { /* ignore */ }
 
-const commitCount = tryGit("git rev-list --count HEAD");
-const buildVersion = `v${base}.${commitCount || "0"}`;
+const buildVersion = `v${pkgVersion}`;
 
 // 업데이트 일시: 한국시간(KST, UTC+9) 기준 "yyyy-mm-dd HH:MM" (24시간제)
 const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
