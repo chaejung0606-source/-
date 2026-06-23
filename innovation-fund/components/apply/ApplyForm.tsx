@@ -8,6 +8,7 @@ import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
 import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
+import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/programs";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow } from "@/lib/app-mapper";
@@ -95,6 +96,16 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     applicationType === "labor" ? laborDetail.programId :
     applicationType === "activity" ? activityDetail.programId :
     undefined;
+
+  // 선택 프로그램·단계의 입력 항목 정의 (필수 검증용)
+  const [reportFieldDefs, setReportFieldDefs] = useState<ReportField[]>([]);
+  useEffect(() => {
+    if (!selectedProgramId) { setReportFieldDefs([]); return; }
+    fetchPrograms().then((all) => {
+      const p = all.find((x) => x.id === selectedProgramId);
+      setReportFieldDefs(effectiveReportFields(p, mode));
+    });
+  }, [selectedProgramId, mode]);
 
   // 근로장학금: 마이페이지에서 입력한 수강 시간표 (수업시간엔 근로 불가)
   const [classTimes, setClassTimes] = useState<ClassTime[]>([]);
@@ -328,6 +339,19 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     if (applicationType === "contest") {
       if (!contestDetail.contestName.trim()) e.push("• 대회명을 입력해주세요.");
+    }
+    // 관리자가 '필수'로 설정한 신청자 입력 항목(서술/파일/드롭다운/서약/서명) 검증
+    for (const f of reportFieldDefs) {
+      if (!f.required) continue;
+      const en = reportEntries.find((x) => x.fieldId === f.id);
+      const filled = f.type === "file" ? !!en?.filePath
+        : f.type === "signature" ? !!en?.value
+        : f.type === "agreement" ? en?.value === "동의"
+        : !!(en?.value && en.value.trim());
+      if (!filled) {
+        const verb = f.type === "file" ? "업로드" : f.type === "agreement" ? "동의" : f.type === "signature" ? "서명" : "작성";
+        e.push(`• [${f.label || "필수 항목"}] 항목을 ${verb}해주세요.`);
+      }
     }
     return e;
   };
