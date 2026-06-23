@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS programs (
 -- 기존 테이블 마이그레이션(이미 존재 시 컬럼 추가)
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS report_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_report_fields JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply BOOLEAN DEFAULT FALSE;
 -- programs: 지원신청(활동 전) 기간
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_start TEXT;

@@ -2,11 +2,18 @@
 import { useEffect, useState } from "react";
 import { Save, Plus, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink } from "@/lib/site-config";
+import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
 
 const TABS = ["푸터 설정", "사이드바 링크"] as const;
 type Tab = typeof TABS[number];
 const ICONS = ["Globe", "BookOpen", "GraduationCap", "MessageCircle", "Mail", "Phone", "Award", "FileText", "Link"];
+const FOOTER_ICONS = ["Mail", "Phone", "MapPin", "Globe", "Link2", "MessageCircle", "GraduationCap", "BookOpen"];
+const FOOTER_TYPES: { v: FooterItem["type"]; label: string }[] = [
+  { v: "email", label: "이메일(클릭 복사)" },
+  { v: "phone", label: "전화(통화)" },
+  { v: "address", label: "주소(지도검색)" },
+  { v: "link", label: "링크(URL)" },
+];
 const newId = () => Math.random().toString(36).slice(2, 10);
 
 export default function SiteSettingsPage() {
@@ -18,6 +25,15 @@ export default function SiteSettingsPage() {
 
   const updateFooter = (k: keyof SiteConfig["footer"], v: string) => {
     setConfig((c) => ({ ...c, footer: { ...c.footer, [k]: v } })); setSaved(false);
+  };
+  const updateFooterItem = (id: string, patch: Partial<FooterItem>) => {
+    setConfig((c) => ({ ...c, footer: { ...c.footer, items: c.footer.items.map((it) => it.id === id ? { ...it, ...patch } : it) } })); setSaved(false);
+  };
+  const addFooterItem = () => {
+    setConfig((c) => ({ ...c, footer: { ...c.footer, items: [...c.footer.items, { id: newId(), type: "link", iconName: "Globe", label: "", value: "" }] } })); setSaved(false);
+  };
+  const removeFooterItem = (id: string) => {
+    setConfig((c) => ({ ...c, footer: { ...c.footer, items: c.footer.items.filter((it) => it.id !== id) } })); setSaved(false);
   };
   const updateLink = (id: string, patch: Partial<SiteLink>) => {
     setConfig((c) => ({ ...c, sidebarLinks: c.sidebarLinks.map((l) => l.id === id ? { ...l, ...patch } : l) })); setSaved(false);
@@ -50,11 +66,28 @@ export default function SiteSettingsPage() {
       </div>
 
       {tab === "푸터 설정" && (
-        <div className="card grid sm:grid-cols-2 gap-4">
-          <div><label className="label">조직명</label><input className="input-field" value={config.footer.organization} onChange={(e) => updateFooter("organization", e.target.value)} /></div>
-          <div><label className="label">이메일</label><input className="input-field" value={config.footer.email} onChange={(e) => updateFooter("email", e.target.value)} /></div>
-          <div><label className="label">전화</label><input className="input-field" value={config.footer.phone} onChange={(e) => updateFooter("phone", e.target.value)} /></div>
-          <div><label className="label">주소</label><input className="input-field" value={config.footer.address} onChange={(e) => updateFooter("address", e.target.value)} /></div>
+        <div className="space-y-3">
+          <div className="card">
+            <label className="label">조직명</label>
+            <input className="input-field" value={config.footer.organization} onChange={(e) => updateFooter("organization", e.target.value)} />
+          </div>
+          <p className="text-sm text-gray-500">연락처 항목을 사이드바 링크처럼 추가·수정·삭제할 수 있습니다. (유형에 따라 클릭 동작이 달라집니다)</p>
+          {config.footer.items.map((it) => (
+            <div key={it.id} className="card grid sm:grid-cols-12 gap-3 items-end">
+              <div className="sm:col-span-3"><label className="label">유형</label>
+                <select className="input-field" value={it.type} onChange={(e) => updateFooterItem(it.id, { type: e.target.value as FooterItem["type"] })}>
+                  {FOOTER_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+                </select>
+              </div>
+              <div className="sm:col-span-2"><label className="label">아이콘</label>
+                <select className="input-field" value={it.iconName} onChange={(e) => updateFooterItem(it.id, { iconName: e.target.value })}>{FOOTER_ICONS.map((i) => <option key={i}>{i}</option>)}</select>
+              </div>
+              <div className="sm:col-span-3"><label className="label">표시 텍스트</label><input className="input-field" value={it.label} onChange={(e) => updateFooterItem(it.id, { label: e.target.value })} placeholder="예: sducoss@kangwon.ac.kr" /></div>
+              <div className="sm:col-span-3"><label className="label">값(이메일/전화/주소/URL)</label><input className="input-field" value={it.value} onChange={(e) => updateFooterItem(it.id, { value: e.target.value })} placeholder={it.type === "address" ? "지도 검색어" : "값"} /></div>
+              <div className="sm:col-span-1 flex justify-end"><button onClick={() => removeFooterItem(it.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div>
+            </div>
+          ))}
+          <button onClick={addFooterItem} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 연락처 항목 추가</button>
         </div>
       )}
 

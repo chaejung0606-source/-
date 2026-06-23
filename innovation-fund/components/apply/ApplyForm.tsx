@@ -478,7 +478,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <CostSection value={costDetail} onChange={setCostDetail} />
       )}
       {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity") && (
-        <ReportSection programId={selectedProgramId} value={reportEntries} onChange={setReportEntries} />
+        <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries} />
       )}
 
       {/* 3단계: 파일 업로드 */}

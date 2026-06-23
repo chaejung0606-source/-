@@ -8,11 +8,12 @@ import SignaturePad from "./SignaturePad";
 
 interface Props {
   programId?: string;
+  phase?: "pre" | "fund";
   value?: ReportEntry[];
   onChange: (v: ReportEntry[]) => void;
 }
 
-export default function ReportSection({ programId, value, onChange }: Props) {
+export default function ReportSection({ programId, phase = "fund", value, onChange }: Props) {
   const [fields, setFields] = useState<ReportField[]>([]);
   const [uploading, setUploading] = useState(false);
   const entries = value || [];
@@ -21,9 +22,9 @@ export default function ReportSection({ programId, value, onChange }: Props) {
     if (!programId) { setFields([]); return; }
     fetchPrograms().then((all) => {
       const p = all.find((x) => x.id === programId);
-      setFields(effectiveReportFields(p));
+      setFields(effectiveReportFields(p, phase));
     });
-  }, [programId]);
+  }, [programId, phase]);
 
   if (!programId || fields.length === 0) return null;
 

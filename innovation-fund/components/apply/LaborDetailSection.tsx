@@ -103,10 +103,12 @@ export default function LaborDetailSection({ values, onChange, calculatedAmount,
         </>
       )}
 
-      <div>
-        <label className="label">근로 내용 요약</label>
-        <textarea className="input-field h-20 resize-none" value={values.workDetail} onChange={(e) => set({ workDetail: e.target.value })} placeholder="근로 활동 내용을 요약해주세요." />
-      </div>
+      {!preOnly && (
+        <div>
+          <label className="label">근로 내용 요약</label>
+          <textarea className="input-field h-20 resize-none" value={values.workDetail} onChange={(e) => set({ workDetail: e.target.value })} placeholder="근로 활동 내용을 요약해주세요." />
+        </div>
+      )}
     </div>
   );
 }

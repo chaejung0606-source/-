@@ -7,7 +7,7 @@ import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCirc
 const NAV = [
   { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
-  { href: "/admin/programs", label: "프로그램 / 신청기간", icon: CalendarRange },
+  { href: "/admin/programs", label: "프로그램", icon: CalendarRange },
   { href: "/admin/content", label: "유형 세부내용", icon: ListChecks },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
   { href: "/admin/settings", label: "내보내기 설정", icon: Settings },

@@ -46,13 +46,20 @@ const PROGRAM_TEMPLATES: { match: (name: string) => boolean; fields: ReportField
   },
 ];
 
-// 프로그램에 적용할 입력 항목: 관리자 설정값 우선, 없으면 프로그램명 기반 기본 템플릿
-export function effectiveReportFields(p?: { name?: string; reportFields?: ReportField[] } | null): ReportField[] {
+// 프로그램·단계(지원신청 pre / 지원금 신청 fund)에 적용할 입력 항목.
+// 관리자 설정값 우선, 없으면 지원신청(pre)에 한해 프로그램명 기반 기본 템플릿 적용.
+export function effectiveReportFields(
+  p?: { name?: string; reportFields?: ReportField[]; preReportFields?: ReportField[] } | null,
+  phase: "pre" | "fund" = "fund",
+): ReportField[] {
   if (!p) return [];
-  if (p.reportFields && p.reportFields.length) return p.reportFields;
-  const name = p.name || "";
-  const tpl = PROGRAM_TEMPLATES.find((t) => t.match(name));
-  return tpl ? tpl.fields : [];
+  const fields = phase === "pre" ? p.preReportFields : p.reportFields;
+  if (fields && fields.length) return fields;
+  if (phase === "pre") {
+    const tpl = PROGRAM_TEMPLATES.find((t) => t.match(p.name || ""));
+    if (tpl) return tpl.fields;
+  }
+  return [];
 }
 
 export interface Program {
@@ -61,7 +68,8 @@ export interface Program {
   name: string;
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
-  reportFields?: ReportField[]; // 신청자 보고서 입력 항목
+  reportFields?: ReportField[];    // 지원금 신청(fund) 신청자 입력 항목
+  preReportFields?: ReportField[]; // 지원신청(pre) 신청자 입력 항목
   preApply?: boolean;       // 지원신청(활동 전) 가능 여부 (구버전 호환)
   preApplyStart?: string;   // 지원신청 시작 YYYY-MM-DD
   preApplyEnd?: string;     // 지원신청 마감 YYYY-MM-DD
@@ -101,6 +109,7 @@ function rowToProgram(r: any): Program {
     role: r.role || undefined,
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
+    preReportFields: Array.isArray(r.pre_report_fields) ? r.pre_report_fields : [],
     preApply: !!r.pre_apply,
     preApplyStart: r.pre_apply_start || undefined,
     preApplyEnd: r.pre_apply_end || undefined,
@@ -114,6 +123,7 @@ export function programToRow(p: Program): Record<string, any> {
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
+    pre_report_fields: p.preReportFields || [],
     pre_apply: !!(p.preApplyStart && p.preApplyEnd) || !!p.preApply,
     pre_apply_start: p.preApplyStart || null,
     pre_apply_end: p.preApplyEnd || null,

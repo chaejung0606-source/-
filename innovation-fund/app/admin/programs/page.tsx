@@ -36,12 +36,58 @@ export default function ProgramsAdminPage() {
   const updatePreStart = (p: Program, val: string) => update(p.id, p.preApplyStart ? { preApplyStart: val } : { preApplyStart: val, applyStart: val });
   const updatePreEnd = (p: Program, val: string) => update(p.id, p.preApplyEnd ? { preApplyEnd: val } : { preApplyEnd: val, applyEnd: val });
 
-  // 보고서 입력 항목 설정
-  const setFields = (id: string, reportFields: ReportField[]) => update(id, { reportFields });
-  const addField = (p: Program) => setFields(p.id, [...(p.reportFields || []), { id: newFieldId(), label: "", type: "text", required: false }]);
-  const updateField = (p: Program, fid: string, patch: Partial<ReportField>) =>
-    setFields(p.id, (p.reportFields || []).map((f) => (f.id === fid ? { ...f, ...patch } : f)));
-  const removeField = (p: Program, fid: string) => setFields(p.id, (p.reportFields || []).filter((f) => f.id !== fid));
+  // 신청자 입력 항목 설정 (key: 지원신청=preReportFields / 지원금 신청=reportFields)
+  type FieldKey = "reportFields" | "preReportFields";
+  const fieldsOf = (p: Program, key: FieldKey): ReportField[] => p[key] || [];
+  const setFields = (id: string, key: FieldKey, fields: ReportField[]) => update(id, { [key]: fields });
+  const addField = (p: Program, key: FieldKey) => setFields(p.id, key, [...fieldsOf(p, key), { id: newFieldId(), label: "", type: "text", required: false }]);
+  const updateField = (p: Program, key: FieldKey, fid: string, patch: Partial<ReportField>) =>
+    setFields(p.id, key, fieldsOf(p, key).map((f) => (f.id === fid ? { ...f, ...patch } : f)));
+  const removeField = (p: Program, key: FieldKey, fid: string) => setFields(p.id, key, fieldsOf(p, key).filter((f) => f.id !== fid));
+
+  // 단계별 신청자 입력 항목 편집기 (지원신청 / 지원금 신청 공통)
+  const renderFieldEditor = (p: Program, key: FieldKey, title: string, accent: string) => {
+    const fields = fieldsOf(p, key);
+    return (
+      <div className="rounded-2xl p-3" style={{ background: `${accent}0d`, border: `1px solid ${accent}33` }}>
+        <div className="flex items-center justify-between mb-1">
+          <label className="label mb-0" style={{ color: accent }}>{title}</label>
+          <button onClick={() => addField(p, key)} className="text-xs hover:underline flex items-center gap-1" style={{ color: accent }}><Plus className="w-3.5 h-3.5" /> 항목 추가</button>
+        </div>
+        <p className="text-[11px] text-gray-400 mb-2">신청자가 작성/업로드/선택해야 하는 항목을 설정합니다.</p>
+        {fields.length === 0 ? (
+          <p className="text-xs text-gray-400">설정된 항목이 없습니다.</p>
+        ) : (
+          <div className="space-y-2">
+            {fields.map((f) => (
+              <div key={f.id} className="space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input className="input-field flex-1 min-w-[120px]" value={f.label} onChange={(e) => updateField(p, key, f.id, { label: e.target.value })} placeholder="항목명 (예: 활동 내용)" />
+                  <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, key, f.id, { type: e.target.value as ReportField["type"] })}>
+                    <option value="text">서술형</option>
+                    <option value="file">파일 업로드</option>
+                    <option value="select">드롭다운</option>
+                    <option value="agreement">서약(동의)</option>
+                    <option value="signature">서명</option>
+                  </select>
+                  <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+                    <input type="checkbox" checked={!!f.required} onChange={(e) => updateField(p, key, f.id, { required: e.target.checked })} /> 필수
+                  </label>
+                  <button onClick={() => removeField(p, key, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                </div>
+                {f.type === "agreement" && (
+                  <textarea className="input-field h-20 resize-none text-sm" value={f.text || ""} onChange={(e) => updateField(p, key, f.id, { text: e.target.value })} placeholder="서약 본문 내용" />
+                )}
+                {f.type === "select" && (
+                  <input className="input-field text-sm" value={(f.options || []).join(", ")} onChange={(e) => updateField(p, key, f.id, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분, 예: 공간관리, 행사지원, 홍보)" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   const save = async () => {
     const res = await fetch("/api/admin/programs", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }),
@@ -54,7 +100,7 @@ export default function ProgramsAdminPage() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-800">프로그램 / 신청기간 관리</h1>
+        <h1 className="text-2xl font-bold text-gray-800">프로그램 관리</h1>
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
       <p className="text-gray-500 text-sm mb-6">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
@@ -145,43 +191,14 @@ export default function ProgramsAdminPage() {
                       )}
                     </div>
 
-                    {/* 신청자 보고서 입력 항목 설정 */}
+                    {/* 신청자 입력 항목 — 좌:지원신청 / 우:지원금 신청 */}
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="label mb-0">신청자 입력 항목 (보고서·증빙)</label>
-                        <button onClick={() => addField(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 항목 추가</button>
+                      <label className="label">신청자 입력 항목 (지원신청 / 지원금 신청 각각 설정)</label>
+                      <p className="text-xs text-gray-400 mb-2">지원신청·지원금 신청 시 신청자가 작성하는 내용을 단계별로 설정합니다.</p>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {renderFieldEditor(p, "preReportFields", "지원신청 입력 항목", "#6366f1")}
+                        {renderFieldEditor(p, "reportFields", "지원금 신청 입력 항목", "#10b981")}
                       </div>
-                      <p className="text-xs text-gray-400 mb-2">신청자가 작성/업로드해야 하는 활동내용·증빙 등을 항목으로 설정합니다.</p>
-                      {(p.reportFields || []).length === 0 ? (
-                        <p className="text-xs text-gray-400">설정된 항목이 없습니다.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {(p.reportFields || []).map((f) => (
-                            <div key={f.id} className="space-y-1.5">
-                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                <input className="input-field flex-1 min-w-[140px]" value={f.label} onChange={(e) => updateField(p, f.id, { label: e.target.value })} placeholder="항목명 (예: 활동 내용)" />
-                                <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, f.id, { type: e.target.value as ReportField["type"] })}>
-                                  <option value="text">서술형</option>
-                                  <option value="file">파일 업로드</option>
-                                  <option value="select">드롭다운</option>
-                                  <option value="agreement">서약(동의)</option>
-                                  <option value="signature">서명</option>
-                                </select>
-                                <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
-                                  <input type="checkbox" checked={!!f.required} onChange={(e) => updateField(p, f.id, { required: e.target.checked })} /> 필수
-                                </label>
-                                <button onClick={() => removeField(p, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                              </div>
-                              {f.type === "agreement" && (
-                                <textarea className="input-field h-20 resize-none text-sm" value={f.text || ""} onChange={(e) => updateField(p, f.id, { text: e.target.value })} placeholder="서약 본문 내용" />
-                              )}
-                              {f.type === "select" && (
-                                <input className="input-field text-sm" value={(f.options || []).join(", ")} onChange={(e) => updateField(p, f.id, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분, 예: 공간관리, 행사지원, 홍보)" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
