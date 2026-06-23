@@ -1,0 +1,17 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+function isAdmin(req: NextRequest) {
+  return req.cookies.get("admin_auth")?.value === "true";
+}
+
+// 관리자: 신청자(학생) 목록 조회 — 로그인 지원용(학번 확인)
+export async function GET(req: NextRequest) {
+  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data, error } = await supabaseAdmin()
+    .from("student_profiles")
+    .select("id, student_id, name, department, phone, email, university")
+    .order("student_id", { ascending: true });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data || []);
+}

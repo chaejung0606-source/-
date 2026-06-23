@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2 } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
@@ -55,7 +55,9 @@ export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
   const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
+  useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => setIsAdmin(!!d.admin)).catch(() => {}); }, []);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
@@ -93,6 +95,11 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link href="/admin/dashboard" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                <Shield className="w-4 h-4" /> 관리자 페이지
+              </Link>
+            )}
             {loggedIn ? (
               <>
                 <Link href="/mypage" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">

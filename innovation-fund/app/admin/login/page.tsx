@@ -21,7 +21,8 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        router.push("/admin/dashboard");
+        // 편집 내용을 바로 확인할 수 있도록 홈 화면으로 이동 (헤더의 '관리자 페이지' 버튼으로 왕복)
+        router.push("/");
       } else {
         setError(data.error || "로그인에 실패했습니다.");
       }

@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, newFieldId, isProgramActive, type Program, type ReportField } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, newFieldId, isProgramActive, effectiveReportFields, type Program, type ReportField } from "@/lib/programs";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
 const today = () => new Date().toISOString().split("T")[0];
@@ -13,7 +13,16 @@ export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { fetchPrograms().then((l) => setList(l.length ? l : SEED)); }, []);
+  useEffect(() => {
+    fetchPrograms().then((l) => {
+      const base = l.length ? l : SEED;
+      // 프로그램명 기반 기본 입력 항목(템플릿)을 편집/삭제 가능하도록 미리 펼쳐둠
+      setList(base.map((p) => ({
+        ...p,
+        preReportFields: (p.preReportFields && p.preReportFields.length) ? p.preReportFields : effectiveReportFields(p, "pre"),
+      })));
+    });
+  }, []);
 
   const update = (id: string, patch: Partial<Program>) => {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));

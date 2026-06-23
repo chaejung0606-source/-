@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
+  { href: "/admin/applicants", label: "신청자 정보", icon: Users },
   { href: "/admin/programs", label: "프로그램", icon: CalendarRange },
   { href: "/admin/content", label: "유형 세부내용", icon: ListChecks },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },

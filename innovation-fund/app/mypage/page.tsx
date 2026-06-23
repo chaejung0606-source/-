@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown, CalendarClock, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { logout } from "@/lib/auth";
+import { logout, verifyPassword } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
 import TimetableEditor from "@/components/mypage/TimetableEditor";
@@ -37,6 +37,32 @@ export default function MyPage() {
   const [timetable, setTimetable] = useState<ClassTime[]>([]);
   const [ttSaving, setTtSaving] = useState(false);
   const [ttOk, setTtOk] = useState(false);
+
+  // 비밀번호 확인 모달 (개인정보·시간표 수정 전 본인 확인)
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwValue, setPwValue] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwChecking, setPwChecking] = useState(false);
+  const pendingAction = useRef<null | (() => void)>(null);
+
+  const requirePassword = (action: () => void) => {
+    pendingAction.current = action;
+    setPwValue(""); setPwError(""); setPwOpen(true);
+  };
+  const confirmPassword = async () => {
+    setPwChecking(true);
+    setPwError("");
+    try {
+      const ok = await verifyPassword(pwValue);
+      if (!ok) { setPwError("비밀번호가 올바르지 않습니다."); return; }
+      setPwOpen(false);
+      const act = pendingAction.current;
+      pendingAction.current = null;
+      act?.();
+    } finally {
+      setPwChecking(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -259,7 +285,7 @@ export default function MyPage() {
                 <button type="button" onClick={() => setProfileOpen(false)} className="btn-secondary text-sm">취소</button>
                 <button
                   type="button"
-                  onClick={saveProfile}
+                  onClick={() => requirePassword(saveProfile)}
                   disabled={profileSaving || !profile.name}
                   className="btn-primary text-sm disabled:opacity-60"
                 >
@@ -292,7 +318,7 @@ export default function MyPage() {
               </div>
               <TimetableEditor value={timetable} onChange={setTimetable} />
               <div className="flex justify-end">
-                <button type="button" onClick={saveTimetable} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
+                <button type="button" onClick={() => requirePassword(saveTimetable)} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
                   {ttSaving ? "저장 중..." : "시간표 저장"}
                 </button>
               </div>
@@ -433,6 +459,33 @@ export default function MyPage() {
           ※ 신청 내역과 진행 상황은 본인 계정에서만 조회됩니다. 처리 상태는 사업단 검토에 따라 갱신됩니다.
         </p>
       </main>
+
+      {/* 비밀번호 확인 모달 */}
+      {pwOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setPwOpen(false)} />
+          <div className="modal relative w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">본인 확인</h2>
+            <p className="text-sm text-gray-500 mb-4">정보를 수정하려면 비밀번호를 입력해주세요.</p>
+            <input
+              type="password"
+              className="input-field"
+              value={pwValue}
+              autoFocus
+              onChange={(e) => setPwValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && pwValue && !pwChecking) confirmPassword(); }}
+              placeholder="비밀번호"
+            />
+            {pwError && <p className="text-red-500 text-sm mt-2">{pwError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setPwOpen(false)} className="btn-secondary flex-1">취소</button>
+              <button onClick={confirmPassword} disabled={!pwValue || pwChecking} className="btn-primary flex-1 disabled:opacity-60">
+                {pwChecking ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

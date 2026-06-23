@@ -61,6 +61,15 @@ export async function logout(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+// 현재 로그인한 신청자의 비밀번호 확인 (개인정보·시간표 수정 전 본인 확인용)
+export async function verifyPassword(password: string): Promise<boolean> {
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email;
+  if (!email || !password) return false;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  return !error;
+}
+
 export async function currentUser(): Promise<StudentUser | null> {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
