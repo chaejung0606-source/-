@@ -6,6 +6,7 @@ import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
 import FundTypeModal from "@/components/home/FundTypeModal";
+import FooterWalkers from "@/components/home/FooterWalkers";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
@@ -280,7 +281,8 @@ export default function Home() {
       </div>
 
       {/* 푸터 (엔드바) */}
-      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12">
+      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12 relative">
+        <FooterWalkers />
         <div className="max-w-6xl mx-auto px-4 text-sm">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
             {/* 좌측: 기관 정보 (왼쪽 정렬) */}

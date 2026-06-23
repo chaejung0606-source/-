@@ -84,6 +84,46 @@
   @media (prefers-reduced-motion: reduce) {
     .glitter-overlay, .glitter-overlay::after { animation: none; }
   }
+
+  /* 엔드바 능선 위를 걷는 사업단 캐릭터들 */
+  .footer-walkers {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 6;
+    overflow: visible;
+  }
+  .walker {
+    position: absolute;
+    bottom: -1px;
+    animation-name: ridgeWalk;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: left, transform;
+  }
+  .walker img {
+    height: 100%;
+    width: auto;
+    display: block;
+    transform-origin: bottom center;
+    animation: walkBob 0.5s ease-in-out infinite;
+    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
+  }
+  @keyframes ridgeWalk {
+    0%   { left: 1%;  transform: scaleX(1); }
+    47%  { left: 86%; transform: scaleX(1); }
+    50%  { left: 86%; transform: scaleX(-1); }
+    97%  { left: 1%;  transform: scaleX(-1); }
+    100% { left: 1%;  transform: scaleX(1); }
+  }
+  @keyframes walkBob {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-3px) rotate(1.5deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .footer-walkers { display: none; }
+  }
 }
 
 @layer components {
