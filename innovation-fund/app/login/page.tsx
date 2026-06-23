@@ -112,7 +112,9 @@ function LoginInner() {
                   <input className="input-field" value={reg.accountHolder} onChange={(e) => setR("accountHolder", e.target.value)} placeholder="예금주" />
                 </div>
                 <input className="input-field mt-3" value={reg.accountNumber} onChange={(e) => setR("accountNumber", e.target.value)} placeholder="계좌번호 (- 없이)" inputMode="numeric" />
-                <p className="text-xs text-gray-400 mt-1">신청 시 자동으로 입력됩니다. (권장)</p>
+                <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 leading-relaxed">
+                  ⚠️ 지원금 신청 시 제출하는 <strong>통장 사본의 정보(예금주·은행·계좌번호)와 반드시 일치</strong>해야 합니다. 본인 명의 계좌만 지급 가능하며, 정보가 다르면 지급이 보류될 수 있습니다. (신청 시 자동으로 입력됩니다.)
+                </div>
               </div>
 
               {/* 개인정보 수집·이용 동의 (수집 시점 고지) */}

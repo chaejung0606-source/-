@@ -81,6 +81,16 @@ export type DocumentType =
   | "certificate_copy"        // 자격증 사본
   | "other";                  // 기타
 
+// 프로그램별 신청자 보고서 입력값 (관리자가 설정한 항목에 대응)
+export interface ReportEntry {
+  fieldId: string;
+  label: string;
+  type: "text" | "file";
+  value?: string;      // 서술형 입력값
+  filePath?: string;   // 파일 업로드 경로
+  fileName?: string;   // 파일명(표시용)
+}
+
 // 유형별 상세 데이터
 export interface ProgramDetail {
   programName: string;
@@ -96,6 +106,7 @@ export interface ProgramDetail {
   costDetail?: CostDetail;       // 비용 입력 (신버전: 등록비·교통비 다중·숙박비)
   eventLocation?: EventLocation; // 행사(학회) 장소
   programId?: string;            // 선택한 사업단 프로그램 ID
+  reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
 }
 
 // 근로장학금 상세
@@ -110,6 +121,7 @@ export interface LaborDetail {
   workLog: WorkLogEntry[];      // 근무상황부 (일괄 등록 지원)
   workDetail: string;           // 근로 상세내역
   supervisorName: string;       // 확인자(교수/담당자)
+  reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
 }
 
 // 학생활동지원비 신청 구분 (학회참석 등 / 논문게재료)
@@ -187,6 +199,7 @@ export interface ActivityDetail {
   extraCosts?: ExtraCosts;     // 등록비·숙박비 (구버전)
   costDetail?: CostDetail;     // 비용 입력 (신버전)
   paper?: PaperDetail;         // 논문게재료 신청 시 사용
+  reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
 }
 
 // 근무상황부 1회 근무 기록
@@ -210,6 +223,7 @@ export interface StaffDetail {
   transport?: TransportInfo;  // 교통비 (구버전)
   extraCosts?: ExtraCosts;    // 등록비·숙박비 (구버전)
   costDetail?: CostDetail;    // 비용 입력 (신버전)
+  reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
 }
 
 // 교통비 (행사·학회 참석 등 이동 발생 시)

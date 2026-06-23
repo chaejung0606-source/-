@@ -80,6 +80,9 @@ export default function ApplicationDetailPage() {
     ];
   };
 
+  const reportRows = (entries?: import("@/types").ReportEntry[]): [string, string][] =>
+    (entries || []).map((e) => [e.label || "보고서 항목", e.type === "file" ? `파일: ${e.fileName || "업로드됨"}` : (e.value || "-")] as [string, string]);
+
   const locationRows = (loc?: import("@/types").EventLocation): [string, string][] => {
     if (!loc) return [];
     const v = loc.scope === "overseas"
@@ -131,6 +134,7 @@ export default function ApplicationDetailPage() {
       ["참여 내용", app.programDetail.participationContent],
       ...locationRows(app.programDetail.eventLocation),
       ...costRows(app.programDetail.costDetail, app.programDetail.transport, app.programDetail.extraCosts),
+      ...reportRows(app.programDetail.reportEntries),
     ];
     if (app.staffDetail) return [
       ["프로그램명", app.staffDetail.programName],
@@ -175,6 +179,7 @@ export default function ApplicationDetailPage() {
       ["확인자", app.laborDetail.supervisorName],
       ["근로 내용", app.laborDetail.workDetail],
       ["근무 기록", (app.laborDetail.workLog || []).map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ") || "-"],
+      ...reportRows(app.laborDetail.reportEntries),
     ];
     if (app.activityDetail) {
       const a = app.activityDetail;
@@ -201,6 +206,7 @@ export default function ApplicationDetailPage() {
         ["활동 내용", a.activityContent],
         ...locationRows(a.eventLocation),
         ...costRows(a.costDetail, a.transport, a.extraCosts),
+        ...reportRows(a.reportEntries),
       ];
     }
     return [];

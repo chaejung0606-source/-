@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { WorkLogEntry } from "@/types";
-import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActive, getProgramRoles, type Program } from "@/lib/programs";
 import WorkLogEditor from "./WorkLogEditor";
 
 interface LaborDetail {
@@ -20,8 +20,12 @@ export default function LaborDetailSection({ values, onChange, calculatedAmount 
 
   const selectProgram = (id: string) => {
     const p = programs.find((x) => x.id === id);
-    set({ programId: id, programName: p?.name || "", role: p?.role || values.role });
+    const roles = p ? getProgramRoles(p) : [];
+    set({ programId: id, programName: p?.name || "", role: roles.length === 1 ? roles[0] : (roles.includes(values.role) ? values.role : "") });
   };
+
+  const selectedProgram = programs.find((x) => x.id === values.programId);
+  const roleOptions = selectedProgram ? getProgramRoles(selectedProgram) : [];
 
   const onLogChange = (log: WorkLogEntry[]) => {
     const dates = Array.from(new Set(log.map((e) => e.date)));
@@ -52,7 +56,14 @@ export default function LaborDetailSection({ values, onChange, calculatedAmount 
         </div>
         <div>
           <label className="label">역할</label>
-          <input className="input-field" value={values.role} onChange={(e) => set({ role: e.target.value })} placeholder="예: 공간관리" />
+          {roleOptions.length > 0 ? (
+            <select className="input-field" value={values.role} onChange={(e) => set({ role: e.target.value })}>
+              <option value="">역할 선택</option>
+              {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          ) : (
+            <input className="input-field" value={values.role} onChange={(e) => set({ role: e.target.value })} placeholder="예: 공간관리" />
+          )}
         </div>
         <div>
           <label className="label">학생 구분</label>

@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, isProgramActive, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, newFieldId, getProgramRoles, isProgramActive, type Program, type ReportField } from "@/lib/programs";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
 const today = () => new Date().toISOString().split("T")[0];
@@ -21,9 +21,22 @@ export default function ProgramsAdminPage() {
   };
   const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSaved(false); };
   const add = (category: FundCategory) => {
-    setList((l) => [...l, { id: newProgramId(), category, name: "", role: "", applyStart: today(), applyEnd: today(), note: "" }]);
+    setList((l) => [...l, { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "" }]);
     setSaved(false);
   };
+
+  // 역할 다중
+  const setRoles = (id: string, roles: string[]) => update(id, { roles });
+  const addRole = (p: Program) => setRoles(p.id, [...getProgramRoles(p), ""]);
+  const updateRole = (p: Program, i: number, val: string) => setRoles(p.id, getProgramRoles(p).map((r, idx) => (idx === i ? val : r)));
+  const removeRole = (p: Program, i: number) => setRoles(p.id, getProgramRoles(p).filter((_, idx) => idx !== i));
+
+  // 보고서 입력 항목 설정
+  const setFields = (id: string, reportFields: ReportField[]) => update(id, { reportFields });
+  const addField = (p: Program) => setFields(p.id, [...(p.reportFields || []), { id: newFieldId(), label: "", type: "text", required: false }]);
+  const updateField = (p: Program, fid: string, patch: Partial<ReportField>) =>
+    setFields(p.id, (p.reportFields || []).map((f) => (f.id === fid ? { ...f, ...patch } : f)));
+  const removeField = (p: Program, fid: string) => setFields(p.id, (p.reportFields || []).filter((f) => f.id !== fid));
   const save = async () => {
     const res = await fetch("/api/admin/programs", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }),
@@ -62,13 +75,9 @@ export default function ProgramsAdminPage() {
                       <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div className="lg:col-span-2">
+                      <div className="lg:col-span-3">
                         <label className="label">프로그램명</label>
                         <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
-                      </div>
-                      <div>
-                        <label className="label">역할 (선택)</label>
-                        <input className="input-field" value={p.role || ""} onChange={(e) => update(p.id, { role: e.target.value })} placeholder="예: 공간관리" />
                       </div>
                       <div>
                         <label className="label">신청 시작</label>
@@ -82,6 +91,54 @@ export default function ProgramsAdminPage() {
                         <label className="label">비고</label>
                         <input className="input-field" value={p.note} onChange={(e) => update(p.id, { note: e.target.value })} placeholder="예: 30명 내외" />
                       </div>
+                    </div>
+
+                    {/* 역할 (여러 개 입력 가능) */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="label mb-0">역할 (여러 개 입력 가능)</label>
+                        <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
+                      </div>
+                      {getProgramRoles(p).length === 0 ? (
+                        <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {getProgramRoles(p).map((r, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
+                              <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 신청자 보고서 입력 항목 설정 */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="label mb-0">신청자 입력 항목 (보고서·증빙)</label>
+                        <button onClick={() => addField(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 항목 추가</button>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">신청자가 작성/업로드해야 하는 활동내용·증빙 등을 항목으로 설정합니다.</p>
+                      {(p.reportFields || []).length === 0 ? (
+                        <p className="text-xs text-gray-400">설정된 항목이 없습니다.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(p.reportFields || []).map((f) => (
+                            <div key={f.id} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                              <input className="input-field flex-1 min-w-[140px]" value={f.label} onChange={(e) => updateField(p, f.id, { label: e.target.value })} placeholder="항목명 (예: 활동 내용)" />
+                              <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, f.id, { type: e.target.value as ReportField["type"] })}>
+                                <option value="text">서술형</option>
+                                <option value="file">파일 업로드</option>
+                              </select>
+                              <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+                                <input type="checkbox" checked={!!f.required} onChange={(e) => updateField(p, f.id, { required: e.target.checked })} /> 필수
+                              </label>
+                              <button onClick={() => removeField(p, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

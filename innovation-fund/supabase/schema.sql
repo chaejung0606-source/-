@@ -152,11 +152,16 @@ CREATE TABLE IF NOT EXISTS programs (
   id TEXT PRIMARY KEY,
   category TEXT NOT NULL CHECK (category IN ('labor','innovation','activity')),
   name TEXT NOT NULL,
-  role TEXT,
+  role TEXT,                                  -- 구버전 단일 역할(호환)
+  roles JSONB DEFAULT '[]'::jsonb,            -- 역할 목록(여러 개)
+  report_fields JSONB DEFAULT '[]'::jsonb,    -- 신청자 보고서 입력 항목 설정
   apply_start DATE NOT NULL,
   apply_end DATE NOT NULL,
   note TEXT DEFAULT ''
 );
+-- 기존 테이블 마이그레이션(이미 존재 시 컬럼 추가)
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS report_fields JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여
