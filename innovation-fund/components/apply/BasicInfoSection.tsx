@@ -1,7 +1,6 @@
 "use client";
 import { formatPhone } from "@/lib/validation";
-import { CAMPUSES } from "@/lib/departments";
-import DepartmentInput from "@/components/common/DepartmentInput";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 
 interface BasicInfo {
   name: string; studentId: string; university: string; campus: string; department: string;
@@ -45,23 +44,22 @@ export default function BasicInfoSection({ values, onChange, hideAccount = false
               {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
             </select>
           </div>
-          {values.university === "강원대학교" && (
+          {values.university === "강원대학교" ? (
             <div>
-              <label className="label">캠퍼스 <span className="text-red-500">*</span></label>
-              <select className="input-field" value={values.campus || ""} onChange={(e) => set("campus", e.target.value)}>
-                <option value="">선택</option>
-                {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <label className="label">캠퍼스 · 단과대학 · 학과 <span className="text-red-500">*</span></label>
+              <CampusDeptSelect
+                campus={values.campus || ""}
+                department={values.department}
+                onCampusChange={(v) => set("campus", v)}
+                onDepartmentChange={(v) => set("department", v)}
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="label">학과/전공 <span className="text-red-500">*</span></label>
+              <input className="input-field" value={values.department} onChange={(e) => set("department", e.target.value)} placeholder="컴퓨터공학과" />
             </div>
           )}
-          <div>
-            <label className="label">학과/전공 <span className="text-red-500">*</span></label>
-            {values.university === "강원대학교" ? (
-              <DepartmentInput value={values.department} onChange={(v) => set("department", v)} campus={values.campus} />
-            ) : (
-              <input className="input-field" value={values.department} onChange={(e) => set("department", e.target.value)} placeholder="컴퓨터공학과" />
-            )}
-          </div>
           <div>
             <label className="label">학년</label>
             <select className="input-field" value={values.grade} onChange={(e) => set("grade", e.target.value)}>

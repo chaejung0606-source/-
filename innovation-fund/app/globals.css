@@ -101,13 +101,13 @@
     .glitter-overlay, .glitter-overlay::after, .glitter-overlay::before { animation: none; }
   }
 
-  /* 엔드바 능선 위를 걷는 사업단 캐릭터들 */
+  /* 엔드바 능선 위를 걷는 사업단 캐릭터들 (사이드바보다 뒤: z-index 낮게) */
   .footer-walkers {
     position: absolute;
     left: 0; right: 0; top: 0;
     height: 0;
     pointer-events: none;
-    z-index: 6;
+    z-index: 5;
     overflow: visible;
   }
   /* 무릎 꿇은 캐릭터: 왼쪽 고정 */
@@ -120,46 +120,41 @@
     display: block;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
   }
-  /* 줄지어 함께 이동하는 한 줄 */
-  .walk-line {
+  /* 개별 보행: 같은 주기·다른 지연 → 한 줄을 이루며 하나씩 유턴 */
+  .walker {
     position: absolute;
     bottom: -1px;
-    display: flex;
-    align-items: flex-end;
-    gap: 32px;
     transform-origin: center bottom;
     will-change: left, transform;
-    animation: ridgeLine 46s linear infinite;
+    animation-name: ridgeWalk;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
   }
-  .walk-member {
+  .walker img {
+    height: 100%;
     width: auto;
     display: block;
     transform-origin: bottom center;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
     animation: walkBob 0.55s ease-in-out infinite;
   }
-  .walk-member:nth-child(2) { animation-delay: -0.14s; }
-  .walk-member:nth-child(3) { animation-delay: -0.28s; }
-  .walk-member:nth-child(4) { animation-delay: -0.42s; }
-  .walk-member:nth-child(5) { animation-delay: -0.56s; }
-  /* 빨강(왼쪽, left 3%) 앞에서 유턴: 좌측 한계 14%. 진행방향을 바라보도록 반전 */
-  @keyframes ridgeLine {
-    0%   { left: 52%; transform: scaleX(1); }
-    48%  { left: 14%; transform: scaleX(1); }
-    50%  { left: 14%; transform: scaleX(-1); }
-    98%  { left: 52%; transform: scaleX(-1); }
-    100% { left: 52%; transform: scaleX(1); }
+  /* 빨강(left 3%) 앞 좌측 16%에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
+  @keyframes ridgeWalk {
+    0%   { left: 16%; transform: scaleX(-1); }
+    49%  { left: 96%; transform: scaleX(-1); }
+    50%  { left: 96%; transform: scaleX(1); }
+    99%  { left: 16%; transform: scaleX(1); }
+    100% { left: 16%; transform: scaleX(-1); }
   }
   @keyframes walkBob {
     0%, 100% { transform: translateY(0) rotate(-1.5deg); }
     50%      { transform: translateY(-3px) rotate(1.5deg); }
   }
   @media (max-width: 639px) {
-    .walk-line { display: none; } /* 모바일은 공간상 줄 이동 숨김 (빨강은 유지) */
+    .walker { display: none; } /* 모바일은 공간상 보행 숨김 (빨강은 유지) */
   }
   @media (prefers-reduced-motion: reduce) {
-    .footer-walkers .walk-line { display: none; }
-    .walk-member { animation: none; }
+    .footer-walkers .walker { display: none; }
   }
 }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+export const dynamic = "force-dynamic";
+
 const KEY = "vdept_required_types";
 const DEFAULT_TYPES = ["certificate"]; // 기본: 자격증 지원금만 가상학과 학생 전용
 

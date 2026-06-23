@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+export const dynamic = "force-dynamic";
+
 const KEY = "popup";
 
 // GET: 공개 — 홈 팝업 공지 설정

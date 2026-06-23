@@ -8,8 +8,7 @@ import { logout, verifyPassword } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
 import TimetableEditor from "@/components/mypage/TimetableEditor";
-import DepartmentInput from "@/components/common/DepartmentInput";
-import { CAMPUSES } from "@/lib/departments";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
@@ -241,23 +240,22 @@ export default function MyPage() {
                     {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
                   </select>
                 </div>
-                {profile.university === "강원대학교" && (
+                {profile.university === "강원대학교" ? (
                   <div>
-                    <label className="label">캠퍼스</label>
-                    <select className="input-field" value={profile.campus} onChange={(e) => setP("campus", e.target.value)}>
-                      <option value="">선택</option>
-                      {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <label className="label">캠퍼스 · 단과대학 · 학과</label>
+                    <CampusDeptSelect
+                      campus={profile.campus}
+                      department={profile.department}
+                      onCampusChange={(v) => setP("campus", v)}
+                      onDepartmentChange={(v) => setP("department", v)}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="label">학과/전공</label>
+                    <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
                   </div>
                 )}
-                <div>
-                  <label className="label">학과/전공</label>
-                  {profile.university === "강원대학교" ? (
-                    <DepartmentInput value={profile.department} onChange={(v) => setP("department", v)} campus={profile.campus} />
-                  ) : (
-                    <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
-                  )}
-                </div>
                 <div>
                   <label className="label">연락처</label>
                   <input className="input-field" value={profile.phone} onChange={(e) => setP("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" />

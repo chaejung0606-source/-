@@ -418,7 +418,7 @@ export interface Application {
   isTest?: boolean;
 
   // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
-  verifiedAccount?: { bankName?: string; accountNumber?: string; accountHolder?: string };
+  verifiedAccount?: { bankName?: string; accountNumber?: string; accountHolder?: string; residentNumber?: string };
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

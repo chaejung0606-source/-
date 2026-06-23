@@ -12,6 +12,7 @@ const today = () => new Date().toISOString().split("T")[0];
 export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPrograms().then((l) => {
@@ -28,9 +29,11 @@ export default function ProgramsAdminPage() {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     setSaved(false);
   };
-  const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSaved(false); };
+  const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSelectedId(null); setSaved(false); };
   const add = (category: FundCategory) => {
-    setList((l) => [...l, { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "" }]);
+    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "" };
+    setList((l) => [...l, np]);
+    setSelectedId(np.id);
     setSaved(false);
   };
 
@@ -114,16 +117,16 @@ export default function ProgramsAdminPage() {
       </div>
       <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
 
-      {/* 프로그램 빠른 이동 — 클릭 시 해당 프로그램 수정 위치로 이동 */}
+      {/* 프로그램 선택 — 선택한 프로그램만 아래에서 수정 */}
       {list.length > 0 && (
         <div className="card mb-5">
-          <p className="text-xs font-semibold text-gray-500 mb-2">프로그램 바로가기 (클릭하면 수정 위치로 이동)</p>
+          <p className="text-xs font-semibold text-gray-500 mb-2">프로그램 선택 (클릭하면 해당 프로그램만 수정)</p>
           <div className="flex flex-wrap gap-1.5">
             {list.map((p) => (
               <button
                 key={p.id}
-                onClick={() => document.getElementById(`prog-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
-                className="px-2.5 py-1 rounded-full text-xs font-medium bg-white/70 border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 transition"
+                onClick={() => setSelectedId(p.id)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${selectedId === p.id ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
               >
                 {p.name || "(이름 없음)"}
               </button>
@@ -133,18 +136,19 @@ export default function ProgramsAdminPage() {
       )}
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
+      {!selectedId && (
+        <p className="text-sm text-gray-400 mb-4">위에서 프로그램을 선택하면 해당 프로그램만 수정할 수 있습니다. (아래 &lsquo;프로그램 추가&rsquo;로 새 프로그램 생성)</p>
+      )}
+
       <div className="space-y-8">
         {CATEGORIES.map((cat) => (
           <div key={cat}>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-gray-800">{FUND_CATEGORY_LABELS[cat]}</h2>
+              <h2 className="font-bold text-gray-800">{FUND_CATEGORY_LABELS[cat]} <span className="text-xs font-normal text-gray-400">({list.filter((p) => p.category === cat).length})</span></h2>
               <button onClick={() => add(cat)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 프로그램 추가</button>
             </div>
             <div className="space-y-3">
-              {list.filter((p) => p.category === cat).length === 0 && (
-                <p className="text-sm text-gray-400">등록된 프로그램이 없습니다.</p>
-              )}
-              {list.filter((p) => p.category === cat).map((p) => {
+              {list.filter((p) => p.category === cat && p.id === selectedId).map((p) => {
                 const active = isProgramActive(p, undefined, "fund");
                 const preActive = isProgramActive(p, undefined, "pre");
                 return (

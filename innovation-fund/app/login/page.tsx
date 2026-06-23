@@ -5,8 +5,7 @@ import Link from "next/link";
 import { Shield, ArrowLeft, User, Lock } from "lucide-react";
 import { login, register } from "@/lib/auth";
 import { formatPhone } from "@/lib/validation";
-import { CAMPUSES } from "@/lib/departments";
-import DepartmentInput from "@/components/common/DepartmentInput";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 
 function LoginInner() {
   const router = useRouter();
@@ -97,15 +96,14 @@ function LoginInner() {
                 <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password} onChange={(e) => setR("password", e.target.value)} placeholder="6자 이상" /></div>
                 <div><label className="label">비밀번호 확인 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password2} onChange={(e) => setR("password2", e.target.value)} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">캠퍼스</label>
-                  <select className="input-field" value={reg.campus} onChange={(e) => setR("campus", e.target.value)}>
-                    {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div><label className="label">학과/전공</label>
-                  <DepartmentInput value={reg.department} onChange={(v) => setR("department", v)} campus={reg.campus} />
-                </div>
+              <div>
+                <label className="label">캠퍼스 · 단과대학 · 학과</label>
+                <CampusDeptSelect
+                  campus={reg.campus}
+                  department={reg.department}
+                  onCampusChange={(v) => setR("campus", v)}
+                  onDepartmentChange={(v) => setR("department", v)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>

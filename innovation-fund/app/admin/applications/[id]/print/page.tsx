@@ -236,8 +236,9 @@ function PrintContent() {
 
           <div className="sec">3. 계좌 정보 (본인 명의)</div>
           <table className="form"><tbody>
-            <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
-            <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
+            <tr><th>은행명</th><td>{app.verifiedAccount?.bankName || app.bankInfo.bankName}</td><th>예금주</th><td>{app.verifiedAccount?.accountHolder || app.bankInfo.accountHolder}</td></tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.verifiedAccount?.accountNumber || app.bankInfo.accountNumber}</td></tr>
+            {app.verifiedAccount?.residentNumber && <tr><th>주민등록번호</th><td colSpan={3}>{app.verifiedAccount.residentNumber}</td></tr>}
           </tbody></table>
 
           <div className="sec">4. 신청 상세 내용</div>

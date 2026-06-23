@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
 import { Upload, X, FileText, Plus, Trash2 } from "lucide-react";
-import type { CostDetail, TransportItem, TransportMode, TransportRegion, LodgingDetail } from "@/types";
-import { TRANSPORT_MODE_LABELS, calcSupportTotal, canSelectAir } from "@/types";
+import type { CostDetail, TransportItem, TransportMode, LodgingDetail } from "@/types";
+import { TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
+import MoneyInput from "@/components/common/MoneyInput";
 
 interface Props { value?: CostDetail; onChange: (v: CostDetail) => void; }
 
@@ -101,14 +102,7 @@ export default function CostSection({ value, onChange }: Props) {
         <div className="grid sm:grid-cols-2 gap-4 items-end">
           <div>
             <label className="label">등록비용 (원)</label>
-            <input
-              className="input-field"
-              type="number"
-              min="0"
-              value={v.registrationFee || ""}
-              onChange={(e) => update({ registrationFee: Number(e.target.value) })}
-              placeholder="0"
-            />
+            <MoneyInput value={v.registrationFee || 0} onChange={(n) => update({ registrationFee: n })} />
           </div>
           <div>
             <label className="label">증빙 업로드</label>
@@ -147,58 +141,24 @@ export default function CostSection({ value, onChange }: Props) {
           </div>
         ) : (
           <div className="space-y-3">
-            {(v.transports || []).map((t) => {
-              const tRegion = t.region || "domestic";
-              const airAllowed = canSelectAir(tRegion, !!t.isJeju);
-              return (
+            {(v.transports || []).map((t) => (
               <div key={t.id} className="bg-gray-50 rounded-xl p-3 space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-start">
+                <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-start">
                   <div>
                     <label className="label">사용일자</label>
                     <input className="input-field" type="date" value={t.date} onChange={(e) => updateTransport(t.id, { date: e.target.value })} />
                   </div>
                   <div>
-                    <label className="label">지역 구분</label>
-                    <select
-                      className="input-field"
-                      value={tRegion}
-                      onChange={(e) => {
-                        const r = e.target.value as TransportRegion;
-                        const nextMode = t.mode === "air" && !canSelectAir(r, r === "domestic" ? !!t.isJeju : false) ? "bus" : t.mode;
-                        updateTransport(t.id, { region: r, isJeju: r === "overseas" ? false : t.isJeju, mode: nextMode });
-                      }}
-                    >
-                      <option value="domestic">국내</option>
-                      <option value="overseas">국외</option>
-                    </select>
-                    {tRegion === "domestic" && (
-                      <label className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-600 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!t.isJeju}
-                          onChange={(e) => {
-                            const j = e.target.checked;
-                            const nextMode = t.mode === "air" && !canSelectAir("domestic", j) ? "bus" : t.mode;
-                            updateTransport(t.id, { isJeju: j, mode: nextMode });
-                          }}
-                        />
-                        제주도 (항공 가능)
-                      </label>
-                    )}
-                  </div>
-                  <div>
                     <label className="label">교통수단</label>
                     <select className="input-field" value={t.mode} onChange={(e) => updateTransport(t.id, { mode: e.target.value as TransportMode })}>
                       {MODES.map((m) => (
-                        <option key={m} value={m} disabled={m === "air" && !airAllowed}>
-                          {TRANSPORT_MODE_LABELS[m]}{m === "air" && !airAllowed ? " (국외·제주만)" : ""}
-                        </option>
+                        <option key={m} value={m}>{TRANSPORT_MODE_LABELS[m]}</option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <label className="label">금액 (원)</label>
-                    <input className="input-field" type="number" min="0" value={t.amount || ""} onChange={(e) => updateTransport(t.id, { amount: Number(e.target.value) })} placeholder="0" />
+                    <MoneyInput value={t.amount || 0} onChange={(n) => updateTransport(t.id, { amount: n })} />
                   </div>
                   <button type="button" onClick={() => removeTransport(t.id)} className="btn-danger flex items-center justify-center h-[42px] px-3 col-span-2 sm:col-span-1" title="삭제">
                     <Trash2 className="w-4 h-4" />
@@ -230,8 +190,7 @@ export default function CostSection({ value, onChange }: Props) {
                   )}
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
         )}
       </div>
@@ -262,17 +221,17 @@ export default function CostSection({ value, onChange }: Props) {
         {lodging.usage === "personal" ? (
           <div>
             <label className="label">숙소 결제금액 (원)</label>
-            <input className="input-field" type="number" min="0" value={lodging.roomAmount || ""} onChange={(e) => updateLodging({ roomAmount: Number(e.target.value) })} placeholder="0" />
+            <MoneyInput value={lodging.roomAmount || 0} onChange={(n) => updateLodging({ roomAmount: n })} />
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="label">숙소 전체금액 (원)</label>
-              <input className="input-field" type="number" min="0" value={lodging.roomAmount || ""} onChange={(e) => updateLodging({ roomAmount: Number(e.target.value) })} placeholder="0" />
+              <MoneyInput value={lodging.roomAmount || 0} onChange={(n) => updateLodging({ roomAmount: n })} />
             </div>
             <div>
               <label className="label">개인 부담금액 (원)</label>
-              <input className="input-field" type="number" min="0" value={lodging.personalAmount || ""} onChange={(e) => updateLodging({ personalAmount: Number(e.target.value) })} placeholder="0" />
+              <MoneyInput value={lodging.personalAmount || 0} onChange={(n) => updateLodging({ personalAmount: n })} />
             </div>
           </div>
         )}

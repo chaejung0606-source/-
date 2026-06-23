@@ -62,7 +62,7 @@ export default function Home() {
 
   // 홈 팝업 공지
   const [popup, setPopup] = useState<{ enabled: boolean; title: string; content: string } | null>(null);
-  useEffect(() => { fetch("/api/popup").then((r) => r.json()).then((d) => { if (d?.enabled && (d.title || d.content)) setPopup(d); }).catch(() => {}); }, []);
+  useEffect(() => { fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.enabled && (d.title || d.content)) setPopup(d); }).catch(() => {}); }, []);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
@@ -158,7 +158,7 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 pb-12 space-y-12">
+      <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
         {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
         <section className="space-y-6">
           {/* 1행: 지원신청 (활동 전) */}
@@ -281,7 +281,7 @@ export default function Home() {
       </div>
 
       {/* 푸터 (엔드바) */}
-      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12 relative">
+      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-24 relative">
         <FooterWalkers />
         <div className="max-w-6xl mx-auto px-4 text-sm">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
