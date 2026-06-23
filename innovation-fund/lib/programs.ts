@@ -6,9 +6,10 @@ import type { FundCategory, ReportFieldType } from "@/types";
 export interface ReportField {
   id: string;
   label: string;            // 항목명 (예: 활동 내용, 결과 보고)
-  type: ReportFieldType;    // 서술형 / 파일 업로드 / 서약(동의) / 서명
+  type: ReportFieldType;    // 서술형 / 파일 / 서약(동의) / 서명 / 드롭다운
   required?: boolean;       // 필수 여부
   text?: string;            // 서약(agreement) 본문
+  options?: string[];       // 드롭다운(select) 선택지
 }
 
 // COSS 서포터즈 / TA 등 프로그램별 기본 입력 항목 템플릿
@@ -32,6 +33,15 @@ const PROGRAM_TEMPLATES: { match: (name: string) => boolean; fields: ReportField
       { id: "ta-reason", label: "추천사유", type: "text", required: true },
       { id: "ta-pledge", label: "TA 서약서", type: "agreement", required: true, text: TA_PLEDGE },
       { id: "ta-sign", label: "추천인(교수) 서명", type: "signature", required: true },
+    ],
+  },
+  {
+    // 학사지원 멘토단 / 사업단 근로(기타 상시 사업 운영 지원)
+    match: (n) => n.includes("멘토") || n.includes("사업 운영") || n.includes("사업단 근로") || n.includes("상시"),
+    fields: [
+      { id: "mentor-role", label: "역할", type: "text", required: true },
+      { id: "mentor-career", label: "관련 경력", type: "text" },
+      { id: "mentor-free", label: "자율 작성란", type: "text" },
     ],
   },
 ];

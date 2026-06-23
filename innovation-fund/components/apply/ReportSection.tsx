@@ -68,6 +68,11 @@ export default function ReportSection({ programId, value, onChange }: Props) {
             <label className="label">{f.label || "항목"} {f.required && <span className="text-red-500">*</span>}</label>
             {f.type === "text" ? (
               <textarea className="input-field h-24 resize-none" value={en.value || ""} onChange={(e) => setEntry(f, { value: e.target.value })} placeholder="내용을 입력해주세요." />
+            ) : f.type === "select" ? (
+              <select className="input-field" value={en.value || ""} onChange={(e) => setEntry(f, { value: e.target.value })}>
+                <option value="">선택</option>
+                {(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
             ) : f.type === "agreement" ? (
               <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(0,0,0,0.06)" }}>
                 {f.text && <p className="text-sm text-gray-600 whitespace-pre-line mb-3">{f.text}</p>}

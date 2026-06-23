@@ -94,8 +94,8 @@ export type DocumentType =
   | "certificate_copy"        // 자격증 사본
   | "other";                  // 기타
 
-// 신청자 입력 항목 종류: 서술형 / 파일 / 서약(동의) / 서명
-export type ReportFieldType = "text" | "file" | "agreement" | "signature";
+// 신청자 입력 항목 종류: 서술형 / 파일 / 서약(동의) / 서명 / 드롭다운(선택)
+export type ReportFieldType = "text" | "file" | "agreement" | "signature" | "select";
 
 // 프로그램별 신청자 보고서 입력값 (관리자가 설정한 항목에 대응)
 export interface ReportEntry {

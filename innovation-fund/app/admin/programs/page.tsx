@@ -163,6 +163,7 @@ export default function ProgramsAdminPage() {
                                 <select className="input-field !w-auto" value={f.type} onChange={(e) => updateField(p, f.id, { type: e.target.value as ReportField["type"] })}>
                                   <option value="text">서술형</option>
                                   <option value="file">파일 업로드</option>
+                                  <option value="select">드롭다운</option>
                                   <option value="agreement">서약(동의)</option>
                                   <option value="signature">서명</option>
                                 </select>
@@ -173,6 +174,9 @@ export default function ProgramsAdminPage() {
                               </div>
                               {f.type === "agreement" && (
                                 <textarea className="input-field h-20 resize-none text-sm" value={f.text || ""} onChange={(e) => updateField(p, f.id, { text: e.target.value })} placeholder="서약 본문 내용" />
+                              )}
+                              {f.type === "select" && (
+                                <input className="input-field text-sm" value={(f.options || []).join(", ")} onChange={(e) => updateField(p, f.id, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분, 예: 공간관리, 행사지원, 홍보)" />
                               )}
                             </div>
                           ))}
