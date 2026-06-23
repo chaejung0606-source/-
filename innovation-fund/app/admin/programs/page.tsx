@@ -109,7 +109,7 @@ export default function ProgramsAdminPage() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-800">프로그램 관리</h1>
+        <h1 className="text-2xl font-bold text-gray-800">신청내용 관리</h1>
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
       <p className="text-gray-500 text-sm mb-6">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>

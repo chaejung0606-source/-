@@ -32,10 +32,11 @@ interface Props {
   mode?: ApplicationPhase;
   prefill?: Application | null;  // 이전 지원신청 내역 → 중복 항목 자동입력
   draft?: Application | null;    // 임시저장 이어쓰기 → 전체 복원
+  testMode?: boolean;            // 관리자 테스트 신청
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, onBack }: Props) {
+export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, testMode = false, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   const [step, setStep] = useState(draft?.draftStep || 1);
@@ -137,6 +138,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   useEffect(() => {
     (async () => {
       try {
+        if (testMode) { setVdeptBlocked(false); return; }  // 관리자 테스트는 자격 제한 없음
         const cfg = await fetch("/api/vdept-config").then((r) => r.json());
         const required: string[] = cfg.requiredTypes || [];
         if (!required.includes(applicationType)) { setVdeptBlocked(false); return; }
@@ -417,6 +419,17 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     setSubmitting(true);
     try {
+      // 관리자 테스트 신청 (신청자 세션 없이 서버 라우트로 is_test 저장)
+      if (testMode) {
+        const res = await fetch("/api/admin/test-apply", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload(false)),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("테스트 신청 저장 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
+        router.push(`/apply/complete?receipt=${j.receiptNumber}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}&phase=${mode}&test=1`);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("로그인이 필요합니다. 다시 로그인해 주세요.");
@@ -500,6 +513,12 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         </div>
       </div>
 
+      {testMode && (
+        <div className="rounded-xl px-4 py-2.5 text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200">
+          🧪 관리자 테스트 모드 — 제출하면 신청 목록에 <strong>&lsquo;테스트용&rsquo;</strong>으로 기록되며, 관리자가 삭제할 수 있습니다. (파일 업로드는 테스트되지 않을 수 있습니다.)
+        </div>
+      )}
+
       {/* 진행 단계 표시 */}
       <div className="flex gap-1">
         {["기본 정보", "신청 내용", "서류 업로드", "동의 및 제출"].map((s, i) => (
@@ -576,9 +595,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
             이전
           </button>
         )}
-        <button onClick={saveDraft} disabled={savingDraft} className="btn-secondary flex-1 disabled:opacity-60">
-          {savingDraft ? "저장 중..." : "임시저장"}
-        </button>
+        {!testMode && (
+          <button onClick={saveDraft} disabled={savingDraft} className="btn-secondary flex-1 disabled:opacity-60">
+            {savingDraft ? "저장 중..." : "임시저장"}
+          </button>
+        )}
         {step < 4 ? (
           <button
             onClick={() => {

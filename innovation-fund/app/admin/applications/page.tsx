@@ -62,6 +62,13 @@ export default function ApplicationsPage() {
     exportToExcel(targetApps);
   };
 
+  const deleteApp = async (id: string) => {
+    if (!confirm("이 테스트 신청을 삭제할까요? 되돌릴 수 없습니다.")) return;
+    const res = await fetch(`/api/applications/${id}`, { method: "DELETE" });
+    if (res.ok) setApps((prev) => prev.filter((a) => a.id !== id));
+    else alert("삭제 실패");
+  };
+
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
   return (
@@ -174,7 +181,10 @@ export default function ApplicationsPage() {
                 </td>
                 <td className="font-mono text-xs">{app.receiptNumber}</td>
                 <td className="whitespace-nowrap">{app.applicationDate}</td>
-                <td className="font-medium whitespace-nowrap">{app.name}{app.accountMismatch && <span title="예금주 불일치 (본인명의 확인 필요)" className="ml-1 text-red-500">⚠️</span>}</td>
+                <td className="font-medium whitespace-nowrap">
+                  {app.isTest && <span className="badge bg-amber-100 text-amber-700 mr-1">테스트용</span>}
+                  {app.name}{app.accountMismatch && <span title="예금주 불일치 (본인명의 확인 필요)" className="ml-1 text-red-500">⚠️</span>}
+                </td>
                 <td className="font-mono text-xs">{app.studentId}</td>
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
                 <td className="text-xs whitespace-nowrap">
@@ -186,8 +196,9 @@ export default function ApplicationsPage() {
                 <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
                 <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
                 <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
-                <td className="text-center">
+                <td className="text-center whitespace-nowrap">
                   <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>
+                  {app.isTest && <button onClick={() => deleteApp(app.id)} className="text-rose-500 hover:underline text-xs font-medium ml-2">삭제</button>}
                 </td>
               </tr>
             ))}

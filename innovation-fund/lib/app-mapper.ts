@@ -39,6 +39,7 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     calculated_amount: p.calculatedAmount ?? 0,
     is_draft: !!p.isDraft,
     draft_step: p.draftStep ?? null,
+    is_test: !!p.isTest,
   };
 }
 
@@ -91,5 +92,6 @@ export function fromRow(r: any): Application {
     canceledAt: r.canceled_at || undefined,
     isDraft: !!r.is_draft,
     draftStep: r.draft_step ?? undefined,
+    isTest: !!r.is_test,
   };
 }

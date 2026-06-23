@@ -64,6 +64,7 @@ export default function Home() {
     return () => sub.subscription.unsubscribe();
   }, []);
   const doLogout = async () => { await logout(); setLoggedIn(false); };
+  const adminLogout = async () => { try { await fetch("/api/admin/logout", { method: "POST" }); } catch {} setIsAdmin(false); };
 
   // 엔드바 이메일 복사
   const [copiedEmail, setCopiedEmail] = useState<string>("");
@@ -96,9 +97,14 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Link href="/admin/dashboard" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
-                <Shield className="w-4 h-4" /> 관리자 페이지
-              </Link>
+              <>
+                <Link href="/admin/dashboard" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                  <Shield className="w-4 h-4" /> 관리자 페이지
+                </Link>
+                <button onClick={adminLogout} className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-red-500 transition-colors">
+                  <LogOut className="w-4 h-4" /> 로그아웃
+                </button>
+              </>
             )}
             {loggedIn ? (
               <>
@@ -109,7 +115,7 @@ export default function Home() {
                   <LogOut className="w-4 h-4" /> 로그아웃
                 </button>
               </>
-            ) : (
+            ) : !isAdmin ? (
               <>
                 <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
                   <User className="w-4 h-4" /> 로그인
@@ -118,7 +124,7 @@ export default function Home() {
                   <HomeIcon className="w-4 h-4" /> 홈
                 </Link>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </header>

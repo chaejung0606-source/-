@@ -412,6 +412,9 @@ export interface Application {
   // 임시저장 (작성 중)
   isDraft?: boolean;
   draftStep?: number;
+
+  // 관리자 테스트 신청
+  isTest?: boolean;
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

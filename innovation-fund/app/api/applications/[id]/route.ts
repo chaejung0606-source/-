@@ -41,3 +41,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(fromRow(data));
 }
+
+// 관리자: 신청 삭제 (테스트 신청 정리 등)
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const { error } = await supabaseAdmin().from("applications").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
