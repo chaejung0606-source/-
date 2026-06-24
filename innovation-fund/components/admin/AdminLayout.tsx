@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap } from "lucide-react";
 
 const NAV = [
-  { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
   { href: "/admin/applicants", label: "신청자 정보", icon: Users },
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },

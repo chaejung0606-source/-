@@ -9,6 +9,7 @@ import {
   REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
 } from "@/config/status";
 import AdminLayout from "@/components/admin/AdminLayout";
+import DraggableWindow from "@/components/admin/DraggableWindow";
 
 const REVIEW_STATUSES = REVIEW_STATUS_ORDER;
 const PAYMENT_STATUSES = PAYMENT_STATUS_ORDER;
@@ -26,6 +27,8 @@ export default function ApplicationDetailPage() {
   const [syncing, setSyncing] = useState(false);
   // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
   const [vAccount, setVAccount] = useState<{ bankName: string; accountNumber: string; accountHolder: string; residentNumber: string }>({ bankName: "", accountNumber: "", accountHolder: "", residentNumber: "" });
+  // 첨부파일 미리보기 — 이동 가능한 임시 팝업창
+  const [fileWin, setFileWin] = useState<{ name: string; url?: string } | null>(null);
 
   // 인쇄양식(첨부 삽입 포함) 미리보기 — 크기 조정·이동 가능한 작은 새 창
   const openPreview = (doc: string) => {
@@ -387,7 +390,8 @@ export default function ApplicationDetailPage() {
                   const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
                   const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
                   return (
-                    <div key={f.id} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+                    <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
+                      className="rounded-2xl overflow-hidden text-left hover:ring-2 hover:ring-indigo-300 transition" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
                       <div className="flex items-center gap-2 px-3 py-2 text-xs">
                         <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                         <span className="font-medium truncate flex-1">{f.name}</span>
@@ -397,12 +401,12 @@ export default function ApplicationDetailPage() {
                         {f.url && isImage ? (
                           <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
                         ) : f.url && isPdf ? (
-                          <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">PDF 새 창에서 보기</a>
+                          <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
                         ) : (
-                          <span className="text-gray-400 text-xs">{f.url ? "미리보기 불가" : "미리보기 없음"}</span>
+                          <span className="text-gray-400 text-xs">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -460,6 +464,21 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
       </div>
+
+      {fileWin && (
+        <DraggableWindow title={fileWin.name} onClose={() => setFileWin(null)}>
+          {fileWin.url ? (
+            (fileWin.url.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(fileWin.name)) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fileWin.url} alt={fileWin.name} className="max-w-full max-h-full object-contain" />
+            ) : (
+              <iframe src={fileWin.url} title={fileWin.name} className="w-full h-full bg-white" style={{ border: "none" }} />
+            )
+          ) : (
+            <span className="text-gray-400 text-sm">미리보기를 불러올 수 없습니다.</span>
+          )}
+        </DraggableWindow>
+      )}
     </AdminLayout>
   );
 }

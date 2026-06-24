@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Download, Search, FileText, Lock } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
-import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
+import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER } from "@/config/status";
 import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { buildExportName } from "@/lib/export-settings";
@@ -123,8 +123,37 @@ export default function ApplicationsPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
+  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => apps.filter((a) => a[field] === val).length;
+
   return (
     <AdminLayout>
+      {/* 대시보드 (신청 목록 상단 통합) */}
+      <div className="card mb-5">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <span className="text-sm text-gray-500">전체 신청</span>
+          <span className="text-3xl font-bold text-primary-700">{apps.length}</span>
+          <span className="text-sm text-gray-500">건</span>
+        </div>
+        <p className="text-center text-xs font-semibold text-gray-500 mb-2">검토 상태</p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+          {REVIEW_STATUS_ORDER.map((s) => (
+            <div key={s} className={`rounded-2xl p-3 text-center ${REVIEW_STATUS_META[s].badge}`} style={{ opacity: 0.96 }}>
+              <div className="text-[11px] font-medium mb-0.5">{REVIEW_STATUS_META[s].label}</div>
+              <div className="text-2xl font-bold">{statCount("reviewStatus", s)}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-xs font-semibold text-gray-500 mb-2">지급 상태</p>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {PAYMENT_STATUS_ORDER.map((s) => (
+            <div key={s} className={`rounded-2xl p-3 text-center ${PAYMENT_STATUS_META[s].badge}`} style={{ opacity: 0.96 }}>
+              <div className="text-[11px] font-medium mb-0.5">{PAYMENT_STATUS_META[s].label}</div>
+              <div className="text-2xl font-bold">{statCount("paymentStatus", s)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
         <div className="flex gap-2 flex-wrap">

@@ -150,7 +150,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             {isAdmin && (
               <>
-                <Link href="/admin/dashboard" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                <Link href="/admin/applications" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
                   <Shield className="w-4 h-4" /> 관리자 페이지
                 </Link>
                 <button onClick={adminLogout} className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-red-500 transition-colors">
