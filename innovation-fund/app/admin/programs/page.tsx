@@ -200,39 +200,8 @@ export default function ProgramsAdminPage() {
               </div>
               <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div className="lg:col-span-3">
-                <label className="label">프로그램명</label>
-                <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
-              </div>
-              <div>
-                <label className="label">비고</label>
-                <input className="input-field" value={p.note} onChange={(e) => update(p.id, { note: e.target.value })} placeholder="예: 30명 내외" />
-              </div>
-            </div>
-
-            {/* 역할 (여러 개 입력 가능) */}
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-2">
-                <label className="label mb-0">역할 (여러 개 입력 가능)</label>
-                <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
-              </div>
-              {rawRoles(p).length === 0 ? (
-                <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
-              ) : (
-                <div className="space-y-2">
-                  {rawRoles(p).map((r, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
-                      <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 단계 선택: 지원신청 / 지원금 신청 */}
-            <div className="mt-4">
+            {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 */}
+            <div className="mt-1">
               <p className="text-xs font-semibold text-gray-500 mb-2">③ 수정할 단계 선택</p>
               <div className="flex gap-2">
                 <button
@@ -246,8 +215,34 @@ export default function ProgramsAdminPage() {
               </div>
             </div>
 
-            {/* 선택한 단계만 표시: 기간 + 입력 항목 편집 + 실제 신청 화면 미리보기 */}
+            {/* 선택한 단계: 프로그램명·역할·기간·신청 항목 모두 편집 */}
             <div className="mt-3 rounded-2xl p-3" style={{ background: `${stepAccent}10`, border: `1px solid ${stepAccent}33` }}>
+              {/* 프로그램명 (공통) */}
+              <div className="mb-3">
+                <label className="label">프로그램명</label>
+                <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
+              </div>
+
+              {/* 역할 (공통, 여러 개) */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="label mb-0">역할 (여러 개 입력 가능)</label>
+                  <button onClick={() => addRole(p)} className="text-xs hover:underline flex items-center gap-1" style={{ color: stepAccent }}><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
+                </div>
+                {rawRoles(p).length === 0 ? (
+                  <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {rawRoles(p).map((r, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
+                        <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {selectedStep === "pre" ? (
                 <>
                   <p className="text-sm font-bold text-indigo-700 mb-2">지원신청 (활동 전)</p>

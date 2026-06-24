@@ -25,7 +25,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const doLogout = async () => {
     try { await fetch("/api/admin/logout", { method: "POST" }); } catch { /* ignore */ }
-    router.push("/admin/login");
+    // 로그아웃 후에는 비밀번호 입력 화면이 아닌 메인 사이트로 이동 (바로 로그아웃)
+    router.push("/");
   };
 
   const SidebarContent = () => (

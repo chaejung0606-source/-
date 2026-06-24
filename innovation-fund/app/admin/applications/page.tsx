@@ -10,17 +10,16 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { buildExportName } from "@/lib/export-settings";
 
 export default function ApplicationsPage() {
-  // 신청 목록 진입 비밀번호 게이트 (세션 동안 유지)
+  // 신청 목록 진입 비밀번호 게이트 (진입 시마다 재확인 — 세션 저장 안 함)
   const [unlocked, setUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
-  useEffect(() => { if (typeof window !== "undefined" && sessionStorage.getItem("apps_unlocked") === "1") setUnlocked(true); }, []);
   const tryUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setGateErr("");
     const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
     const j = await res.json().catch(() => ({ success: false }));
-    if (j.success) { sessionStorage.setItem("apps_unlocked", "1"); setUnlocked(true); }
+    if (j.success) { setUnlocked(true); setGatePw(""); }
     else setGateErr("비밀번호가 올바르지 않습니다.");
   };
 
@@ -40,8 +39,9 @@ export default function ApplicationsPage() {
   const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
+    if (!unlocked) return;
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
-  }, []);
+  }, [unlocked]);
 
   const canceledCount = useMemo(() => apps.filter((a) => a.canceled).length, [apps]);
   const activeCount = apps.length - canceledCount;
@@ -88,11 +88,15 @@ export default function ApplicationsPage() {
     exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
   };
 
-  // 선택 항목의 지출자료 / 심의요청서 PDF 일괄 내보내기
+  // 선택 항목의 지출자료 / 심의요청서 PDF 내보내기 — 항목별로 각각(유형에 맞는 파일명·경로)
   const exportPdfBatch = (doc: "payment" | "review") => {
     const sel = filtered.filter((a) => selected.has(a.id));
     if (sel.length === 0) { alert("먼저 내보낼 항목을 선택하세요."); return; }
-    window.open(`/admin/applications/print-batch?doc=${doc}&ids=${sel.map((a) => a.id).join(",")}`, "_blank");
+    if (sel.length > 8 && !confirm(`${sel.length}건을 항목별로 각각 인쇄 창으로 엽니다. 계속할까요?`)) return;
+    // 항목마다 개별 인쇄 창 — 각 신청 건의 유형에 맞는 파일명으로 저장됩니다.
+    sel.forEach((a, i) => {
+      setTimeout(() => window.open(`/admin/applications/${a.id}/print?doc=${doc}`, `print_${doc}_${a.id}`), i * 350);
+    });
   };
 
   const deleteApp = async (id: string) => {

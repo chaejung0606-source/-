@@ -48,9 +48,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 내보내기/다운로드 종류별 설정 */}
-      <h2 className="font-bold text-gray-800 mb-2">내보내기 · 다운로드</h2>
-      <p className="text-gray-500 text-sm mb-3">신청 상세·목록의 내보내기(지출자료·심의요청서)와 목록 다운로드(전체·선택)의 파일명·경로를 설정합니다.</p>
+      {/* 엑셀 다운로드 종류별 설정 */}
+      <h2 className="font-bold text-gray-800 mb-2">엑셀 다운로드</h2>
+      <p className="text-gray-500 text-sm mb-3">목록 다운로드(전체·선택)의 파일명·경로를 설정합니다. ※ 지출자료·심의요청서 PDF는 각 신청 건의 <strong>유형에 맞춰 파일명이 자동</strong> 설정됩니다.</p>
       <div className="space-y-3 mb-8">
         {EXPORT_KINDS.map((k) => (
           <div key={k.key} className="card">

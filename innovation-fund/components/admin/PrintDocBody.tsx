@@ -136,7 +136,8 @@ export const PRINT_CSS = `
     .no-print { display: none !important; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   }
-  .print-page { max-width: 800px; margin: 0 auto; padding: 24px; color: #111; font-size: 13px; }
+  html, body { background: #fff !important; }
+  .print-page { max-width: 800px; margin: 0 auto; padding: 24px; color: #111; font-size: 13px; background: #fff; }
   .doc-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
   .doc-sub { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
   table.form { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
