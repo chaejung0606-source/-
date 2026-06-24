@@ -9,7 +9,7 @@ const NAV = [
   { href: "/admin/applicants", label: "신청자 정보", icon: Users },
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
   { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
-  { href: "/admin/content", label: "지원금 유형 안내", icon: ListChecks },
+  { href: "/admin/content", label: "유형별 지급 기준", icon: ListChecks },
   { href: "/admin/certificates", label: "자격증 목록", icon: Award },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
   { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },

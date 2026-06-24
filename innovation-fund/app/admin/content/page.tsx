@@ -32,7 +32,7 @@ export default function ContentAdminPage() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-800">지원금 유형 안내</h1>
+        <h1 className="text-2xl font-bold text-gray-800">유형별 지급 기준</h1>
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
       <p className="text-gray-500 text-sm mb-4">홈 화면에서 각 지원금 유형을 클릭하면 표시되는 세부내용(모달)을 편집합니다. 글자 크기·모양·정렬·표 삽입 등 간단한 한글 작업으로 자유롭게 작성하세요.</p>

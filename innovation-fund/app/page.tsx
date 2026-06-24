@@ -199,11 +199,11 @@ export default function Home() {
         {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
         <section className="space-y-6">
           {/* 1행: 지원신청 (활동 전) */}
-          <div>
+          <div className="max-w-3xl mx-auto">
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">📝</span> 지원신청 <span className="text-sm font-normal text-gray-500">— 활동 시작 전 참여 신청</span>
             </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-3">
+            <div className="grid sm:grid-cols-2 gap-6 mt-3">
               {CATEGORY_ORDER.map((c) => (
                 <div key={c} className="card flex flex-col">
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
@@ -221,11 +221,11 @@ export default function Home() {
           </div>
 
           {/* 2행: 지원금 신청 (활동 후) */}
-          <div>
+          <div className="max-w-3xl mx-auto">
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">💸</span> 지원금 신청 <span className="text-sm font-normal text-gray-500">— 활동 종료 후 지원금 신청</span>
             </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-3">
+            <div className="grid sm:grid-cols-2 gap-6 mt-3">
               {CATEGORY_ORDER.map((c) => (
                 <div key={c} className="card flex flex-col">
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
@@ -263,7 +263,7 @@ export default function Home() {
         {/* 지원금 유형 안내 (클릭 시 세부내용 모달) */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
-            <Award className="w-6 h-6 text-indigo-500" /> 유형 안내
+            <Award className="w-6 h-6 text-indigo-500" /> 유형별 지급 기준
           </h2>
           <p className="text-sm text-gray-500 mb-6">유형을 클릭하면 자세한 내용과 신청 가능한 프로그램을 볼 수 있습니다.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
