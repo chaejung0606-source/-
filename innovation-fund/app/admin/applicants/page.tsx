@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Search, KeyRound, Users, Lock, CheckCircle } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
-import { APPLICATION_TYPE_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 
 interface Applicant {
   id: string; student_id: string; name: string;
@@ -48,10 +48,10 @@ export default function ApplicantsPage() {
 
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
 
-  // 프로그램별 지원금 신청 가능 학생 = 지원신청(pre) 승인 + 미취소
+  // 프로그램별 승인 신청자 = 검토 상태 승인 + 미취소 (지원신청·지원금 신청 모두)
   const eligibleByProgram = useMemo(() => {
     const m: Record<string, Application[]> = {};
-    apps.filter((a) => a.applicationPhase === "pre" && a.reviewStatus === "approved" && !a.canceled)
+    apps.filter((a) => a.reviewStatus === "approved" && !a.canceled)
       .forEach((a) => { (m[progNameOf(a)] ||= []).push(a); });
     return Object.entries(m).sort((x, y) => x[0].localeCompare(y[0], "ko"));
   }, [apps]);
@@ -143,15 +143,14 @@ export default function ApplicantsPage() {
         </>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 지원신청이 <strong>승인</strong>된 학생만 해당 프로그램의 지원금 신청이 가능합니다. (프로그램별 목록)</p>
-          <p className="text-[11px] text-gray-400">진단: 불러온 신청 {apps.length}건 · 지원신청(pre) {apps.filter((a) => a.applicationPhase === "pre" && !a.canceled).length}건 · 그중 승인 {apps.filter((a) => a.applicationPhase === "pre" && a.reviewStatus === "approved" && !a.canceled).length}건 · (검토상태 분포: {Array.from(new Set(apps.filter((a) => a.applicationPhase === "pre").map((a) => a.reviewStatus))).join(", ") || "없음"})</p>
+          <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 검토 상태가 <strong>승인</strong>된 신청을 프로그램별로 모았습니다. <span className="text-gray-400">(‘지원신청’ 승인 = 지원금 신청 가능, ‘지원금 신청’ 승인 = 지급 예정)</span></p>
           {eligibleByProgram.length === 0 ? (
-            <div className="card text-center py-12 text-gray-400">승인된 지원신청이 없습니다.</div>
+            <div className="card text-center py-12 text-gray-400">승인된 신청이 없습니다.</div>
           ) : eligibleByProgram.map(([prog, students]) => (
             <div key={prog} className="card">
               <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                 <h3 className="font-bold text-gray-800">{prog}</h3>
-                <span className="badge bg-emerald-100 text-emerald-700">{students.length}명 신청 가능</span>
+                <span className="badge bg-emerald-100 text-emerald-700">{students.length}명 승인</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="table-glass text-sm">
@@ -159,8 +158,9 @@ export default function ApplicantsPage() {
                     <th className="whitespace-nowrap">학번</th>
                     <th className="whitespace-nowrap">이름</th>
                     <th className="whitespace-nowrap">학과</th>
+                    <th className="whitespace-nowrap">단계</th>
                     <th className="whitespace-nowrap">신청 유형</th>
-                    <th className="whitespace-nowrap">지원신청일</th>
+                    <th className="whitespace-nowrap">신청일</th>
                   </tr></thead>
                   <tbody>
                     {students.map((a) => (
@@ -168,6 +168,9 @@ export default function ApplicantsPage() {
                         <td className="font-mono text-xs">{a.studentId}</td>
                         <td className="font-medium whitespace-nowrap">{a.name}</td>
                         <td className="text-gray-600 max-w-[160px] truncate">{a.department}</td>
+                        <td className="text-xs whitespace-nowrap">
+                          <span className={`badge ${a.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[a.applicationPhase || "fund"]}</span>
+                        </td>
                         <td className="text-xs whitespace-nowrap">{APPLICATION_TYPE_LABELS[a.applicationType]}</td>
                         <td className="text-gray-500 whitespace-nowrap">{a.applicationDate}</td>
                       </tr>
