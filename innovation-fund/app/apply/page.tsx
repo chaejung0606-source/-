@@ -9,6 +9,9 @@ import { currentUser, logout } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { fromRow } from "@/lib/app-mapper";
 import ApplyForm from "@/components/apply/ApplyForm";
+import SchemaApplyForm from "@/components/apply/SchemaApplyForm";
+import { fetchPrograms, isProgramActive, type Program } from "@/lib/programs";
+import type { FormSchema } from "@/lib/form-schema";
 
 const typeDescriptions: Record<ApplicationType, string> = {
   program: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등에 참여하는 학생",
@@ -44,6 +47,19 @@ function ApplyInner() {
   const initType = (() => { const t = params.get("type"); return t && (t in APPLICATION_TYPE_LABELS) ? (t as ApplicationType) : null; })();
   const [category, setCategory] = useState<FundCategory | null>(initCategory);
   const [selectedType, setSelectedType] = useState<ApplicationType | null>(initType);
+
+  // 관리자 폼 빌더(스키마) 연동: 프로그램별 신청 폼이 설정돼 있으면 그 폼으로 신청
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programForms, setProgramForms] = useState<Record<string, { pre?: FormSchema; fund?: FormSchema }>>({});
+  const [schemaProgramId, setSchemaProgramId] = useState<string | null>(null);
+  useEffect(() => {
+    fetchPrograms().then(setPrograms).catch(() => {});
+    fetch("/api/admin/program-forms").then((r) => r.json()).then((d) => setProgramForms(d || {})).catch(() => {});
+  }, []);
+  // 선택한 분야에서 현재 단계(pre/fund) 폼이 설정된 활성 프로그램
+  const schemaPrograms = (category ? programs.filter((p) => p.category === category && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
+  const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
+  const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;
 
   // 지원신청 → 지원금 신청 연계 (중복 항목 자동입력)
   const [prefill, setPrefill] = useState<Application | null>(null);
@@ -208,6 +224,31 @@ function ApplyInner() {
           </>
         ) : awaitingPreCheck ? (
           <div className="text-center py-20 text-gray-400">지원신청 승인 여부 확인 중...</div>
+        ) : selectedType && activeSchema && schemaProgram ? (
+          <SchemaApplyForm
+            schema={activeSchema}
+            type={selectedType}
+            mode={mode}
+            programId={schemaProgram.id}
+            programName={schemaProgram.name}
+            onBack={() => setSchemaProgramId(null)}
+          />
+        ) : selectedType && schemaPrograms.length > 0 && !draftApp && !prefill ? (
+          <>
+            <button onClick={() => { setSelectedType(null); if (CATEGORY_TYPES[category!]?.length <= 1) { setCategory(null); } }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 이전</button>
+            <div className="mb-6">
+              <h1 className="text-2xl font-extrabold holo-text mb-1">{APPLICATION_TYPE_LABELS[selectedType]} — 신청할 프로그램 선택</h1>
+              <p className="text-gray-600">신청할 프로그램을 선택하면 관리자가 설정한 신청서 양식으로 작성합니다.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {schemaPrograms.map((p) => (
+                <button key={p.id} onClick={() => setSchemaProgramId(p.id)} className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer">
+                  <h3 className="font-bold text-gray-800 mb-1">{p.name || "(이름 없음)"}</h3>
+                  <p className="text-sm text-gray-500">{p.note || (mode === "pre" ? "지원신청" : "지원금 신청")} · {(mode === "pre" ? (p.preApplyStart || p.applyStart) : p.applyStart)} ~ {(mode === "pre" ? (p.preApplyEnd || p.applyEnd) : p.applyEnd)}</p>
+                </button>
+              ))}
+            </div>
+          </>
         ) : selectedType ? (
           <ApplyForm
             applicationType={selectedType}

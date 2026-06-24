@@ -42,6 +42,8 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     draft_step: p.draftStep ?? null,
     is_test: !!p.isTest,
     verified_account: p.verifiedAccount ?? null,
+    // 스키마 폼 답변이 있을 때만 포함(컬럼 미존재 환경에서 기존 제출이 깨지지 않도록)
+    ...(p.formAnswers ? { form_answers: p.formAnswers } : {}),
   };
 }
 
@@ -100,5 +102,6 @@ export function fromRow(r: any): Application {
     draftStep: r.draft_step ?? undefined,
     isTest: !!r.is_test,
     verifiedAccount: r.verified_account ?? undefined,
+    formAnswers: r.form_answers ?? undefined,
   };
 }

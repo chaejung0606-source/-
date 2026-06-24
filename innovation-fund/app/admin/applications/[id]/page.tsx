@@ -363,6 +363,20 @@ export default function ApplicationDetailPage() {
             })()}
           </div>
 
+          {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
+            <div className="card">
+              <h2 className="section-title">신청서 작성 내용 (관리자 폼)</h2>
+              <dl className="space-y-2 text-sm">
+                {app.formAnswers.fields.map((f) => (
+                  <div key={f.id} className="flex gap-2">
+                    <dt className="text-gray-500 min-w-[120px] flex-shrink-0">{f.label}</dt>
+                    <dd className="font-medium whitespace-pre-line">{f.value || "-"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+
           <div className="card">
             <h2 className="section-title">신청 상세 내용</h2>
             <dl className="space-y-2 text-sm">

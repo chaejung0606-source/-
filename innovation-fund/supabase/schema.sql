@@ -173,6 +173,8 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
 -- applications: 서류 인계 단계(program=프로그램관리자 검토중 / expense=지출관리자 전달됨), 보완 메모
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS review_stage TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS handoff_note TEXT;
+-- applications: 관리자 폼 빌더(스키마)로 작성한 신청 답변
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS form_answers JSONB;
 
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled_pre BOOLEAN DEFAULT TRUE;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled_fund BOOLEAN DEFAULT TRUE;
