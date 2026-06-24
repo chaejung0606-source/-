@@ -57,7 +57,8 @@ function ApplyInner() {
     fetch("/api/admin/program-forms").then((r) => r.json()).then((d) => setProgramForms(d || {})).catch(() => {});
   }, []);
   // 선택한 분야에서 현재 단계(pre/fund) 폼이 설정된 활성 프로그램
-  const schemaPrograms = (category ? programs.filter((p) => p.category === category && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
+  // (우선 근로장학금에만 스키마 기반 신청 폼 적용)
+  const schemaPrograms = (category === "labor" ? programs.filter((p) => p.category === "labor" && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
   const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
   const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;
 
