@@ -69,6 +69,9 @@ export interface Program {
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
   reportFields?: ReportField[];    // 지원금 신청(fund) 신청자 입력 항목
   preReportFields?: ReportField[]; // 지원신청(pre) 신청자 입력 항목
+  // 전체 신청 폼 빌더 스키마 (단계·항목·필수여부). 있으면 신청자 폼을 이 스키마로 구성.
+  preFormSchema?: import("./form-schema").FormSchema;  // 지원신청(pre)
+  fundFormSchema?: import("./form-schema").FormSchema; // 지원금 신청(fund)
   preApply?: boolean;       // 지원신청(활동 전) 가능 여부 (구버전 호환)
   preApplyStart?: string;   // 지원신청 시작 YYYY-MM-DD
   preApplyEnd?: string;     // 지원신청 마감 YYYY-MM-DD
