@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS student_profiles (
 
 -- 지원신청(pre) 없이도 지원금 신청을 허용할 학생(관리자 지정)
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre BOOLEAN DEFAULT FALSE;
+-- 프로그램별 지원신청 면제 (program id 배열)
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre_programs JSONB DEFAULT '[]'::jsonb;
 
 ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 
