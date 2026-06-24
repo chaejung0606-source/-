@@ -50,7 +50,7 @@ export default function FooterWalkers() {
       dur: 1.0 + Math.random() * 0.7,
     }));
     setBlast({ glits, bubbles });
-    window.setTimeout(() => setBlast(null), 2000);
+    window.setTimeout(() => setBlast(null), 2400);
   };
 
   return (
@@ -89,7 +89,7 @@ export default function FooterWalkers() {
                 ["--by" as string]: `${b.by}px`,
                 width: b.size,
                 height: b.size,
-                animationDelay: `${0.58 + b.delay}s`,
+                animationDelay: `${1.0 + b.delay}s`,
                 animationDuration: `${b.dur}s`,
               }}
             />
@@ -104,7 +104,7 @@ export default function FooterWalkers() {
                 width: g.size,
                 height: g.size,
                 background: g.color,
-                animationDelay: `${0.6 + g.delay}s`,
+                animationDelay: `${1.02 + g.delay}s`,
               }}
             />
           ))}

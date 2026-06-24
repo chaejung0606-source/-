@@ -1,30 +1,41 @@
 "use client";
 
-// 히어로 문구 뒤에서 뭉실뭉실 떠다니는 뭉게구름 (CSS 동적 애니메이션)
-const CLOUDS = [
-  { top: "6%", left: "4%", s: 1.15, drift: 28, dur: 27, delay: 0 },
-  { top: "50%", left: "16%", s: 0.8, drift: -22, dur: 33, delay: -6 },
-  { top: "12%", left: "60%", s: 1.3, drift: 24, dur: 30, delay: -3 },
-  { top: "58%", left: "70%", s: 0.95, drift: -30, dur: 37, delay: -11 },
-  { top: "34%", left: "40%", s: 1.05, drift: 18, dur: 29, delay: -15 },
-  { top: "2%", left: "84%", s: 0.7, drift: -16, dur: 34, delay: -8 },
+// 첨부 이미지처럼 커다란 뭉게구름 하나를 중심으로, 부드러운 하늘 배경.
+// 하늘/구름과 원래 배경의 경계는 완전 그라데이션으로 자연스럽게 섞인다.
+
+// 큰 구름을 이루는 뭉치(원)들 — 460 x 240 박스 기준 (중심 x, 중심 y, 반지름)
+const PUFFS = [
+  { x: 230, y: 152, r: 96 },
+  { x: 112, y: 168, r: 72 },
+  { x: 350, y: 168, r: 74 },
+  { x: 166, y: 112, r: 74 },
+  { x: 270, y: 92, r: 84 },
+  { x: 360, y: 126, r: 62 },
+  { x: 80, y: 144, r: 54 },
+  { x: 416, y: 152, r: 50 },
+];
+
+// 옆쪽 자연스러운 작은 구름
+const MINI = [
+  { top: "16%", left: "5%", s: 0.55, dur: 30, delay: 0 },
+  { top: "24%", left: "84%", s: 0.46, dur: 34, delay: -9 },
 ];
 
 export default function HeroClouds() {
   return (
-    <div className="hero-clouds" aria-hidden="true">
-      {CLOUDS.map((c, i) => (
+    <div className="hero-sky" aria-hidden="true">
+      <div className="sky-bg" />
+      <div className="big-cloud">
+        <span className="cloud-base" />
+        {PUFFS.map((p, i) => (
+          <span key={i} className="puff" style={{ left: p.x - p.r, top: p.y - p.r, width: p.r * 2, height: p.r * 2 }} />
+        ))}
+      </div>
+      {MINI.map((c, i) => (
         <div
           key={i}
-          className="cloud"
-          style={{
-            top: c.top,
-            left: c.left,
-            ["--s" as string]: String(c.s),
-            ["--drift" as string]: `${c.drift}px`,
-            animationDuration: `${c.dur}s`,
-            animationDelay: `${c.delay}s`,
-          }}
+          className="mini-cloud"
+          style={{ top: c.top, left: c.left, ["--s" as string]: String(c.s), animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }}
         />
       ))}
     </div>

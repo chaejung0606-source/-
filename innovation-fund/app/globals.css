@@ -2,41 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 히어로 뭉게구름 — 문구 뒤에서 뭉실뭉실 */
-.hero-clouds {
+/* 히어로 하늘 + 큰 뭉게구름 — 경계는 완전 그라데이션으로 원래 배경과 섞임 */
+.hero-sky {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
-.hero-clouds .cloud {
+/* 부드러운 하늘색 — 위·아래/좌·우가 투명으로 사라져 원래 배경과 완전 블렌딩 */
+.hero-sky .sky-bg {
   position: absolute;
-  width: 180px;
-  height: 56px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 60px;
-  filter: blur(5px) drop-shadow(0 12px 24px rgba(120, 140, 200, 0.16));
-  will-change: transform;
-  animation-name: cloudFloat;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 60%, rgba(190, 222, 252, 0.62) 0%, rgba(202, 230, 252, 0.42) 45%, rgba(214, 236, 252, 0) 78%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 80%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 80%, transparent 100%);
+}
+/* 중심 큰 뭉게구름 */
+.hero-sky .big-cloud {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 460px;
+  height: 240px;
+  filter: drop-shadow(0 20px 34px rgba(120, 150, 200, 0.20));
+  animation: bigCloudFloat 17s ease-in-out infinite;
+}
+.hero-sky .puff {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+  filter: blur(0.5px);
+}
+/* 살짝 평평한 바닥 + 분홍빛 underglow */
+.hero-sky .cloud-base {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: 18%;
+  height: 96px;
+  background: #ffffff;
+  border-radius: 48%;
+}
+.hero-sky .big-cloud::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 14%;
+  height: 54px;
+  background: radial-gradient(ellipse at center, rgba(255, 206, 222, 0.55), rgba(255, 206, 222, 0) 70%);
+  filter: blur(7px);
+}
+@keyframes bigCloudFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
+  50%      { transform: translateX(-50%) translateY(-14px) scale(1.025); }
+}
+/* 옆쪽 작은 구름 */
+.hero-sky .mini-cloud {
+  position: absolute;
+  width: 120px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 40px;
+  filter: blur(3px) drop-shadow(0 8px 16px rgba(120, 150, 200, 0.14));
+  animation-name: miniCloudFloat;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
-.hero-clouds .cloud::before,
-.hero-clouds .cloud::after {
+.hero-sky .mini-cloud::before,
+.hero-sky .mini-cloud::after {
   content: "";
   position: absolute;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.88);
   border-radius: 50%;
 }
-.hero-clouds .cloud::before { width: 82px; height: 82px; top: -34px; left: 24px; }
-.hero-clouds .cloud::after { width: 112px; height: 112px; top: -56px; right: 22px; }
-@keyframes cloudFloat {
+.hero-sky .mini-cloud::before { width: 52px; height: 52px; top: -22px; left: 18px; }
+.hero-sky .mini-cloud::after { width: 68px; height: 68px; top: -34px; right: 16px; }
+@keyframes miniCloudFloat {
   0%, 100% { transform: translate(0, 0) scale(var(--s)); }
-  50%      { transform: translate(var(--drift), -16px) scale(calc(var(--s) * 1.04)); }
+  50%      { transform: translate(16px, -10px) scale(calc(var(--s) * 1.04)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-clouds .cloud { animation: none; }
+  .hero-sky .big-cloud, .hero-sky .mini-cloud { animation: none; }
 }
 
 /* 리치 텍스트(지원금 유형 안내) 본문 공통 스타일 */
@@ -195,10 +244,10 @@
   @keyframes redBlast {
     0%   { transform: scale(1); opacity: 1; filter: blur(0); }
     10%  { transform: scale(2); opacity: 1; }
-    50%  { transform: scale(48) rotate(-1deg); opacity: 1; filter: blur(0); }
-    62%  { transform: scale(60) rotate(1deg); opacity: 0.96; }
-    70%  { transform: scale(63); opacity: 0.85; filter: blur(2px); }
-    100% { transform: scale(72); opacity: 0; filter: blur(10px); }
+    52%  { transform: scale(25) rotate(-1deg); opacity: 1; filter: blur(0); }
+    64%  { transform: scale(30) rotate(1deg); opacity: 0.96; }
+    72%  { transform: scale(31.5); opacity: 0.85; filter: blur(2px); }
+    100% { transform: scale(37); opacity: 0; filter: blur(9px); }
   }
   /* 무지갯빛 비눗방울 — 코너에서 위/바깥으로 떠오르며 팡 */
   .red-blast .soap-bubble {

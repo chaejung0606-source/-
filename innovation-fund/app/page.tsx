@@ -183,7 +183,7 @@ export default function Home() {
       </header>
 
       {/* 히어로 */}
-      <section className="py-20 px-4 relative overflow-hidden">
+      <section className="pt-16 pb-44 px-4 relative overflow-hidden">
         <HeroClouds />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h1 className="text-4xl sm:text-6xl font-extrabold mb-5 holo-text leading-tight">학생 지원금 신청 플랫폼</h1>
