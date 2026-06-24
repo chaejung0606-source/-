@@ -173,14 +173,17 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
       ) : (
         <div className="space-y-3">
           <h3 className="font-bold text-gray-800">신청 내용 확인</h3>
-          <p className="text-sm text-gray-500">제출 전 입력한 내용을 확인하는 단계입니다.</p>
+          <p className="text-sm text-gray-500">제출 전 입력한 내용을 확인하는 단계입니다. (앞 단계에서 추가·삭제한 항목이 그대로 반영됩니다)</p>
           {steps.map((s) => (
             <div key={s.id} className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-              <p className="text-sm font-semibold text-gray-700 mb-1">{s.title}</p>
-              <ul className="text-xs text-gray-500 space-y-0.5">
-                {s.fields.map((f) => <li key={f.id}>· {f.label || "(제목 없음)"}{f.required ? " (필수)" : ""}</li>)}
-                {s.fields.length === 0 && <li className="text-gray-300">항목 없음</li>}
-              </ul>
+              <p className="text-sm font-semibold text-gray-700 mb-2">{s.title}</p>
+              {s.fields.length === 0 ? (
+                <p className="text-xs text-gray-300">항목 없음</p>
+              ) : (
+                <div className="space-y-3">
+                  {s.fields.map((f) => <FieldView key={f.id} f={f} disabled />)}
+                </div>
+              )}
             </div>
           ))}
         </div>

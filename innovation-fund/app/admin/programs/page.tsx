@@ -20,6 +20,7 @@ export default function ProgramsAdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [tplName, setTplName] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -39,25 +40,29 @@ export default function ProgramsAdminPage() {
     });
   }, []);
 
-  // 폼 형식(템플릿) 저장 / 불러오기
+  // 폼 형식(템플릿) 저장 / 삭제 / 불러오기
   const newId = () => Math.random().toString(36).slice(2, 10);
+  const persistTemplates = async (next: FormTemplate[]) => {
+    const prev = templates;
+    setTemplates(next);
+    const res = await fetch("/api/admin/form-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templates: next }) });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); setTemplates(prev); return false; }
+    return true;
+  };
   const saveTemplate = async (p: Program) => {
     const key: SchemaKey = selectedStep === "pre" ? "preFormSchema" : "fundFormSchema";
     const schema = p[key];
     if (!schema) { alert("저장할 폼이 없습니다."); return; }
-    const name = window.prompt("이 폼 형식을 어떤 이름으로 저장할까요?", p.name ? `${p.name} 형식` : "기본 신청 폼");
-    if (!name) return;
-    const next = [...templates, { id: newId(), name, schema: cloneSchema(schema) }];
-    setTemplates(next);
-    const res = await fetch("/api/admin/form-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templates: next }) });
-    const j = await res.json().catch(() => ({}));
-    if (j.ok) alert("폼 형식이 저장되었습니다. 다른 프로그램에서 ‘템플릿에서 불러오기’로 복사해 쓸 수 있습니다.");
-    else { alert("저장 실패: " + (j.error || res.status)); setTemplates(templates); }
+    const name = tplName.trim();
+    if (!name) { alert("템플릿 이름을 입력해주세요."); return; }
+    if (await persistTemplates([...templates, { id: newId(), name, schema: cloneSchema(schema) }])) setTplName("");
   };
-  const deleteTemplate = async (id: string) => {
-    const next = templates.filter((t) => t.id !== id);
-    setTemplates(next);
-    await fetch("/api/admin/form-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templates: next }) });
+  const renameTemplate = (id: string, name: string) => persistTemplates(templates.map((t) => (t.id === id ? { ...t, name } : t)));
+  const deleteTemplate = (id: string) => {
+    const t = templates.find((x) => x.id === id);
+    if (t && !window.confirm(`템플릿 ‘${t.name}’을(를) 삭제할까요?`)) return;
+    persistTemplates(templates.filter((x) => x.id !== id));
   };
   const applyTemplate = (p: Program, tid: string) => {
     const tpl = templates.find((t) => t.id === tid);
@@ -268,30 +273,44 @@ export default function ProgramsAdminPage() {
                 <p className="text-sm font-bold mb-1" style={{ color: stepAccent }}>전체 신청 폼 빌더 (신청자 화면 = 편집 화면)</p>
                 <p className="text-[11px] text-gray-400 mb-3">아래는 신청자가 보는 폼과 동일합니다. 단계·항목·필수여부를 바로 편집하고, 상단 ‘저장’을 누르면 반영됩니다. (현재 설정된 항목이 자동으로 들어와 있습니다)</p>
 
-                {/* 폼 형식(템플릿) — 자주 쓰는 폼 저장/복사 */}
-                <div className="flex items-center gap-2 flex-wrap mb-3 p-2 rounded-xl bg-white/70 border border-gray-100">
-                  <span className="text-[11px] font-semibold text-gray-500">폼 형식</span>
-                  <select
-                    className="input-field !w-auto text-xs"
-                    value=""
-                    onChange={(e) => { if (e.target.value) applyTemplate(p, e.target.value); e.target.selectedIndex = 0; }}
-                  >
-                    <option value="">템플릿에서 불러오기…</option>
-                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  <button onClick={() => saveTemplate(p)} className="text-xs text-indigo-600 hover:underline">현재 폼을 템플릿으로 저장</button>
+                {/* 폼 형식(템플릿) — 이름 지정 저장 / 불러오기 / 삭제 */}
+                <div className="mb-3 p-3 rounded-xl bg-white/70 border border-gray-100 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-500">폼 형식(템플릿)</span>
+                    <select
+                      className="input-field !w-auto text-xs"
+                      value=""
+                      onChange={(e) => { if (e.target.value) applyTemplate(p, e.target.value); e.target.selectedIndex = 0; }}
+                    >
+                      <option value="">템플릿에서 불러오기…</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      className="input-field !w-auto text-xs flex-1 min-w-[160px]"
+                      value={tplName}
+                      onChange={(e) => setTplName(e.target.value)}
+                      placeholder="현재 폼을 저장할 템플릿 이름"
+                    />
+                    <button onClick={() => saveTemplate(p)} className="btn-secondary text-xs flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 템플릿으로 저장</button>
+                  </div>
                   {templates.length > 0 && (
-                    <details className="ml-auto">
-                      <summary className="text-[11px] text-gray-400 cursor-pointer">템플릿 관리</summary>
-                      <div className="mt-1 space-y-1">
-                        {templates.map((t) => (
-                          <div key={t.id} className="flex items-center gap-2 text-xs">
-                            <span className="text-gray-600">{t.name}</span>
-                            <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
+                    <div className="pt-1 border-t border-gray-100 space-y-1">
+                      <p className="text-[11px] font-semibold text-gray-400">저장된 템플릿</p>
+                      {templates.map((t) => (
+                        <div key={t.id} className="flex items-center gap-2">
+                          <input
+                            className="input-field !w-auto text-xs flex-1 min-w-[140px] !py-1"
+                            value={t.name}
+                            onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))}
+                            onBlur={(e) => renameTemplate(t.id, e.target.value.trim() || t.name)}
+                          />
+                          <button onClick={() => applyTemplate(p, t.id)} className="text-xs text-indigo-600 hover:underline">불러오기</button>
+                          <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500" title="삭제"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
