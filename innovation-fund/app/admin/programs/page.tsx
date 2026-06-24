@@ -20,6 +20,11 @@ export default function ProgramsAdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
   const [progSearch, setProgSearch] = useState("");
+  const [tab, setTab] = useState<"edit" | "search" | "templates">("edit");
+  const [searchStart, setSearchStart] = useState("");
+  const [searchEnd, setSearchEnd] = useState("");
+  const [tplSearch, setTplSearch] = useState("");
+  const [tplEditId, setTplEditId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [tplName, setTplName] = useState("");
 
@@ -59,7 +64,9 @@ export default function ProgramsAdminPage() {
     if (!name) { alert("템플릿 이름을 입력해주세요."); return; }
     if (await persistTemplates([...templates, { id: newId(), name, schema: cloneSchema(schema) }])) setTplName("");
   };
-  const renameTemplate = (id: string, name: string) => persistTemplates(templates.map((t) => (t.id === id ? { ...t, name } : t)));
+  // 템플릿 설정 탭: 선택한 템플릿 내용(스키마) 편집(로컬) → '템플릿 저장'으로 일괄 반영
+  const setTemplateSchemaLocal = (id: string, schema: FormSchema) => { setTemplates((ts) => ts.map((t) => t.id === id ? { ...t, schema } : t)); };
+  const saveAllTemplates = () => persistTemplates(templates);
   const deleteTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
     if (t && !window.confirm(`템플릿 ‘${t.name}’을(를) 삭제할까요?`)) return;
@@ -137,46 +144,20 @@ export default function ProgramsAdminPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-800">프로그램 신청 내용</h1>
-        <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
+        {tab !== "templates" && <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>}
       </div>
-      <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
 
-      {/* 프로그램 검색 — 기간이 지난(마감) 프로그램도 종류와 무관하게 찾아 수정·폼 복사 */}
-      <div className="card mb-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            className="input-field pl-9"
-            placeholder="프로그램 검색 (마감·기간 지난 프로그램 포함, 모든 종류에서)"
-            value={progSearch}
-            onChange={(e) => setProgSearch(e.target.value)}
-          />
-        </div>
-        {progSearch.trim() && (() => {
-          const terms = progSearch.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
-          const hits = list.filter((p) => terms.every((t) => (p.name || "").toLowerCase().includes(t)));
-          return (
-            <div className="mt-2.5">
-              <p className="text-[11px] text-gray-400 mb-1.5">{hits.length}개 검색됨 — 클릭하면 종류와 관계없이 바로 수정할 수 있습니다.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {hits.length === 0 ? (
-                  <p className="text-xs text-gray-400">검색 결과가 없습니다.</p>
-                ) : hits.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => { setSelectedCat(p.category); setSelectedId(p.id); }}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${selectedId === p.id ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
-                  >
-                    <span className="opacity-70">[{FUND_CATEGORY_LABELS[p.category]}]</span> {p.name || "(이름 없음)"}{fullyOff(p) ? " (비활성)" : ""}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+      {/* 하위 메뉴 */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {([["edit", "프로그램 신청 내용"], ["search", "프로그램 검색"], ["templates", "템플릿 설정"]] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${tab === key ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600 hover:text-indigo-600"}`}>{label}</button>
+        ))}
       </div>
 
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
+
+      {tab === "edit" && (<>
+      <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
 
       {/* 1단계: 소메뉴(지원금 종류) 선택 */}
       <div className="card mb-4">
@@ -266,23 +247,7 @@ export default function ProgramsAdminPage() {
                   />
                   <button onClick={() => saveTemplate(p)} className="btn-secondary text-xs flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 템플릿으로 저장</button>
                 </div>
-                {templates.length > 0 && (
-                  <div className="pt-1 border-t border-gray-100 space-y-1">
-                    <p className="text-[11px] font-semibold text-gray-400">저장된 템플릿</p>
-                    {templates.map((t) => (
-                      <div key={t.id} className="flex items-center gap-2">
-                        <input
-                          className="input-field !w-auto text-xs flex-1 min-w-[140px] !py-1"
-                          value={t.name}
-                          onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))}
-                          onBlur={(e) => renameTemplate(t.id, e.target.value.trim() || t.name)}
-                        />
-                        <button onClick={() => applyTemplate(p, t.id)} className="text-xs text-indigo-600 hover:underline">불러오기</button>
-                        <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500" title="삭제"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <p className="text-[11px] text-gray-400">저장된 템플릿의 이름·내용 편집/삭제는 상단 ‘템플릿 설정’ 탭에서 할 수 있습니다.</p>
               </div>
             </div>
 
@@ -395,15 +360,129 @@ export default function ProgramsAdminPage() {
       {selectedCat && selectedId === null && (
         <p className="text-sm text-gray-400">위에서 하위 프로그램을 선택하면 해당 프로그램의 단계별 입력 항목을 수정할 수 있습니다.</p>
       )}
+      </>)}
 
-      {/* 스크롤을 내려도 따라오는 저장 버튼 */}
-      <button
-        onClick={save}
-        className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2"
-        title="변경 내용 저장"
-      >
-        <Save className="w-4 h-4" /> 저장{saved ? "됨 ✓" : ""}
-      </button>
+      {/* 프로그램 검색 탭 — 프로그램명·기간으로 검색, 전체 목록·간단 정보·삭제 */}
+      {tab === "search" && (
+        <div className="space-y-4">
+          <div className="card flex items-end gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input className="input-field pl-9" placeholder="프로그램명 검색" value={progSearch} onChange={(e) => setProgSearch(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs mb-0.5">기간 시작</label>
+              <input type="date" className="input-field" value={searchStart} onChange={(e) => setSearchStart(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs mb-0.5">기간 끝</label>
+              <input type="date" className="input-field" value={searchEnd} onChange={(e) => setSearchEnd(e.target.value)} />
+            </div>
+            {(progSearch || searchStart || searchEnd) && (
+              <button onClick={() => { setProgSearch(""); setSearchStart(""); setSearchEnd(""); }} className="btn-secondary text-sm">초기화</button>
+            )}
+          </div>
+          {(() => {
+            const terms = progSearch.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+            const inPeriod = (p: Program) => {
+              if (!searchStart && !searchEnd) return true;
+              const s = p.applyStart || "", e = p.applyEnd || "";
+              const lo = searchStart || "0000-00-00", hi = searchEnd || "9999-12-31";
+              return (!!s && !!e) ? (s <= hi && e >= lo) : false;
+            };
+            const hits = list.filter((p) => terms.every((t) => (p.name || "").toLowerCase().includes(t)) && inPeriod(p));
+            return (
+              <div className="card overflow-x-auto">
+                <p className="text-xs text-gray-400 mb-2">전체 {list.length}개 중 {hits.length}개 표시</p>
+                <table className="table-glass text-sm">
+                  <thead><tr>
+                    <th className="whitespace-nowrap">종류</th>
+                    <th className="whitespace-nowrap">프로그램명</th>
+                    <th className="whitespace-nowrap">지원신청 기간</th>
+                    <th className="whitespace-nowrap">지원금 신청 기간</th>
+                    <th className="whitespace-nowrap">상태</th>
+                    <th className="text-center whitespace-nowrap">작업</th>
+                  </tr></thead>
+                  <tbody>
+                    {hits.length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-8 text-gray-400">검색 결과가 없습니다.</td></tr>
+                    ) : hits.map((p) => (
+                      <tr key={p.id}>
+                        <td className="text-xs whitespace-nowrap text-gray-600">{FUND_CATEGORY_LABELS[p.category]}</td>
+                        <td className="font-medium">{p.name || "(이름 없음)"}</td>
+                        <td className="text-xs text-gray-500 whitespace-nowrap">{(p.preApplyStart || p.applyStart || "-")} ~ {(p.preApplyEnd || p.applyEnd || "-")}</td>
+                        <td className="text-xs text-gray-500 whitespace-nowrap">{(p.applyStart || "-")} ~ {(p.applyEnd || "-")}</td>
+                        <td className="text-xs whitespace-nowrap">{fullyOff(p) ? <span className="badge bg-gray-200 text-gray-500">비활성</span> : <span className="badge bg-emerald-100 text-emerald-700">활성</span>}</td>
+                        <td className="text-center whitespace-nowrap">
+                          <button onClick={() => { setTab("edit"); setSelectedCat(p.category); setSelectedId(p.id); }} className="text-indigo-600 hover:underline text-xs mr-2">수정</button>
+                          <button onClick={() => { if (window.confirm(`‘${p.name || "이 프로그램"}’을(를) 삭제할까요? (상단 ‘저장’을 눌러야 최종 반영됩니다)`)) remove(p.id); }} className="text-rose-500 hover:underline text-xs">삭제</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-gray-400 mt-2">삭제는 상단 ‘저장’을 눌러야 최종 반영됩니다.</p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* 템플릿 설정 탭 — 저장된 템플릿 검색·선택·편집·삭제 */}
+      {tab === "templates" && (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input className="input-field pl-9" placeholder="템플릿 검색" value={tplSearch} onChange={(e) => setTplSearch(e.target.value)} />
+            </div>
+            {(() => {
+              const terms = tplSearch.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+              const hits = templates.filter((t) => terms.every((x) => (t.name || "").toLowerCase().includes(x)));
+              return (
+                <div className="mt-2.5">
+                  <p className="text-[11px] text-gray-400 mb-1.5">{hits.length}개 / 전체 {templates.length}개 — 클릭하면 해당 템플릿만 수정합니다.</p>
+                  {templates.length === 0 ? (
+                    <p className="text-xs text-gray-400">저장된 템플릿이 없습니다. ‘프로그램 신청 내용’ 탭에서 폼을 템플릿으로 저장하세요.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {hits.map((t) => (
+                        <button key={t.id} onClick={() => setTplEditId(t.id)} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${tplEditId === t.id ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}>{t.name || "(이름 없음)"}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+          {tplEditId && (() => {
+            const t = templates.find((x) => x.id === tplEditId);
+            if (!t) return null;
+            return (
+              <div className="card space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input className="input-field flex-1 min-w-[200px] font-bold" value={t.name} onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))} placeholder="템플릿 이름" />
+                  <button onClick={saveAllTemplates} className="btn-primary text-sm flex items-center gap-1"><Save className="w-4 h-4" /> 템플릿 저장</button>
+                  <button onClick={() => { deleteTemplate(t.id); setTplEditId(null); }} className="btn-secondary text-sm text-rose-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
+                </div>
+                <SchemaForm editable schema={t.schema} accent="#6366f1" onChange={(s) => setTemplateSchemaLocal(t.id, s)} />
+                <p className="text-[11px] text-gray-400">선택한 템플릿의 내용만 수정합니다. ‘템플릿 저장’을 눌러야 반영됩니다.</p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* 스크롤을 내려도 따라오는 저장 버튼 (편집·검색 탭) */}
+      {tab !== "templates" && (
+        <button
+          onClick={save}
+          className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2"
+          title="변경 내용 저장"
+        >
+          <Save className="w-4 h-4" /> 저장{saved ? "됨 ✓" : ""}
+        </button>
+      )}
     </AdminLayout>
   );
 }
