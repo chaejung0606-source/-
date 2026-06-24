@@ -14,9 +14,10 @@ export default function CertificatesAdminPage() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [q, setQ] = useState("");
+  const [note, setNote] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/cert-list").then((r) => r.json()).then((d) => { if (d?.sheets?.length) setList(d); }).catch(() => {});
+    fetch("/api/admin/cert-list").then((r) => r.json()).then((d) => { if (d?.sheets?.length) { setList(d); setNote(d.updateNote || ""); } }).catch(() => {});
   }, []);
 
   const dirty = () => setSaved(false);
@@ -37,9 +38,21 @@ export default function CertificatesAdminPage() {
   const setCell = (rowId: string, colId: string, val: string) => patchSheet((s) => ({ ...s, rows: s.rows.map((r) => r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: val } } : r) }));
 
   const save = async () => {
-    const res = await fetch("/api/admin/cert-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(list) });
+    if (!note.trim() && !confirm("변경 사유 없이 저장할까요? (홈 자격증 목록에 업데이트 일자만 표시됩니다)")) return;
+    const res = await fetch("/api/admin/cert-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...list, updateNote: note.trim() }) });
     const j = await res.json().catch(() => ({}));
     if (j.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); } else alert("저장 실패: " + (j.error || res.status));
+  };
+
+  const importAllSheets = async () => {
+    if (!confirm("구글 시트의 모든 탭(시트)을 가져와 현재 자격증 목록 전체를 덮어씁니다. 계속할까요?\n(시트가 '링크가 있는 모든 사용자: 뷰어'로 공유돼 있어야 합니다)")) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/cert-list/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: SHEET_URL, allSheets: true }) });
+      const j = await res.json().catch(() => ({}));
+      if (j.ok && Array.isArray(j.sheets)) { setList({ sheets: j.sheets }); setActiveSheet(0); dirty(); alert(`${j.sheets.length}개 시트를 가져왔습니다: ${j.sheets.map((s: { name: string }) => s.name).join(", ")}\n확인 후 '저장'을 눌러주세요.`); }
+      else alert("전체 가져오기 실패: " + (j.error || res.status) + "\n\n시트를 '링크가 있는 모든 사용자: 뷰어'로 공유했는지 확인하거나, 탭별로 'CSV/표 붙여넣기'를 사용하세요.");
+    } finally { setBusy(false); }
   };
 
   const applyImport = (data: { columns: CertSheet["columns"]; rows: CertSheet["rows"] }) => {
@@ -112,11 +125,16 @@ export default function CertificatesAdminPage() {
             </div>
           </div>
 
-          <div className="card mb-4 flex items-center gap-2 flex-wrap">
+          <div className="card mb-3 flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-gray-500">가져오기</span>
-            <button onClick={importFromSheet} disabled={busy} className="btn-secondary text-sm flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> 구글 시트에서 가져오기</button>
+            <button onClick={importAllSheets} disabled={busy} className="btn-primary text-sm flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> 구글 시트 전체 가져오기(모든 탭)</button>
+            <button onClick={importFromSheet} disabled={busy} className="btn-secondary text-sm flex items-center gap-1.5">현재 시트만 가져오기</button>
             <button onClick={() => setPasteOpen((v) => !v)} className="btn-secondary text-sm">CSV/표 붙여넣기</button>
             <a href={SHEET_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline ml-auto">연결된 구글 시트 열기 ↗</a>
+          </div>
+          <div className="card mb-4 flex items-center gap-2 flex-wrap">
+            <label className="text-xs font-semibold text-gray-500">변경 사유 <span className="text-gray-400 font-normal">(홈 자격증 목록에 업데이트 일자와 함께 공개)</span></label>
+            <input className="input-field flex-1 min-w-[200px] text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 2026-1학기 자격증 목록 갱신" />
           </div>
           {pasteOpen && (
             <div className="card mb-4 space-y-2">

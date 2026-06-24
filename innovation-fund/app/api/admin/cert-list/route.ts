@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
   }
   const body = await req.json().catch(() => ({}));
   const value = normalizeCertList(body);
+  value.updatedAt = new Date().toISOString();
+  value.updateNote = typeof body.updateNote === "string" ? body.updateNote : "";
   const { error } = await supabaseAdmin().from("app_config").upsert({ key: KEY, value }, { onConflict: "key" });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

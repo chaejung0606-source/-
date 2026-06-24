@@ -4,7 +4,7 @@
 export interface CertColumn { id: string; name: string; pub: boolean; } // pub = 학생 공개
 export interface CertRow { id: string; cells: Record<string, string>; }
 export interface CertSheet { id: string; name: string; columns: CertColumn[]; rows: CertRow[]; }
-export interface CertList { sheets: CertSheet[]; }
+export interface CertList { sheets: CertSheet[]; updatedAt?: string; updateNote?: string; }
 
 export function newCertId(p = "c"): string { return p + "-" + Math.random().toString(36).slice(2, 9); }
 
@@ -42,9 +42,11 @@ function normRows(arr: unknown): CertRow[] {
 
 export function normalizeCertList(value: unknown): CertList {
   const v = (value || {}) as Record<string, unknown>;
+  const meta = { updatedAt: v.updatedAt ? String(v.updatedAt) : undefined, updateNote: v.updateNote ? String(v.updateNote) : undefined };
   // 신버전: { sheets: [...] }
   if (Array.isArray(v.sheets) && v.sheets.length) {
     return {
+      ...meta,
       sheets: (v.sheets as unknown[]).map((s, i) => {
         const o = (s || {}) as Record<string, unknown>;
         return { id: String(o.id || `sheet-${i}`), name: String(o.name || `시트 ${i + 1}`), columns: normColumns(o.columns), rows: normRows(o.rows) };
@@ -53,7 +55,7 @@ export function normalizeCertList(value: unknown): CertList {
   }
   // 구버전: { columns, rows } → 한 시트로 이관
   if (Array.isArray(v.columns)) {
-    return { sheets: [{ id: newCertId("sheet"), name: "자격증 목록", columns: normColumns(v.columns), rows: normRows(v.rows) }] };
+    return { ...meta, sheets: [{ id: newCertId("sheet"), name: "자격증 목록", columns: normColumns(v.columns), rows: normRows(v.rows) }] };
   }
   return defaultCertList();
 }
@@ -61,6 +63,8 @@ export function normalizeCertList(value: unknown): CertList {
 // 공개 열만 남긴 버전 (학생 노출용) — 시트는 유지
 export function publicCertList(list: CertList): CertList {
   return {
+    updatedAt: list.updatedAt,
+    updateNote: list.updateNote,
     sheets: list.sheets.map((sh) => {
       const cols = sh.columns.filter((c) => c.pub);
       const ids = new Set(cols.map((c) => c.id));

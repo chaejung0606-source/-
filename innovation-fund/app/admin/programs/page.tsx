@@ -8,7 +8,7 @@ import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program 
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, cloneSchema } from "@/lib/form-schema";
 
-const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
+const CATEGORIES: FundCategory[] = ["labor", "innovation"];
 const today = () => new Date().toISOString().split("T")[0];
 type SchemaKey = "preFormSchema" | "fundFormSchema";
 interface FormTemplate { id: string; name: string; schema: FormSchema; }

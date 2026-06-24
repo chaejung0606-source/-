@@ -15,7 +15,7 @@ import { logout } from "@/lib/auth";
 const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText };
 const FOOTER_ICONS: Record<string, typeof Globe> = { Mail, Phone, MapPin, Globe, Link2, MessageCircle, GraduationCap, BookOpen };
 
-const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
+const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation"];
 
 // 본문 상단 신청 카드
 const categoryCard: Record<FundCategory, { icon: string; desc: string; fields: string }> = {
@@ -35,7 +35,7 @@ const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: str
   activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
 };
 
-const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "activity"];
+const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
 
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
 
@@ -263,7 +263,7 @@ export default function Home() {
         {/* 지원금 유형 안내 (클릭 시 세부내용 모달) */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
-            <Award className="w-6 h-6 text-indigo-500" /> 지원금 유형 안내
+            <Award className="w-6 h-6 text-indigo-500" /> 유형 안내
           </h2>
           <p className="text-sm text-gray-500 mb-6">유형을 클릭하면 자세한 내용과 신청 가능한 프로그램을 볼 수 있습니다.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

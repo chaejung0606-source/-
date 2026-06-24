@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { X, CalendarDays, ChevronRight } from "lucide-react";
+import { X, CalendarDays } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType } from "@/types";
 import { fetchTypeContent, type TypeContent } from "@/lib/site-content";
@@ -102,10 +101,6 @@ export default function FundTypeModal({ type, onClose }: Props) {
             ))}
           </div>
         )}
-
-        <Link href={`/apply?type=${type}`} className="btn-primary w-full mt-6 justify-center">
-          {APPLICATION_TYPE_LABELS[type]} 신청하기 <ChevronRight className="w-4 h-4" />
-        </Link>
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ const categoryDesc: Record<FundCategory, string> = {
   innovation: "프로그램·진행요원·성적·경진대회·자격증 등 5개 유형",
   activity: "학생 자치·동아리·학술 행사 등 학생 활동 지원",
 };
-const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation", "activity"];
+const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation"];
 
 function ApplyInner() {
   const router = useRouter();

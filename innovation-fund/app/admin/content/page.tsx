@@ -7,7 +7,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { fetchSiteContent, htmlFromContent, type TypeContent } from "@/lib/site-content";
 
-const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "activity"];
+const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
 
 export default function ContentAdminPage() {
   const [content, setContent] = useState<Record<string, TypeContent>>({});
