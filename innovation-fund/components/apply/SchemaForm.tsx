@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2 } from "lucide-react";
 import type { FormSchema, FormField, FormStep, FormFieldType } from "@/lib/form-schema";
-import { FIELD_TYPE_LABELS, STANDARD_TYPES, newSchemaId } from "@/lib/form-schema";
+import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GRADES, newSchemaId } from "@/lib/form-schema";
 
 // 스키마 기반 신청 폼.
 // editable=false(기본): 미리보기/실제 신청자 화면 (입력 비활성)
@@ -132,13 +132,22 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
                 합계 근무시간 <strong className="text-gray-700">8시간</strong>
                 {f.maxHours ? <span className="text-amber-600"> · 최대 {f.maxHours}시간</span> : null}
               </span>
-              {f.unitPrice ? (
+              {f.unitPriceMode === "byGrade" ? (
+                <span className="text-gray-700 font-semibold">학년별 단가 적용 (신청자 학년에 따라 자동)</span>
+              ) : f.unitPrice ? (
                 <span className="text-gray-700 font-semibold">단가 {f.unitPrice.toLocaleString()}원/시간 × 8시간 = <span className="text-primary-700">{(f.unitPrice * 8).toLocaleString()}원</span></span>
               ) : (
                 <span className="text-gray-400">단가 미설정</span>
               )}
             </div>
-            <p className="text-[11px] text-gray-400">날짜·시간을 등록하면 근무시간이 자동 합산되며{f.unitPrice ? ", 단가를 곱해 지급 합계가 자동 계산됩니다" : ""}{f.maxHours ? ` (최대 ${f.maxHours}시간까지 입력)` : ""}.</p>
+            {f.unitPriceMode === "byGrade" && (
+              <div className="flex flex-wrap gap-1.5 text-[11px]">
+                {WORKLOG_GRADES.map((g) => (
+                  <span key={g.key} className="px-1.5 py-0.5 rounded bg-white border border-gray-100 text-gray-500">{g.label} {(f.unitPriceByGrade?.[g.key] || 0).toLocaleString()}원/시간</span>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-gray-400">날짜·시간을 등록하면 근무시간이 자동 합산되며{f.unitPriceMode === "byGrade" ? ", 신청자의 학년별 단가를 곱해 지급 합계가 자동 계산됩니다" : f.unitPrice ? ", 단가를 곱해 지급 합계가 자동 계산됩니다" : ""}{f.maxHours ? ` (최대 ${f.maxHours}시간까지 입력)` : ""}.</p>
           </div>
         </div>
       );
@@ -268,10 +277,28 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                 </label>
               )}
               {f.type === "workLog" && (
-                <div className="flex items-center gap-2 flex-wrap mt-2">
-                  <label className="text-xs text-gray-600 flex items-center gap-1">시간당 단가(원)
-                    <input type="number" inputMode="numeric" className="input-field !w-28 text-xs !py-1" value={f.unitPrice ?? ""} onChange={(e) => updField(cur.id, f.id, { unitPrice: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="예: 9860" />
-                  </label>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-3 flex-wrap text-xs text-gray-600">
+                    <span className="font-semibold text-gray-500">단가 방식</span>
+                    <label className="flex items-center gap-1"><input type="radio" checked={(f.unitPriceMode || "flat") === "flat"} onChange={() => updField(cur.id, f.id, { unitPriceMode: "flat" })} /> 고정 단가</label>
+                    <label className="flex items-center gap-1"><input type="radio" checked={f.unitPriceMode === "byGrade"} onChange={() => updField(cur.id, f.id, { unitPriceMode: "byGrade" })} /> 학년별 단가</label>
+                  </div>
+                  {f.unitPriceMode === "byGrade" ? (
+                    <div className="flex flex-wrap gap-2">
+                      {WORKLOG_GRADES.map((g) => (
+                        <label key={g.key} className="text-xs text-gray-600 flex items-center gap-1">{g.label}
+                          <input type="number" inputMode="numeric" className="input-field !w-24 text-xs !py-1"
+                            value={f.unitPriceByGrade?.[g.key] ?? ""}
+                            onChange={(e) => updField(cur.id, f.id, { unitPriceByGrade: { ...(f.unitPriceByGrade || {}), [g.key]: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) } })}
+                            placeholder="원/시간" />
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <label className="text-xs text-gray-600 flex items-center gap-1">시간당 단가(원)
+                      <input type="number" inputMode="numeric" className="input-field !w-28 text-xs !py-1" value={f.unitPrice ?? ""} onChange={(e) => updField(cur.id, f.id, { unitPrice: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="예: 9860" />
+                    </label>
+                  )}
                   <label className="text-xs text-gray-600 flex items-center gap-1">최대 입력 시간
                     <input type="number" inputMode="numeric" className="input-field !w-24 text-xs !py-1" value={f.maxHours ?? ""} onChange={(e) => updField(cur.id, f.id, { maxHours: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="제한 없음" />
                   </label>
