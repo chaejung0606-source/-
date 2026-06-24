@@ -130,15 +130,14 @@ export default function ApplicationsPage() {
 
   return (
     <AdminLayout>
-      {/* 대시보드 (신청 목록 상단 통합) */}
-      <div className="card mb-5">
-        <div className="flex items-center justify-center gap-3 mb-4">
+      {/* 대시보드 (신청 목록 상단 통합) — 좌: 미확인 신청 / 우: 상태 표시 */}
+      <div className="card mb-5 flex flex-col sm:flex-row gap-5">
+        <div className="sm:w-44 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5">
           <span className="text-sm text-gray-500">관리자 미확인 신청</span>
-          <span className="text-3xl font-bold text-rose-600">{unconfirmedCount}</span>
-          <span className="text-sm text-gray-500">건</span>
-          <span className="text-[11px] text-gray-400">(검토 상태 ‘{REVIEW_STATUS_META.received.label}’)</span>
+          <span className="text-4xl font-bold text-rose-600 my-1">{unconfirmedCount}<span className="text-base text-gray-500 font-medium ml-1">건</span></span>
+          <span className="text-[11px] text-gray-400">검토 상태 ‘{REVIEW_STATUS_META.received.label}’</span>
         </div>
-        <div className="grid grid-cols-[64px_1fr] gap-x-3 gap-y-4 items-start">
+        <div className="flex-1 grid grid-cols-[64px_1fr] gap-x-3 gap-y-4 items-start">
           <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
           <div className="flex flex-wrap gap-2">
             {REVIEW_STATUS_ORDER.map((s) => (
