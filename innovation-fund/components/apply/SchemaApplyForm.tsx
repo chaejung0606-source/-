@@ -260,19 +260,34 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "applicantInfo": return <BasicInfoSection key={f.id} values={basicInfo} onChange={setBasicInfo} hideAccount={true} />;
       case "account": {
         if (isPre) return null;
-        const mismatch = !!basicInfo.accountHolder.trim() && basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, "");
+        const mismatch = !!basicInfo.accountHolder.trim() && !!basicInfo.name && basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, "");
         return (
-          <div key={f.id}>{label}
-            <div className="grid sm:grid-cols-3 gap-2">
-              <select className="input-field" value={basicInfo.bankName} onChange={(e) => setBasicInfo((b) => ({ ...b, bankName: e.target.value }))}>
-                <option value="">은행 선택</option>
-                {BANKS.map((bk) => <option key={bk} value={bk}>{bk}</option>)}
-              </select>
-              <input className="input-field" value={basicInfo.accountNumber} onChange={(e) => setBasicInfo((b) => ({ ...b, accountNumber: e.target.value.replace(/[^\d-]/g, "") }))} placeholder="계좌번호 (숫자·- )" />
-              <input className="input-field" value={basicInfo.accountHolder} onChange={(e) => setBasicInfo((b) => ({ ...b, accountHolder: e.target.value }))} placeholder="예금주" />
+          <div key={f.id}>
+            <label className="label">{f.label || "본인 명의 계좌 정보"}{req}</label>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-4">
+              ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div>
+                <label className="label">은행명 <span className="text-red-500">*</span></label>
+                <select className="input-field" value={basicInfo.bankName} onChange={(e) => setBasicInfo((b) => ({ ...b, bankName: e.target.value }))}>
+                  <option value="">선택</option>
+                  {BANKS.map((bk) => <option key={bk}>{bk}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">계좌번호 <span className="text-red-500">*</span></label>
+                <input className="input-field" value={basicInfo.accountNumber} onChange={(e) => setBasicInfo((b) => ({ ...b, accountNumber: e.target.value }))} placeholder="000000-00-000000" />
+              </div>
+              <div>
+                <label className="label">예금주 <span className="text-red-500">*</span></label>
+                <input className="input-field" value={basicInfo.accountHolder} onChange={(e) => setBasicInfo((b) => ({ ...b, accountHolder: e.target.value }))} placeholder="홍길동" />
+              </div>
             </div>
             {mismatch && (
-              <p className="text-xs text-rose-600 mt-1.5">⚠️ 예금주(<strong>{basicInfo.accountHolder}</strong>)가 신청자 이름(<strong>{basicInfo.name}</strong>)과 다릅니다. 본인 명의 계좌만 지급 가능하니 확인해주세요.</p>
+              <div className="mt-4 flex items-start gap-2 rounded-2xl p-3 text-sm text-red-700" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                <span>⚠️ <strong>예금주({basicInfo.accountHolder})와 신청자 성명({basicInfo.name})이 다릅니다.</strong> 본인 명의 계좌로만 지급됩니다. 제출하는 통장 사본의 예금주가 본인과 동일한지 다시 확인해주세요.</span>
+              </div>
             )}
           </div>
         );
