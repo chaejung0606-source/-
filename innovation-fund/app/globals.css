@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 히어로 뭉게구름 — 문구 뒤에서 뭉실뭉실 */
+.hero-clouds {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.hero-clouds .cloud {
+  position: absolute;
+  width: 180px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 60px;
+  filter: blur(5px) drop-shadow(0 12px 24px rgba(120, 140, 200, 0.16));
+  will-change: transform;
+  animation-name: cloudFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.hero-clouds .cloud::before,
+.hero-clouds .cloud::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+}
+.hero-clouds .cloud::before { width: 82px; height: 82px; top: -34px; left: 24px; }
+.hero-clouds .cloud::after { width: 112px; height: 112px; top: -56px; right: 22px; }
+@keyframes cloudFloat {
+  0%, 100% { transform: translate(0, 0) scale(var(--s)); }
+  50%      { transform: translate(var(--drift), -16px) scale(calc(var(--s) * 1.04)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-clouds .cloud { animation: none; }
+}
+
 /* 리치 텍스트(지원금 유형 안내) 본문 공통 스타일 */
 .rich-content { line-height: 1.6; word-break: keep-all; }
 .rich-content p { margin: 0 0 8px; }
