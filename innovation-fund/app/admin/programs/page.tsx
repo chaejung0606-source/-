@@ -12,7 +12,9 @@ const today = () => new Date().toISOString().split("T")[0];
 export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
+  const [selectedCat, setSelectedCat] = useState<FundCategory | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
 
   useEffect(() => {
     fetchPrograms().then((l) => {
@@ -33,6 +35,7 @@ export default function ProgramsAdminPage() {
   const add = (category: FundCategory) => {
     const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "" };
     setList((l) => [...l, np]);
+    setSelectedCat(category);
     setSelectedId(np.id);
     setSaved(false);
   };
@@ -100,6 +103,40 @@ export default function ProgramsAdminPage() {
       </div>
     );
   };
+  // 실제 신청 화면과 동일한 모습 미리보기 (지원신청/지원금 신청 입력 항목)
+  const renderFieldPreview = (p: Program, key: FieldKey) => {
+    const fields = fieldsOf(p, key);
+    if (fields.length === 0) return <p className="text-xs text-gray-400">설정된 항목이 없습니다. 위에서 항목을 추가하면 신청 화면 미리보기가 표시됩니다.</p>;
+    return (
+      <div className="space-y-3">
+        {fields.map((f) => (
+          <div key={f.id}>
+            <label className="label">{f.label || "(항목명 미입력)"} {f.required && <span className="text-red-500">*</span>}</label>
+            {f.type === "text" && <textarea className="input-field h-16 resize-none bg-white" placeholder="신청자가 작성하는 칸" disabled />}
+            {f.type === "file" && (
+              <div className="upload-card p-4 text-center text-gray-400 text-sm bg-white">파일 업로드 영역</div>
+            )}
+            {f.type === "select" && (
+              <select className="input-field bg-white" disabled>
+                <option>선택하세요</option>
+                {(f.options || []).map((o) => <option key={o}>{o}</option>)}
+              </select>
+            )}
+            {f.type === "agreement" && (
+              <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
+                <p className="text-gray-600 whitespace-pre-line mb-2">{f.text || "(서약 본문 미입력)"}</p>
+                <label className="flex items-center gap-2 text-gray-700"><input type="checkbox" disabled /> 위 내용에 동의합니다</label>
+              </div>
+            )}
+            {f.type === "signature" && (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white h-16 flex items-center justify-center text-gray-400 text-sm">서명란</div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const save = async () => {
     const res = await fetch("/api/admin/programs", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }),
@@ -117,12 +154,37 @@ export default function ProgramsAdminPage() {
       </div>
       <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
 
-      {/* 프로그램 선택 — 선택한 프로그램만 아래에서 수정 */}
-      {list.length > 0 && (
-        <div className="card mb-5">
-          <p className="text-xs font-semibold text-gray-500 mb-2">프로그램 선택 (클릭하면 해당 프로그램만 수정)</p>
+      {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
+
+      {/* 1단계: 소메뉴(지원금 종류) 선택 */}
+      <div className="card mb-4">
+        <p className="text-xs font-semibold text-gray-500 mb-2">① 지원금 종류 선택</p>
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => { setSelectedCat(cat); setSelectedId(null); }}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${selectedCat === cat ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
+            >
+              {FUND_CATEGORY_LABELS[cat]} <span className="text-xs font-normal opacity-80">({list.filter((p) => p.category === cat).length})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!selectedCat && <p className="text-sm text-gray-400">위에서 지원금 종류를 선택하면 해당 종류의 하위 프로그램이 표시됩니다.</p>}
+
+      {/* 2단계: 하위 프로그램 선택 / 추가 */}
+      {selectedCat && (
+        <div className="card mb-4">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <p className="text-xs font-semibold text-gray-500">② {FUND_CATEGORY_LABELS[selectedCat]} 하위 프로그램 선택 (클릭하면 해당 프로그램만 수정)</p>
+            <button onClick={() => add(selectedCat)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 프로그램 추가</button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
-            {list.map((p) => (
+            {list.filter((p) => p.category === selectedCat).length === 0 ? (
+              <p className="text-xs text-gray-400">등록된 프로그램이 없습니다. &lsquo;프로그램 추가&rsquo;로 생성하세요.</p>
+            ) : list.filter((p) => p.category === selectedCat).map((p) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedId(p.id)}
@@ -134,104 +196,121 @@ export default function ProgramsAdminPage() {
           </div>
         </div>
       )}
-      {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
-      {!selectedId && (
-        <p className="text-sm text-gray-400 mb-4">위에서 프로그램을 선택하면 해당 프로그램만 수정할 수 있습니다. (아래 &lsquo;프로그램 추가&rsquo;로 새 프로그램 생성)</p>
-      )}
-
-      <div className="space-y-8">
-        {CATEGORIES.map((cat) => (
-          <div key={cat}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-gray-800">{FUND_CATEGORY_LABELS[cat]} <span className="text-xs font-normal text-gray-400">({list.filter((p) => p.category === cat).length})</span></h2>
-              <button onClick={() => add(cat)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 프로그램 추가</button>
+      {/* 3단계: 선택한 프로그램 수정 */}
+      {selectedCat && list.filter((p) => p.category === selectedCat && p.id === selectedId).map((p) => {
+        const active = isProgramActive(p, undefined, "fund");
+        const preActive = isProgramActive(p, undefined, "pre");
+        const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
+        return (
+          <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`badge ${preActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>지원신청 {preActive ? "가능" : "기간 아님"}</span>
+                <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>지원금 신청 {active ? "가능" : "기간 아님"}</span>
+              </div>
+              <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
-            <div className="space-y-3">
-              {list.filter((p) => p.category === cat && p.id === selectedId).map((p) => {
-                const active = isProgramActive(p, undefined, "fund");
-                const preActive = isProgramActive(p, undefined, "pre");
-                return (
-                  <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
-                    <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`badge ${preActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>지원신청 {preActive ? "가능" : "기간 아님"}</span>
-                        <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>지원금 신청 {active ? "가능" : "기간 아님"}</span>
-                      </div>
-                      <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div className="lg:col-span-3">
-                        <label className="label">프로그램명</label>
-                        <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
-                      </div>
-                      <div>
-                        <label className="label">비고</label>
-                        <input className="input-field" value={p.note} onChange={(e) => update(p.id, { note: e.target.value })} placeholder="예: 30명 내외" />
-                      </div>
-                    </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="lg:col-span-3">
+                <label className="label">프로그램명</label>
+                <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
+              </div>
+              <div>
+                <label className="label">비고</label>
+                <input className="input-field" value={p.note} onChange={(e) => update(p.id, { note: e.target.value })} placeholder="예: 30명 내외" />
+              </div>
+            </div>
 
-                    {/* 역할 (여러 개 입력 가능) — 기간 입력 바로 위 */}
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="label mb-0">역할 (여러 개 입력 가능)</label>
-                        <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
-                      </div>
-                      {rawRoles(p).length === 0 ? (
-                        <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {rawRoles(p).map((r, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
-                              <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            {/* 역할 (여러 개 입력 가능) */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">역할 (여러 개 입력 가능)</label>
+                <button onClick={() => addRole(p)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> 역할 추가</button>
+              </div>
+              {rawRoles(p).length === 0 ? (
+                <p className="text-xs text-gray-400">등록된 역할이 없습니다. 신청자가 직접 역할을 입력합니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  {rawRoles(p).map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input className="input-field flex-1" value={r} onChange={(e) => updateRole(p, i, e.target.value)} placeholder="예: 공간관리" />
+                      <button onClick={() => removeRole(p, i)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                    {/* 지원신청 / 지원금 신청 — 기간부터 입력 항목까지 좌우로 분리 */}
-                    <div className="grid md:grid-cols-2 gap-3 mt-4">
-                      {/* 왼쪽: 지원신청 (활동 전) */}
-                      <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}>
-                        <p className="text-sm font-bold text-indigo-700 mb-2">지원신청 (활동 전)</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="label">신청 시작</label>
-                            <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
-                          </div>
-                          <div>
-                            <label className="label">신청 마감</label>
-                            <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
-                        {renderFieldEditor(p, "preReportFields", "지원신청 입력 항목", "#6366f1")}
-                      </div>
-                      {/* 오른쪽: 지원금 신청 (활동 후) */}
-                      <div className="rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                        <p className="text-sm font-bold text-emerald-700 mb-2">지원금 신청 (활동 후)</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="label">신청 시작</label>
-                            <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className="label">신청 마감</label>
-                            <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
-                          </div>
-                        </div>
-                        {renderFieldEditor(p, "reportFields", "지원금 신청 입력 항목", "#10b981")}
-                      </div>
+            {/* 단계 선택: 지원신청 / 지원금 신청 */}
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">③ 수정할 단계 선택</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedStep("pre")}
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "pre" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"}`}
+                >지원신청 (활동 전)</button>
+                <button
+                  onClick={() => setSelectedStep("fund")}
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"}`}
+                >지원금 신청 (활동 후)</button>
+              </div>
+            </div>
+
+            {/* 선택한 단계만 표시: 기간 + 입력 항목 편집 + 실제 신청 화면 미리보기 */}
+            <div className="mt-3 rounded-2xl p-3" style={{ background: `${stepAccent}10`, border: `1px solid ${stepAccent}33` }}>
+              {selectedStep === "pre" ? (
+                <>
+                  <p className="text-sm font-bold text-indigo-700 mb-2">지원신청 (활동 전)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="label">신청 시작</label>
+                      <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">신청 마감</label>
+                      <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
                     </div>
                   </div>
-                );
-              })}
+                  <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-emerald-700 mb-2">지원금 신청 (활동 후)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="label">신청 시작</label>
+                      <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">신청 마감</label>
+                      <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="grid lg:grid-cols-2 gap-4 mt-1">
+                {/* 항목 편집 */}
+                <div>
+                  {selectedStep === "pre"
+                    ? renderFieldEditor(p, "preReportFields", "지원신청 입력 항목 (추가·수정·삭제)", "#6366f1")
+                    : renderFieldEditor(p, "reportFields", "지원금 신청 입력 항목 (추가·수정·삭제)", "#10b981")}
+                </div>
+                {/* 실제 신청 화면과 동일한 미리보기 */}
+                <div className="rounded-2xl p-3 bg-white/70 border border-gray-100">
+                  <p className="text-xs font-semibold mb-2" style={{ color: stepAccent }}>실제 신청 화면 미리보기</p>
+                  {renderFieldPreview(p, selectedStep === "pre" ? "preReportFields" : "reportFields")}
+                </div>
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
+
+      {selectedCat && selectedId === null && (
+        <p className="text-sm text-gray-400">위에서 하위 프로그램을 선택하면 해당 프로그램의 단계별 입력 항목을 수정할 수 있습니다.</p>
+      )}
     </AdminLayout>
   );
 }

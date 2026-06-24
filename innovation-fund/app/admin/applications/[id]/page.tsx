@@ -84,6 +84,7 @@ export default function ApplicationDetailPage() {
       }),
     });
     setSaving(false);
+    setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) } : a));
     alert("저장되었습니다.");
   };
 
@@ -324,20 +325,35 @@ export default function ApplicationDetailPage() {
                 </div>
               );
             })()}
-
-            {/* 관리자 확인 입력 — 화면에서는 마스킹, 인쇄/내보내기에만 전체 표시 */}
-            <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)" }}>
-              <p className="text-xs font-semibold text-emerald-700 mb-1">관리자 확인 입력 (계좌·주민번호)</p>
-              <p className="text-[11px] text-gray-400 mb-2">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
-              <div className="grid sm:grid-cols-3 gap-2">
-                <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
-                <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
-                <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
-                <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">※ 저장하려면 아래 &lsquo;상태 관리&rsquo;의 저장 버튼을 누르세요.</p>
-            </div>
           </div>
+
+          {/* 관리자 확인 입력 — 계좌정보 밖 별도 카드. 미입력 시 빨강, 저장 후 초록 */}
+          {(() => {
+            const confirmed = !!(app.verifiedAccount?.accountNumber || app.verifiedAccount?.residentNumber);
+            const theme = confirmed
+              ? { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.35)", title: "#047857" }
+              : { bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.4)", title: "#b91c1c" };
+            return (
+              <div className="card" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="section-title mb-0" style={{ color: theme.title }}>관리자 확인 입력 (계좌·주민번호)</h2>
+                  <span className="badge" style={{ background: confirmed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: theme.title }}>
+                    {confirmed ? "입력 완료" : "미입력"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mb-3">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
+                  <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
+                  <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
+                  <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
+                </div>
+                <p className="text-[11px] mt-2" style={{ color: confirmed ? "#047857" : "#b91c1c" }}>
+                  {confirmed ? "✓ 확인 정보가 저장되었습니다. 수정 후에는 아래 ‘상태 관리’의 저장 버튼을 다시 누르세요." : "※ 아직 저장되지 않았습니다. 입력 후 아래 ‘상태 관리’의 저장 버튼을 누르세요."}
+                </p>
+              </div>
+            );
+          })()}
 
           <div className="card">
             <h2 className="section-title">신청 상세 내용</h2>

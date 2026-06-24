@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
+import type { PopupItem } from "@/app/api/popup/route";
 
 const TABS = ["푸터 설정", "사이드바 링크", "팝업 공지"] as const;
 type Tab = typeof TABS[number];
@@ -20,13 +21,16 @@ export default function SiteSettingsPage() {
   const [tab, setTab] = useState<Tab>("푸터 설정");
   const [config, setConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [saved, setSaved] = useState(false);
-  const [popup, setPopup] = useState({ enabled: false, title: "", content: "" });
+  const [popups, setPopups] = useState<PopupItem[]>([]);
   const [popupSaved, setPopupSaved] = useState(false);
 
   useEffect(() => { fetchSiteConfig().then(setConfig); }, []);
-  useEffect(() => { fetch("/api/popup").then((r) => r.json()).then((d) => setPopup({ enabled: !!d.enabled, title: d.title || "", content: d.content || "" })).catch(() => {}); }, []);
+  useEffect(() => { fetch("/api/popup").then((r) => r.json()).then((d) => setPopups(Array.isArray(d.popups) ? d.popups : [])).catch(() => {}); }, []);
+  const updatePopup = (id: string, patch: Partial<PopupItem>) => setPopups((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const addPopup = () => setPopups((ps) => [...ps, { id: newId(), enabled: true, title: "", content: "", startDate: "", endDate: "" }]);
+  const removePopup = (id: string) => setPopups((ps) => ps.filter((p) => p.id !== id));
   const savePopup = async () => {
-    const res = await fetch("/api/popup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(popup) });
+    const res = await fetch("/api/popup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ popups }) });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) { setPopupSaved(true); setTimeout(() => setPopupSaved(false), 2500); } else alert("저장 실패: " + (j.error || ""));
   };
@@ -140,15 +144,30 @@ export default function SiteSettingsPage() {
       )}
 
       {tab === "팝업 공지" && (
-        <div className="card space-y-4">
-          <p className="text-sm text-gray-500">홈 화면 진입 시 표시되는 팝업 공지를 작성합니다. 사용함을 켜면 방문자에게 팝업이 표시됩니다.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">홈 화면 진입 시 표시되는 팝업 공지를 여러 개 추가·삭제할 수 있습니다. 팝업별로 사용 여부와 표시 기간을 설정하세요. 방문자는 팝업창에서 &lsquo;오늘 하루만 보기 / 다시 보지 않기 / 닫기&rsquo;를 선택할 수 있습니다.</p>
           {popupSaved && <div className="text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-            <input type="checkbox" checked={popup.enabled} onChange={(e) => setPopup({ ...popup, enabled: e.target.checked })} /> 팝업 사용함
-          </label>
-          <div><label className="label">제목</label><input className="input-field" value={popup.title} onChange={(e) => setPopup({ ...popup, title: e.target.value })} placeholder="예: 2026-1학기 지원금 신청 안내" /></div>
-          <div><label className="label">내용</label><textarea className="input-field h-32 resize-none" value={popup.content} onChange={(e) => setPopup({ ...popup, content: e.target.value })} placeholder="팝업에 표시할 내용을 입력하세요. (줄바꿈 가능)" /></div>
-          <button onClick={savePopup} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 팝업 저장</button>
+          {popups.length === 0 && <p className="text-sm text-gray-400">등록된 팝업이 없습니다. 아래 버튼으로 추가하세요.</p>}
+          {popups.map((p, idx) => (
+            <div key={p.id} className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={p.enabled} onChange={(e) => updatePopup(p.id, { enabled: e.target.checked })} /> 팝업 {idx + 1} 사용함
+                </label>
+                <button onClick={() => removePopup(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+              </div>
+              <div><label className="label">제목</label><input className="input-field" value={p.title} onChange={(e) => updatePopup(p.id, { title: e.target.value })} placeholder="예: 2026-1학기 지원금 신청 안내" /></div>
+              <div><label className="label">내용</label><textarea className="input-field h-28 resize-none" value={p.content} onChange={(e) => updatePopup(p.id, { content: e.target.value })} placeholder="팝업에 표시할 내용을 입력하세요. (줄바꿈 가능)" /></div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div><label className="label">표시 시작일 <span className="text-gray-400 font-normal">(비우면 제한 없음)</span></label><input type="date" className="input-field" value={p.startDate || ""} onChange={(e) => updatePopup(p.id, { startDate: e.target.value })} /></div>
+                <div><label className="label">표시 종료일 <span className="text-gray-400 font-normal">(비우면 제한 없음)</span></label><input type="date" className="input-field" value={p.endDate || ""} onChange={(e) => updatePopup(p.id, { endDate: e.target.value })} /></div>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={addPopup} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 팝업 추가</button>
+            <button onClick={savePopup} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 팝업 저장</button>
+          </div>
         </div>
       )}
     </AdminLayout>

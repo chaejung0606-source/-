@@ -60,9 +60,34 @@ export default function Home() {
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
   useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => setIsAdmin(!!d.admin)).catch(() => {}); }, []);
 
-  // 홈 팝업 공지
-  const [popup, setPopup] = useState<{ enabled: boolean; title: string; content: string } | null>(null);
-  useEffect(() => { fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.enabled && (d.title || d.content)) setPopup(d); }).catch(() => {}); }, []);
+  // 홈 팝업 공지 (여러 개·기간·닫기 옵션)
+  type Popup = { id: string; enabled: boolean; title: string; content: string; startDate?: string; endDate?: string };
+  const [popupQueue, setPopupQueue] = useState<Popup[]>([]);
+  useEffect(() => {
+    fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const list: Popup[] = Array.isArray(d?.popups) ? d.popups : [];
+      const active = list.filter((p) => {
+        if (!p.enabled || !(p.title || p.content)) return false;
+        if (p.startDate && today < p.startDate) return false;
+        if (p.endDate && today > p.endDate) return false;
+        let dismiss = "";
+        try { dismiss = localStorage.getItem(`popupDismiss:${p.id}`) || ""; } catch { /* noop */ }
+        if (dismiss === "never" || dismiss === today) return false;
+        return true;
+      });
+      setPopupQueue(active);
+    }).catch(() => {});
+  }, []);
+  const closePopup = (id: string, mode: "close" | "today" | "never") => {
+    if (mode !== "close") {
+      try {
+        const v = mode === "never" ? "never" : new Date().toISOString().slice(0, 10);
+        localStorage.setItem(`popupDismiss:${id}`, v);
+      } catch { /* noop */ }
+    }
+    setPopupQueue((q) => q.filter((p) => p.id !== id));
+  };
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
@@ -87,18 +112,27 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* 팝업 공지 */}
-      {popup && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="modal-backdrop absolute inset-0" onClick={() => setPopup(null)} />
-          <div className="modal relative w-full max-w-md p-6">
-            <button onClick={() => setPopup(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
-            {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
-            <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>
-            <button onClick={() => setPopup(null)} className="btn-primary w-full mt-5">확인</button>
+      {/* 팝업 공지 (한 번에 하나씩 표시) */}
+      {popupQueue.length > 0 && (() => {
+        const popup = popupQueue[0];
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <div className="modal-backdrop absolute inset-0" onClick={() => closePopup(popup.id, "close")} />
+            <div className="modal relative w-full max-w-md p-6">
+              <button onClick={() => closePopup(popup.id, "close")} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+              {popupQueue.length > 1 && <span className="text-[11px] text-gray-400">공지 1 / {popupQueue.length}</span>}
+              {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
+              <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>
+              <button onClick={() => closePopup(popup.id, "close")} className="btn-primary w-full mt-5">확인</button>
+              <div className="flex items-center justify-between mt-3 text-xs">
+                <button onClick={() => closePopup(popup.id, "today")} className="text-gray-500 hover:text-gray-700 underline">오늘 하루만 보기</button>
+                <button onClick={() => closePopup(popup.id, "never")} className="text-gray-500 hover:text-gray-700 underline">다시 보지 않기</button>
+                <button onClick={() => closePopup(popup.id, "close")} className="text-gray-500 hover:text-gray-700 underline">닫기</button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 헤더 (상단바) */}
       <header className="glass-header sticky top-0 z-50">
