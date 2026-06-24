@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award } from "lucide-react";
 
 const NAV = [
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
   { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
   { href: "/admin/content", label: "지원금 유형 안내", icon: ListChecks },
+  { href: "/admin/certificates", label: "자격증 목록", icon: Award },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
   { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },
 ];

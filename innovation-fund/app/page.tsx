@@ -8,6 +8,7 @@ import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/sit
 import FundTypeModal from "@/components/home/FundTypeModal";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import HeroClouds from "@/components/home/HeroClouds";
+import CertList from "@/components/home/CertList";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
@@ -285,6 +286,9 @@ export default function Home() {
             })}
           </div>
         </section>
+
+        {/* 자격증 목록 (독립 섹션) */}
+        <CertList />
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">
