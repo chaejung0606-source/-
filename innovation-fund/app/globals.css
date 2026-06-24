@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 리치 텍스트(지원금 유형 안내) 본문 공통 스타일 */
+.rich-content { line-height: 1.6; word-break: keep-all; }
+.rich-content p { margin: 0 0 8px; }
+.rich-content b, .rich-content strong { font-weight: 700; }
+.rich-content ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 8px; }
+.rich-content ol { list-style: decimal; padding-left: 1.25rem; margin: 0 0 8px; }
+.rich-content li { margin: 2px 0; }
+.rich-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.rich-content td, .rich-content th { border: 1px solid #cbd5e1; padding: 6px 8px; }
+.rich-content a { color: #4f8cff; text-decoration: underline; }
+.rich-content [contenteditable]:empty::before { content: ""; }
+
 /* ===== 1. 디자인 토큰 ===== */
 :root {
   --color-bg: #f5f8fc;
@@ -123,49 +135,48 @@
     transform-origin: center bottom;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
   }
-  /* 빨강 클릭: 점점 커지다 팡 터짐 */
-  .walker-still.red-pop {
-    animation: redGrowPop 0.85s cubic-bezier(0.5, 0, 0.7, 1) forwards;
-  }
-  @keyframes redGrowPop {
-    0%   { transform: scale(1); opacity: 1; }
-    55%  { transform: scale(1.55) rotate(-2deg); opacity: 1; }
-    70%  { transform: scale(1.9) rotate(2deg); opacity: 1; }
-    78%  { transform: scale(2.05); opacity: 1; }
-    100% { transform: scale(0.15); opacity: 0; }
-  }
-  /* 팡 효과 (확산 링 + 입자) */
-  .pop-burst {
-    position: absolute;
-    bottom: 26px;
-    left: calc(3% + 22px);
-    width: 26px;
-    height: 26px;
-    margin-left: -13px;
-    margin-bottom: -13px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 92, 92, 0.55), rgba(255, 92, 92, 0) 70%);
-    opacity: 0;
-    pointer-events: none;
-    animation: popBurst 0.5s ease-out 0.5s forwards;
-  }
-  .pop-burst::before, .pop-burst::after {
-    content: "";
-    position: absolute;
+  /* 빨강 클릭 중에는 원본 숨김 (확대 오버레이로 대체) */
+  .walker-still.red-hidden { opacity: 0; }
+  /* 화면 절반까지 커지다 비눗방울처럼 팡 터지는 오버레이 */
+  .red-blast {
+    position: fixed;
     inset: 0;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 92, 92, 0.6);
+    z-index: 200;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .red-blast-img {
+    height: 7vh;
+    width: auto;
+    transform-origin: center center;
+    animation: redBlast 1.6s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+  }
+  @keyframes redBlast {
+    0%   { transform: scale(0.5); opacity: 0; filter: blur(0); }
+    12%  { opacity: 1; }
+    52%  { transform: scale(7) rotate(-3deg); opacity: 1; filter: blur(0); }
+    66%  { transform: scale(7.7) rotate(3deg); opacity: 1; }
+    76%  { transform: scale(7.3) rotate(0deg); opacity: 1; filter: blur(0); }
+    100% { transform: scale(9.4); opacity: 0; filter: blur(7px); }
+  }
+  /* 글리터 입자 (팡 터질 때 사방으로 퍼짐) */
+  .red-blast .glit {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border-radius: 2px;
+    clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
     opacity: 0;
-    animation: popRing 0.55s ease-out 0.5s forwards;
+    animation: glitFly 0.95s ease-out forwards;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
   }
-  .pop-burst::after { animation-delay: 0.62s; border-color: rgba(255, 160, 92, 0.6); }
-  @keyframes popBurst {
-    0%   { transform: scale(0.3); opacity: 0.9; }
-    100% { transform: scale(3.4); opacity: 0; }
-  }
-  @keyframes popRing {
-    0%   { transform: scale(0.4); opacity: 0.8; }
-    100% { transform: scale(2.6); opacity: 0; }
+  @keyframes glitFly {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+    18%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.25) rotate(220deg); }
   }
   /* 개별 보행: 같은 주기·다른 지연 → 한 줄을 이루며 하나씩 유턴 */
   .walker {

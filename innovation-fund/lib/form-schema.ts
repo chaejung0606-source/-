@@ -95,3 +95,15 @@ export function defaultSchemaFromFields(programName: string, fields: ReportField
 export function emptySchema(): FormSchema {
   return { submitLabel: "신청 제출", steps: [{ id: newSchemaId(), title: "1단계", fields: [] }] };
 }
+
+// 스키마를 새 id로 깊은 복사 (템플릿 복사용 — 원본/복사본 id 충돌 방지)
+export function cloneSchema(schema: FormSchema): FormSchema {
+  return {
+    submitLabel: schema.submitLabel,
+    steps: (schema.steps || []).map((s) => ({
+      id: newSchemaId(),
+      title: s.title,
+      fields: (s.fields || []).map((f) => ({ ...f, id: newSchemaId("f") })),
+    })),
+  };
+}

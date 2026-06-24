@@ -6,11 +6,12 @@ import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, SEED, newProgramId, isProgramActive, effectiveReportFields, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
-import { type FormSchema, defaultSchemaFromFields } from "@/lib/form-schema";
+import { type FormSchema, defaultSchemaFromFields, cloneSchema } from "@/lib/form-schema";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation", "activity"];
 const today = () => new Date().toISOString().split("T")[0];
 type SchemaKey = "preFormSchema" | "fundFormSchema";
+interface FormTemplate { id: string; name: string; schema: FormSchema; }
 
 export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
@@ -18,12 +19,14 @@ export default function ProgramsAdminPage() {
   const [selectedCat, setSelectedCat] = useState<FundCategory | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetchPrograms(),
       fetch("/api/admin/program-forms").then((r) => r.json()).catch(() => ({})),
-    ]).then(([l, forms]) => {
+      fetch("/api/admin/form-templates").then((r) => r.json()).catch(() => ({ templates: [] })),
+    ]).then(([l, forms, tpl]) => {
       const base = l.length ? l : SEED;
       const fm = (forms || {}) as Record<string, { pre?: FormSchema; fund?: FormSchema }>;
       setList(base.map((p) => ({
@@ -32,8 +35,37 @@ export default function ProgramsAdminPage() {
         preFormSchema: fm[p.id]?.pre,
         fundFormSchema: fm[p.id]?.fund,
       })));
+      setTemplates(Array.isArray(tpl?.templates) ? tpl.templates : []);
     });
   }, []);
+
+  // 폼 형식(템플릿) 저장 / 불러오기
+  const newId = () => Math.random().toString(36).slice(2, 10);
+  const saveTemplate = async (p: Program) => {
+    const key: SchemaKey = selectedStep === "pre" ? "preFormSchema" : "fundFormSchema";
+    const schema = p[key];
+    if (!schema) { alert("저장할 폼이 없습니다."); return; }
+    const name = window.prompt("이 폼 형식을 어떤 이름으로 저장할까요?", p.name ? `${p.name} 형식` : "기본 신청 폼");
+    if (!name) return;
+    const next = [...templates, { id: newId(), name, schema: cloneSchema(schema) }];
+    setTemplates(next);
+    const res = await fetch("/api/admin/form-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templates: next }) });
+    const j = await res.json().catch(() => ({}));
+    if (j.ok) alert("폼 형식이 저장되었습니다. 다른 프로그램에서 ‘템플릿에서 불러오기’로 복사해 쓸 수 있습니다.");
+    else { alert("저장 실패: " + (j.error || res.status)); setTemplates(templates); }
+  };
+  const deleteTemplate = async (id: string) => {
+    const next = templates.filter((t) => t.id !== id);
+    setTemplates(next);
+    await fetch("/api/admin/form-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templates: next }) });
+  };
+  const applyTemplate = (p: Program, tid: string) => {
+    const tpl = templates.find((t) => t.id === tid);
+    if (!tpl) return;
+    if (schemaOf(p) && !window.confirm("현재 폼을 템플릿 내용으로 덮어씁니다. 계속할까요?")) return;
+    const key: SchemaKey = selectedStep === "pre" ? "preFormSchema" : "fundFormSchema";
+    update(p.id, { [key]: cloneSchema(tpl.schema) });
+  };
 
   const update = (id: string, patch: Partial<Program>) => {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -235,6 +267,34 @@ export default function ProgramsAdminPage() {
               <div className="mt-3 pt-3 border-t" style={{ borderColor: `${stepAccent}33` }}>
                 <p className="text-sm font-bold mb-1" style={{ color: stepAccent }}>전체 신청 폼 빌더 (신청자 화면 = 편집 화면)</p>
                 <p className="text-[11px] text-gray-400 mb-3">아래는 신청자가 보는 폼과 동일합니다. 단계·항목·필수여부를 바로 편집하고, 상단 ‘저장’을 누르면 반영됩니다. (현재 설정된 항목이 자동으로 들어와 있습니다)</p>
+
+                {/* 폼 형식(템플릿) — 자주 쓰는 폼 저장/복사 */}
+                <div className="flex items-center gap-2 flex-wrap mb-3 p-2 rounded-xl bg-white/70 border border-gray-100">
+                  <span className="text-[11px] font-semibold text-gray-500">폼 형식</span>
+                  <select
+                    className="input-field !w-auto text-xs"
+                    value=""
+                    onChange={(e) => { if (e.target.value) applyTemplate(p, e.target.value); e.target.selectedIndex = 0; }}
+                  >
+                    <option value="">템플릿에서 불러오기…</option>
+                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <button onClick={() => saveTemplate(p)} className="text-xs text-indigo-600 hover:underline">현재 폼을 템플릿으로 저장</button>
+                  {templates.length > 0 && (
+                    <details className="ml-auto">
+                      <summary className="text-[11px] text-gray-400 cursor-pointer">템플릿 관리</summary>
+                      <div className="mt-1 space-y-1">
+                        {templates.map((t) => (
+                          <div key={t.id} className="flex items-center gap-2 text-xs">
+                            <span className="text-gray-600">{t.name}</span>
+                            <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+
                 {schemaOf(p)
                   ? <SchemaForm editable schema={schemaOf(p)!} accent={stepAccent} onChange={(s) => setSchema(p, s)} />
                   : <p className="text-xs text-gray-400">불러오는 중...</p>}
