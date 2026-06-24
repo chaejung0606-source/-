@@ -73,6 +73,22 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 h-24 flex items-center justify-center text-gray-400 text-sm">여기에 서명</div>
         </div>
       );
+    case "privacyConsent":
+      return (
+        <div>
+          <label className="label">{f.label || "개인정보 수집·이용 및 신청 동의"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 leading-relaxed space-y-1">
+            <p className="font-semibold text-gray-800">개인정보 수집·이용 안내</p>
+            <p>• 수집 항목: 이름, 학번, 소속, 학과, 연락처, 이메일, 계좌정보</p>
+            <p>• 수집 목적: 지원 신청 접수 및 지급 관리 · 보유 기간: 지급 완료 후 5년</p>
+            <div className="mt-2 space-y-1">
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 개인정보 수집·이용에 동의합니다. <span className="text-red-500">[필수]</span></label>
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 제출 자료가 사실과 다를 경우 지원 취소·환수에 동의합니다. <span className="text-red-500">[필수]</span></label>
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 본인 명의 계좌로만 지급됨을 확인합니다. <span className="text-red-500">[필수]</span></label>
+            </div>
+          </div>
+        </div>
+      );
     case "workLog":
       return (
         <div>
