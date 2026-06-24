@@ -1,8 +1,9 @@
 "use client";
 import { formatPhone } from "@/lib/validation";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 
 interface BasicInfo {
-  name: string; studentId: string; university: string; department: string;
+  name: string; studentId: string; university: string; campus: string; department: string;
   grade: string; academicStatus: string; phone: string; email: string;
   applicationDate: string; bankName: string; accountNumber: string; accountHolder: string;
   gradCompletion: string; completedYears: string; currentSemester: string;
@@ -43,10 +44,22 @@ export default function BasicInfoSection({ values, onChange, hideAccount = false
               {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
             </select>
           </div>
-          <div>
-            <label className="label">학과/전공 <span className="text-red-500">*</span></label>
-            <input className="input-field" value={values.department} onChange={(e) => set("department", e.target.value)} placeholder="컴퓨터공학과" />
-          </div>
+          {values.university === "강원대학교" ? (
+            <div>
+              <label className="label">캠퍼스 · 단과대학 · 학과 <span className="text-red-500">*</span></label>
+              <CampusDeptSelect
+                campus={values.campus || ""}
+                department={values.department}
+                onCampusChange={(v) => set("campus", v)}
+                onDepartmentChange={(v) => set("department", v)}
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="label">학과/전공 <span className="text-red-500">*</span></label>
+              <input className="input-field" value={values.department} onChange={(e) => set("department", e.target.value)} placeholder="컴퓨터공학과" />
+            </div>
+          )}
           <div>
             <label className="label">학년</label>
             <select className="input-field" value={values.grade} onChange={(e) => set("grade", e.target.value)}>

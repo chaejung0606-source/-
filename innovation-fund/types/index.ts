@@ -355,6 +355,7 @@ export interface Application {
   name: string;
   studentId: string;
   university: string;
+  campus?: string;           // 강원대 캠퍼스 (춘천/원주/삼척/강릉/도계)
   department: string;
   grade: string;
   academicStatus: string;
@@ -412,6 +413,12 @@ export interface Application {
   // 임시저장 (작성 중)
   isDraft?: boolean;
   draftStep?: number;
+
+  // 관리자 테스트 신청
+  isTest?: boolean;
+
+  // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
+  verifiedAccount?: { bankName?: string; accountNumber?: string; accountHolder?: string; residentNumber?: string };
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

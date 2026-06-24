@@ -236,8 +236,9 @@ function PrintContent() {
 
           <div className="sec">3. 계좌 정보 (본인 명의)</div>
           <table className="form"><tbody>
-            <tr><th>은행명</th><td>{app.bankInfo.bankName}</td><th>예금주</th><td>{app.bankInfo.accountHolder}</td></tr>
-            <tr><th>계좌번호</th><td colSpan={3}>{app.bankInfo.accountNumber}</td></tr>
+            <tr><th>은행명</th><td>{app.verifiedAccount?.bankName || app.bankInfo.bankName}</td><th>예금주</th><td>{app.verifiedAccount?.accountHolder || app.bankInfo.accountHolder}</td></tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.verifiedAccount?.accountNumber || app.bankInfo.accountNumber}</td></tr>
+            {app.verifiedAccount?.residentNumber && <tr><th>주민등록번호</th><td colSpan={3}>{app.verifiedAccount.residentNumber}</td></tr>}
           </tbody></table>
 
           <div className="sec">4. 신청 상세 내용</div>
@@ -338,6 +339,15 @@ function PrintContent() {
             <tr><th>지급 상태</th><td colSpan={3}>{PAYMENT_STATUS_LABELS[app.paymentStatus]}</td></tr>
             <tr><th>지급액</th><td colSpan={3}>{(app.approvedAmount ?? app.calculatedAmount).toLocaleString()}원</td></tr>
             <tr className="total-row"><th>합계</th><td colSpan={3}>{(app.approvedAmount ?? app.calculatedAmount).toLocaleString()}원</td></tr>
+          </tbody></table>
+
+          <div className="sec">지급 계좌 (관리자 확인)</div>
+          <table className="form"><tbody>
+            <tr>
+              <th>은행</th><td>{app.verifiedAccount?.bankName || app.bankInfo.bankName}</td>
+              <th>예금주</th><td>{app.verifiedAccount?.accountHolder || app.bankInfo.accountHolder}</td>
+            </tr>
+            <tr><th>계좌번호</th><td colSpan={3}>{app.verifiedAccount?.accountNumber || app.bankInfo.accountNumber}</td></tr>
           </tbody></table>
 
           <p style={{ marginTop: 20, fontSize: 12, color: "#555" }}>※ 위 금액을 신청인 본인 명의 계좌로 지급함.</p>

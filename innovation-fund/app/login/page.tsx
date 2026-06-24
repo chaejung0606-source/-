@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Shield, ArrowLeft, User, Lock } from "lucide-react";
 import { login, register } from "@/lib/auth";
 import { formatPhone } from "@/lib/validation";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 
 function LoginInner() {
   const router = useRouter();
@@ -18,7 +19,7 @@ function LoginInner() {
   const [loginPw, setLoginPw] = useState("");
 
   // 회원가입
-  const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" });
+  const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" });
   const setR = (k: keyof typeof reg, v: string) => setReg((p) => ({ ...p, [k]: v }));
   const [agree, setAgree] = useState(false);
 
@@ -95,7 +96,15 @@ function LoginInner() {
                 <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password} onChange={(e) => setR("password", e.target.value)} placeholder="6자 이상" /></div>
                 <div><label className="label">비밀번호 확인 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password2} onChange={(e) => setR("password2", e.target.value)} /></div>
               </div>
-              <div><label className="label">학과</label><input className="input-field" value={reg.department} onChange={(e) => setR("department", e.target.value)} /></div>
+              <div>
+                <label className="label">캠퍼스 · 단과대학 · 학과</label>
+                <CampusDeptSelect
+                  campus={reg.campus}
+                  department={reg.department}
+                  onCampusChange={(v) => setR("campus", v)}
+                  onDepartmentChange={(v) => setR("department", v)}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>
                 <div><label className="label">이메일</label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>

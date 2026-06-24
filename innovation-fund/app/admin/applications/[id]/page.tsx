@@ -24,6 +24,17 @@ export default function ApplicationDetailPage() {
   const [adminMemo, setAdminMemo] = useState("");
   const [approvedAmount, setApprovedAmount] = useState<number | "">("");
   const [syncing, setSyncing] = useState(false);
+  // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
+  const [vAccount, setVAccount] = useState<{ bankName: string; accountNumber: string; accountHolder: string; residentNumber: string }>({ bankName: "", accountNumber: "", accountHolder: "", residentNumber: "" });
+
+  // 인쇄양식(첨부 삽입 포함) 미리보기 — 크기 조정·이동 가능한 작은 새 창
+  const openPreview = (doc: string) => {
+    window.open(
+      `/admin/applications/${id}/print?doc=${doc}`,
+      `preview_${doc}`,
+      "width=900,height=1100,resizable=yes,scrollbars=yes",
+    );
+  };
 
   const driveSync = async () => {
     setSyncing(true);
@@ -49,6 +60,12 @@ export default function ApplicationDetailPage() {
       setPaymentStatus(d.paymentStatus);
       setAdminMemo(d.adminMemo);
       setApprovedAmount(d.approvedAmount ?? "");
+      setVAccount({
+        bankName: d.verifiedAccount?.bankName || "",
+        accountNumber: d.verifiedAccount?.accountNumber || "",
+        accountHolder: d.verifiedAccount?.accountHolder || "",
+        residentNumber: d.verifiedAccount?.residentNumber || "",
+      });
       setLoading(false);
     });
   }, [id]);
@@ -63,6 +80,7 @@ export default function ApplicationDetailPage() {
         paymentStatus,
         adminMemo,
         approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount),
+        verifiedAccount: vAccount,
       }),
     });
     setSaving(false);
@@ -241,16 +259,16 @@ export default function ApplicationDetailPage() {
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=form`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+          <button onClick={() => openPreview("form")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 신청서
           </button>
-          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=evidence`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+          <button onClick={() => openPreview("evidence")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 증빙서류
           </button>
-          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=review`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+          <button onClick={() => openPreview("review")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 심의요청서
           </button>
-          <button onClick={() => window.open(`/admin/applications/${id}/print?doc=payment`, "_blank")} className="btn-secondary text-sm flex items-center gap-1.5">
+          <button onClick={() => openPreview("payment")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 지출자료
           </button>
           <button onClick={driveSync} disabled={syncing} className="btn-secondary text-sm flex items-center gap-1.5">
@@ -285,6 +303,40 @@ export default function ApplicationDetailPage() {
                 ⚠️ <span><strong>예금주({app.bankInfo.accountHolder})와 신청자 성명({app.name})이 다릅니다.</strong> 본인 명의 계좌 여부 및 통장 사본을 반드시 확인하세요.</span>
               </div>
             )}
+            {/* 통장 사본 대조 */}
+            {(() => {
+              const bb = app.files.find((f) => f.type === "bankbook");
+              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다. 계좌 정보를 확인할 수 없습니다.</p>;
+              const isImg = bb.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(bb.name);
+              return (
+                <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)" }}>
+                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 대조 — 위 입력 계좌정보와 사본의 예금주·계좌번호가 일치하는지 확인하세요.</p>
+                  {bb.url && isImg ? (
+                    <a href={bb.url} target="_blank" rel="noopener noreferrer" title="클릭하면 원본 크기로 보기">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={bb.url} alt="통장 사본" className="max-h-48 rounded-lg border border-gray-200 bg-white" />
+                    </a>
+                  ) : bb.url ? (
+                    <a href={bb.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">통장 사본 새 창에서 보기</a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">미리보기 없음</span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* 관리자 확인 입력 — 화면에서는 마스킹, 인쇄/내보내기에만 전체 표시 */}
+            <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)" }}>
+              <p className="text-xs font-semibold text-emerald-700 mb-1">관리자 확인 입력 (계좌·주민번호)</p>
+              <p className="text-[11px] text-gray-400 mb-2">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
+              <div className="grid sm:grid-cols-3 gap-2">
+                <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
+                <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
+                <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
+                <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">※ 저장하려면 아래 &lsquo;상태 관리&rsquo;의 저장 버튼을 누르세요.</p>
+            </div>
           </div>
 
           <div className="card">
@@ -375,12 +427,12 @@ export default function ApplicationDetailPage() {
                 />
               </div>
               <div>
-                <label className="label">관리자 메모</label>
+                <label className="label">신청자 안내 메모 <span className="text-indigo-500 text-xs font-medium">(신청자 마이페이지에 표시됨)</span></label>
                 <textarea
                   className="input-field h-28 resize-none"
                   value={adminMemo}
                   onChange={(e) => setAdminMemo(e.target.value)}
-                  placeholder="내부 검토 메모 (학생에게 노출되지 않음)"
+                  placeholder="수정 요청·반려 사유 등 신청자가 확인해야 할 안내를 작성하세요. (신청자에게 노출됩니다)"
                 />
               </div>
               <button onClick={handleSave} disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">

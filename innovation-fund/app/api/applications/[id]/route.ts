@@ -35,9 +35,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.paymentStatus !== undefined) patch.payment_status = body.paymentStatus;
   if (body.adminMemo !== undefined) patch.admin_memo = body.adminMemo;
   if (body.approvedAmount !== undefined) patch.approved_amount = body.approvedAmount;
+  if (body.verifiedAccount !== undefined) patch.verified_account = body.verifiedAccount;
 
   const { data, error } = await supabaseAdmin().from("applications").update(patch).eq("id", id).select("*").maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(fromRow(data));
+}
+
+// 관리자: 신청 삭제 (테스트 신청 정리 등)
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const { error } = await supabaseAdmin().from("applications").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

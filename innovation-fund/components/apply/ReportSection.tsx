@@ -4,6 +4,7 @@ import { Upload, X, FileText } from "lucide-react";
 import type { ReportEntry } from "@/types";
 import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/programs";
 import { supabase } from "@/lib/supabase";
+import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
 import SignaturePad from "./SignaturePad";
 
 interface Props {
@@ -38,6 +39,7 @@ export default function ReportSection({ programId, phase = "fund", value, onChan
   };
 
   const uploadDoc = async (file: File): Promise<{ path: string; name: string } | null> => {
+    if (!isAllowedDoc(file)) { alert(DOC_GUIDE); return null; }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("로그인이 필요합니다."); return null; }
     const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
@@ -103,7 +105,7 @@ export default function ReportSection({ programId, phase = "fund", value, onChan
             ) : (
               <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
                 <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "파일 선택"}
-                <input type="file" className="hidden" onChange={(e) => handleFile(f, e)} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx,.hwp" disabled={uploading} />
+                <input type="file" className="hidden" onChange={(e) => handleFile(f, e)} accept={ACCEPT_DOC} disabled={uploading} />
               </label>
             )}
           </div>

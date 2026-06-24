@@ -4,6 +4,7 @@ import { Upload, X, FileText } from "lucide-react";
 import type { ApplicationType, DocumentType, UploadedFile } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc } from "@/lib/upload";
 
 interface Props {
   files: UploadedFile[];
@@ -45,10 +46,12 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
   const docTypes = [...(TYPE_SPECIFIC[applicationType] || []), ...COMMON_DOC_TYPES];
 
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files || []);
+  const processFiles = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
+    const bad = newFiles.find((f) => !isAllowedDoc(f));
+    if (bad) { alert(`${UPLOAD_GUIDE}\n(거부됨: ${bad.name})`); return; }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -64,18 +67,32 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
       if (uploaded.length) onChange([...files, ...uploaded]);
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await processFiles(Array.from(e.target.files || []));
+    e.target.value = "";
+  };
+
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    await processFiles(Array.from(e.dataTransfer.files || []));
   };
 
   const removeFile = (id: string) => onChange(files.filter((f) => f.id !== id));
 
   return (
     <div className="space-y-4">
-      <div className="card">
+      <div className={`card transition-colors ${dragOver ? "ring-2 ring-indigo-300" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+      >
         <h2 className="section-title">서류 업로드</h2>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 mb-4">
-          여러 파일을 개별로 업로드하고 자료 유형을 선택해주세요. (PDF, 이미지, 엑셀 등 가능)
+          여러 파일을 개별로 업로드하고 자료 유형을 선택해주세요. <strong>{UPLOAD_GUIDE}</strong>
         </div>
         <div className="flex gap-3 mb-4">
           <div className="flex-1">
@@ -89,16 +106,22 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
           <div className="flex items-end">
             <label className={`btn-secondary cursor-pointer flex items-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
               <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "파일 선택"}
-              <input type="file" multiple className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.doc,.docx" disabled={uploading} />
+              <input type="file" multiple className="hidden" onChange={handleFileChange} accept={ACCEPT_DOC} disabled={uploading} />
             </label>
           </div>
         </div>
 
         {files.length === 0 ? (
-          <div className="upload-card p-8 text-center text-gray-400 flex flex-col items-center justify-center" style={{ minHeight: 160 }}>
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            className={`upload-card p-8 text-center flex flex-col items-center justify-center transition-colors ${dragOver ? "bg-indigo-50 border-indigo-300 text-indigo-500" : "text-gray-400"}`}
+            style={{ minHeight: 160 }}
+          >
             <Upload className="w-10 h-10 mx-auto mb-2 text-[#4f8cff] opacity-60" />
-            <p className="text-sm">자료 유형을 선택하고 파일을 업로드해주세요.</p>
-            <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · XLSX</p>
+            <p className="text-sm">{dragOver ? "여기에 놓으면 첨부됩니다" : "자료 유형을 선택하고 파일을 업로드하거나, 이곳에 끌어다 놓으세요."}</p>
+            <p className="text-xs text-gray-300 mt-1">PDF · JPG · PNG · WEBP</p>
           </div>
         ) : (
           <div className="space-y-2">

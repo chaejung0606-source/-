@@ -8,6 +8,7 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     name: p.name,
     student_id: p.studentId,
     university: p.university,
+    campus: p.campus || null,
     department: p.department,
     grade: p.grade,
     academic_status: p.academicStatus,
@@ -39,6 +40,8 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     calculated_amount: p.calculatedAmount ?? 0,
     is_draft: !!p.isDraft,
     draft_step: p.draftStep ?? null,
+    is_test: !!p.isTest,
+    verified_account: p.verifiedAccount ?? null,
   };
 }
 
@@ -52,6 +55,7 @@ export function fromRow(r: any): Application {
     name: r.name,
     studentId: r.student_id,
     university: r.university,
+    campus: r.campus || undefined,
     department: r.department,
     grade: r.grade,
     academicStatus: r.academic_status,
@@ -91,5 +95,7 @@ export function fromRow(r: any): Application {
     canceledAt: r.canceled_at || undefined,
     isDraft: !!r.is_draft,
     draftStep: r.draft_step ?? undefined,
+    isTest: !!r.is_test,
+    verifiedAccount: r.verified_account ?? undefined,
   };
 }

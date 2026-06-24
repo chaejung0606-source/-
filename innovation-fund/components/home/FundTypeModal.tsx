@@ -34,7 +34,7 @@ export default function FundTypeModal({ type, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="modal-backdrop absolute inset-0" onClick={onClose} />
-      <div className="modal relative w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+      <div className={`modal relative w-full ${content.showPrograms ? "max-w-3xl" : "max-w-lg"} max-h-[85vh] overflow-y-auto p-6`}>
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
         <h2 className="text-xl font-bold holo-text mb-2 pr-8">{APPLICATION_TYPE_LABELS[type]}</h2>
         <p className="text-sm text-gray-600 mb-5">{content.intro}</p>

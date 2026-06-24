@@ -1,13 +1,14 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home as HomeIcon, LogOut, FileText, RefreshCw, ChevronRight, UserCog, ChevronDown, CalendarClock, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { logout } from "@/lib/auth";
+import { logout, verifyPassword } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
 import TimetableEditor from "@/components/mypage/TimetableEditor";
+import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
@@ -16,7 +17,7 @@ const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학�
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
 
 interface Profile {
-  name: string; department: string; phone: string; email: string;
+  name: string; campus: string; department: string; phone: string; email: string;
   university: string; bankName: string; accountNumber: string; accountHolder: string;
 }
 
@@ -28,7 +29,7 @@ export default function MyPage() {
   const [apps, setApps] = useState<Application[]>([]);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile>({ name: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
+  const [profile, setProfile] = useState<Profile>({ name: "", campus: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileOk, setProfileOk] = useState(false);
 
@@ -37,6 +38,32 @@ export default function MyPage() {
   const [timetable, setTimetable] = useState<ClassTime[]>([]);
   const [ttSaving, setTtSaving] = useState(false);
   const [ttOk, setTtOk] = useState(false);
+
+  // 비밀번호 확인 모달 (개인정보·시간표 수정 전 본인 확인)
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwValue, setPwValue] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwChecking, setPwChecking] = useState(false);
+  const pendingAction = useRef<null | (() => void)>(null);
+
+  const requirePassword = (action: () => void) => {
+    pendingAction.current = action;
+    setPwValue(""); setPwError(""); setPwOpen(true);
+  };
+  const confirmPassword = async () => {
+    setPwChecking(true);
+    setPwError("");
+    try {
+      const ok = await verifyPassword(pwValue);
+      if (!ok) { setPwError("비밀번호가 올바르지 않습니다."); return; }
+      setPwOpen(false);
+      const act = pendingAction.current;
+      pendingAction.current = null;
+      act?.();
+    } finally {
+      setPwChecking(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +78,7 @@ export default function MyPage() {
     setStudentId(m.studentId || "");
     setProfile({
       name: m.name || "",
+      campus: m.campus || "",
       department: m.department || "",
       phone: m.phone || "",
       email: m.realEmail || "",
@@ -212,10 +240,22 @@ export default function MyPage() {
                     {UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="label">학과/전공</label>
-                  <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
-                </div>
+                {profile.university === "강원대학교" ? (
+                  <div>
+                    <label className="label">캠퍼스 · 단과대학 · 학과</label>
+                    <CampusDeptSelect
+                      campus={profile.campus}
+                      department={profile.department}
+                      onCampusChange={(v) => setP("campus", v)}
+                      onDepartmentChange={(v) => setP("department", v)}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="label">학과/전공</label>
+                    <input className="input-field" value={profile.department} onChange={(e) => setP("department", e.target.value)} placeholder="컴퓨터공학과" />
+                  </div>
+                )}
                 <div>
                   <label className="label">연락처</label>
                   <input className="input-field" value={profile.phone} onChange={(e) => setP("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" />
@@ -259,7 +299,7 @@ export default function MyPage() {
                 <button type="button" onClick={() => setProfileOpen(false)} className="btn-secondary text-sm">취소</button>
                 <button
                   type="button"
-                  onClick={saveProfile}
+                  onClick={() => requirePassword(saveProfile)}
                   disabled={profileSaving || !profile.name}
                   className="btn-primary text-sm disabled:opacity-60"
                 >
@@ -292,7 +332,7 @@ export default function MyPage() {
               </div>
               <TimetableEditor value={timetable} onChange={setTimetable} />
               <div className="flex justify-end">
-                <button type="button" onClick={saveTimetable} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
+                <button type="button" onClick={() => requirePassword(saveTimetable)} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
                   {ttSaving ? "저장 중..." : "시간표 저장"}
                 </button>
               </div>
@@ -433,6 +473,33 @@ export default function MyPage() {
           ※ 신청 내역과 진행 상황은 본인 계정에서만 조회됩니다. 처리 상태는 사업단 검토에 따라 갱신됩니다.
         </p>
       </main>
+
+      {/* 비밀번호 확인 모달 */}
+      {pwOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setPwOpen(false)} />
+          <div className="modal relative w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">본인 확인</h2>
+            <p className="text-sm text-gray-500 mb-4">정보를 수정하려면 비밀번호를 입력해주세요.</p>
+            <input
+              type="password"
+              className="input-field"
+              value={pwValue}
+              autoFocus
+              onChange={(e) => setPwValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && pwValue && !pwChecking) confirmPassword(); }}
+              placeholder="비밀번호"
+            />
+            {pwError && <p className="text-red-500 text-sm mt-2">{pwError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setPwOpen(false)} className="btn-secondary flex-1">취소</button>
+              <button onClick={confirmPassword} disabled={!pwValue || pwChecking} className="btn-primary flex-1 disabled:opacity-60">
+                {pwChecking ? "확인 중..." : "확인"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

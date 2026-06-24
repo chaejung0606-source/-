@@ -67,13 +67,15 @@ function ApplyInner() {
     })();
   }, [draftId]);
 
-  // 로그인 게이트
+  // 로그인 게이트 (신청자 로그인 / 관리자는 테스트 모드로 접근)
+  const [testMode, setTestMode] = useState(false);
   useEffect(() => {
     (async () => {
       const u = await currentUser();
-      if (!u) { router.replace("/login?next=/apply"); return; }
-      setUserName(u.name);
-      setReady(true);
+      if (u) { setUserName(u.name); setReady(true); return; }
+      const status = await fetch("/api/admin/status").then((r) => r.json()).catch(() => ({ admin: false }));
+      if (status.admin) { setTestMode(true); setUserName("관리자 테스트"); setReady(true); return; }
+      router.replace("/login?next=/apply");
     })();
   }, [router]);
 
@@ -149,6 +151,7 @@ function ApplyInner() {
             mode={mode}
             prefill={prefill}
             draft={draftApp}
+            testMode={testMode}
             onBack={() => {
               setPrefill(null);
               // 지원신청(pre)·단일유형은 카테고리 선택으로, 혁신인재지원금(지원금)은 유형 선택으로

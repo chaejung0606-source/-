@@ -32,10 +32,11 @@ interface Props {
   mode?: ApplicationPhase;
   prefill?: Application | null;  // 이전 지원신청 내역 → 중복 항목 자동입력
   draft?: Application | null;    // 임시저장 이어쓰기 → 전체 복원
+  testMode?: boolean;            // 관리자 테스트 신청
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, onBack }: Props) {
+export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, testMode = false, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   const [step, setStep] = useState(draft?.draftStep || 1);
@@ -46,7 +47,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   // 기본 정보
   const [basicInfo, setBasicInfo] = useState({
-    name: "", studentId: "", university: "강원대학교", department: "", grade: "1",
+    name: "", studentId: "", university: "강원대학교", campus: "춘천", department: "", grade: "1",
     academicStatus: "재학", phone: "", email: "", applicationDate: new Date().toISOString().split("T")[0],
     bankName: "", accountNumber: "", accountHolder: "",
     gradCompletion: "재학", completedYears: "", currentSemester: "",
@@ -120,6 +121,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           ...b,
           name: b.name || u.name,
           studentId: b.studentId || u.studentId,
+          campus: b.campus || u.campus || b.campus,
           department: b.department || u.department,
           phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,
@@ -131,6 +133,25 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       }
     })();
   }, []);
+
+  // 미래융합가상학과 전용 유형 자격 검사 (명단에 없으면 신청 차단)
+  const [vdeptBlocked, setVdeptBlocked] = useState<boolean | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (testMode) { setVdeptBlocked(false); return; }  // 관리자 테스트는 자격 제한 없음
+        const cfg = await fetch("/api/vdept-config").then((r) => r.json());
+        const required: string[] = cfg.requiredTypes || [];
+        if (!required.includes(applicationType)) { setVdeptBlocked(false); return; }
+        const u = await currentUser();
+        const res = await fetch("/api/virtual-check", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "" }),
+        }).then((r) => r.json());
+        setVdeptBlocked(!res.isVirtual);
+      } catch { setVdeptBlocked(false); }
+    })();
+  }, [applicationType]);
+
   // 이전 지원신청 내역에서 중복 항목 자동입력 (금액·계좌·비용 등 지원금 전용 항목 제외)
   useEffect(() => {
     if (!prefill) return;
@@ -139,6 +160,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       name: prefill.name || b.name,
       studentId: prefill.studentId || b.studentId,
       university: prefill.university || b.university,
+      campus: prefill.campus || b.campus,
       department: prefill.department || b.department,
       grade: prefill.grade || b.grade,
       academicStatus: prefill.academicStatus || b.academicStatus,
@@ -223,7 +245,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (!draft) return;
     setBasicInfo((b) => ({
       ...b,
-      name: draft.name || b.name, studentId: draft.studentId || b.studentId, university: draft.university || b.university,
+      name: draft.name || b.name, studentId: draft.studentId || b.studentId, university: draft.university || b.university, campus: draft.campus || b.campus,
       department: draft.department || b.department, grade: draft.grade || b.grade, academicStatus: draft.academicStatus || b.academicStatus,
       gradCompletion: draft.gradCompletion || b.gradCompletion, completedYears: draft.completedYears || b.completedYears, currentSemester: draft.currentSemester || b.currentSemester,
       phone: draft.phone || b.phone, email: draft.email || b.email, applicationDate: draft.applicationDate || b.applicationDate,
@@ -264,7 +286,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   // 제출/임시저장 공통 payload 생성
   const buildPayload = (asDraft: boolean) => ({
-    name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university,
+    name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university, campus: basicInfo.campus,
     department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
     gradCompletion: basicInfo.gradCompletion, completedYears: basicInfo.completedYears, currentSemester: basicInfo.currentSemester,
     phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
@@ -399,6 +421,17 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     setSubmitting(true);
     try {
+      // 관리자 테스트 신청 (신청자 세션 없이 서버 라우트로 is_test 저장)
+      if (testMode) {
+        const res = await fetch("/api/admin/test-apply", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload(false)),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("테스트 신청 저장 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
+        router.push(`/apply/complete?receipt=${j.receiptNumber}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[applicationType])}&amount=${getRequestAmount()}&phase=${mode}&test=1`);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("로그인이 필요합니다. 다시 로그인해 주세요.");
@@ -451,6 +484,24 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
   };
 
+  // 가상학과 전용 유형인데 명단에 없는 경우 신청 차단
+  if (vdeptBlocked === true) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="text-xl font-bold text-gray-800">{APPLICATION_TYPE_LABELS[applicationType]}</h1>
+        </div>
+        <div className="card text-center py-14">
+          <div className="text-4xl mb-3">🔒</div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">미래융합가상학과 학생만 신청할 수 있습니다</h2>
+          <p className="text-sm text-gray-500">이 지원 유형은 미래융합가상학과 재학생 명단에 등록된 학생만 신청 가능합니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
+          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 제목 */}
@@ -463,6 +514,12 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           <h1 className="text-xl font-bold text-gray-800">{isPre ? "지원신청서 작성" : "지원금 신청서 작성"}</h1>
         </div>
       </div>
+
+      {testMode && (
+        <div className="rounded-xl px-4 py-2.5 text-sm font-medium text-amber-800 bg-amber-50 border border-amber-200">
+          🧪 관리자 테스트 모드 — 제출하면 신청 목록에 <strong>&lsquo;테스트용&rsquo;</strong>으로 기록되며, 관리자가 삭제할 수 있습니다. (파일 업로드는 테스트되지 않을 수 있습니다.)
+        </div>
+      )}
 
       {/* 진행 단계 표시 */}
       <div className="flex gap-1">
@@ -540,9 +597,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
             이전
           </button>
         )}
-        <button onClick={saveDraft} disabled={savingDraft} className="btn-secondary flex-1 disabled:opacity-60">
-          {savingDraft ? "저장 중..." : "임시저장"}
-        </button>
+        {!testMode && (
+          <button onClick={saveDraft} disabled={savingDraft} className="btn-secondary flex-1 disabled:opacity-60">
+            {savingDraft ? "저장 중..." : "임시저장"}
+          </button>
+        )}
         {step < 4 ? (
           <button
             onClick={() => {

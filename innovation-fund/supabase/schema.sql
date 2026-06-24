@@ -178,9 +178,32 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ;
 -- applications: 임시저장(작성 중)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS draft_step INT;
+-- applications: 관리자 테스트 신청
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE;
+-- applications: 강원대 캠퍼스
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS campus TEXT;
+-- applications: 관리자가 통장사본 확인 후 직접 입력(인쇄/내보내기 전용, 화면 마스킹)
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS verified_account JSONB;
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "programs public read" ON programs FOR SELECT USING (TRUE);
 -- INSERT/UPDATE/DELETE는 service_role(서버)만 → 정책 미부여
+
+-- 미래융합가상학과 재학생 명단 (엑셀 업로드, 특정 지원유형은 가상학과 학생만 신청 가능)
+CREATE TABLE IF NOT EXISTS virtual_students (
+  student_id TEXT PRIMARY KEY,
+  name TEXT,
+  vdept TEXT,          -- 가상학과
+  department TEXT,     -- 본소속학과
+  grade TEXT,
+  gpa NUMERIC,
+  credits INT,
+  phone TEXT,
+  email TEXT,
+  raw JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE virtual_students ENABLE ROW LEVEL SECURITY;
+-- 접근은 service_role(서버 라우트)만 → 정책 미부여
 
 -- ---------------------------------------------------------------------
 -- 4) 유형 세부내용(홈 모달) — 공개 읽기, 쓰기는 관리자만

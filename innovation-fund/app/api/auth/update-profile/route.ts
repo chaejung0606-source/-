@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
 
   const meta = {
     name: String(b.name || "").trim(),
+    campus: String(b.campus || "").trim(),
     department: String(b.department || "").trim(),
     phone: String(b.phone || "").trim(),
     realEmail: String(b.email || "").trim(),

@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2 } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield } from "lucide-react";
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
 import FundTypeModal from "@/components/home/FundTypeModal";
+import FooterWalkers from "@/components/home/FooterWalkers";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
@@ -55,13 +56,20 @@ export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
   const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
+  useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => setIsAdmin(!!d.admin)).catch(() => {}); }, []);
+
+  // 홈 팝업 공지
+  const [popup, setPopup] = useState<{ enabled: boolean; title: string; content: string } | null>(null);
+  useEffect(() => { fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.enabled && (d.title || d.content)) setPopup(d); }).catch(() => {}); }, []);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
     return () => sub.subscription.unsubscribe();
   }, []);
   const doLogout = async () => { await logout(); setLoggedIn(false); };
+  const adminLogout = async () => { try { await fetch("/api/admin/logout", { method: "POST" }); } catch {} setIsAdmin(false); };
 
   // 엔드바 이메일 복사
   const [copiedEmail, setCopiedEmail] = useState<string>("");
@@ -79,6 +87,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* 팝업 공지 */}
+      {popup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setPopup(null)} />
+          <div className="modal relative w-full max-w-md p-6">
+            <button onClick={() => setPopup(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
+            {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
+            <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>
+            <button onClick={() => setPopup(null)} className="btn-primary w-full mt-5">확인</button>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 (상단바) */}
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -93,6 +114,16 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin && (
+              <>
+                <Link href="/admin/dashboard" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                  <Shield className="w-4 h-4" /> 관리자 페이지
+                </Link>
+                <button onClick={adminLogout} className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-red-500 transition-colors">
+                  <LogOut className="w-4 h-4" /> 로그아웃
+                </button>
+              </>
+            )}
             {loggedIn ? (
               <>
                 <Link href="/mypage" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
@@ -102,7 +133,7 @@ export default function Home() {
                   <LogOut className="w-4 h-4" /> 로그아웃
                 </button>
               </>
-            ) : (
+            ) : !isAdmin ? (
               <>
                 <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
                   <User className="w-4 h-4" /> 로그인
@@ -111,7 +142,7 @@ export default function Home() {
                   <HomeIcon className="w-4 h-4" /> 홈
                 </Link>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
@@ -123,10 +154,11 @@ export default function Home() {
           <p className="text-gray-600 text-lg mb-2">
             강원대학교 데이터보안·활용 혁신융합대학사업단이 우수 학생의 성장을 지원합니다.
           </p>
+          <p className="text-sm text-gray-500">신청 전 지급 기준을 반드시 확인해주세요.</p>
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 pb-12 space-y-12">
+      <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
         {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
         <section className="space-y-6">
           {/* 1행: 지원신청 (활동 전) */}
@@ -246,15 +278,11 @@ export default function Home() {
             </ul>
           </section>
         </div>
-
-        {/* 신청 안내 */}
-        <div className="text-center py-2">
-          <p className="text-sm text-gray-500">신청 전 지급 기준을 반드시 확인해주세요.</p>
-        </div>
       </div>
 
       {/* 푸터 (엔드바) */}
-      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-12">
+      <footer className="glass-header py-8 pb-32 sm:pb-8 mt-24 relative">
+        <FooterWalkers />
         <div className="max-w-6xl mx-auto px-4 text-sm">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
             {/* 좌측: 기관 정보 (왼쪽 정렬) */}

@@ -35,12 +35,126 @@
   body {
     color: var(--color-text);
     background:
-      radial-gradient(circle at 10% 10%, rgba(126, 231, 255, 0.35), transparent 28%),
-      radial-gradient(circle at 85% 15%, rgba(126, 242, 199, 0.3), transparent 30%),
-      radial-gradient(circle at 20% 90%, rgba(217, 249, 157, 0.3), transparent 28%),
-      linear-gradient(135deg, #f5f8fc 0%, #ecfdf5 50%, #eff6ff 100%);
+      radial-gradient(circle at 12% 12%, rgba(186, 230, 253, 0.50), transparent 30%),
+      radial-gradient(circle at 88% 10%, rgba(221, 214, 254, 0.50), transparent 32%),
+      radial-gradient(circle at 82% 82%, rgba(196, 253, 224, 0.45), transparent 32%),
+      radial-gradient(circle at 14% 86%, rgba(254, 226, 240, 0.50), transparent 30%),
+      radial-gradient(circle at 50% 50%, rgba(255, 247, 224, 0.35), transparent 42%),
+      linear-gradient(135deg, #fbfcff 0%, #f7fbff 50%, #fdf9ff 100%);
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  /* 영롱한 글리터 오버레이 — 빈 공간·모서리에서 반짝임 (쉬머쉬머) */
+  .glitter-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle, rgba(255, 255, 255, 1) 1.1px, transparent 1.7px),
+      radial-gradient(circle, rgba(186, 230, 253, 0.95) 1.1px, transparent 1.7px),
+      radial-gradient(circle, rgba(244, 214, 254, 0.95) 1.1px, transparent 1.7px),
+      radial-gradient(circle, rgba(196, 253, 224, 0.9) 1.1px, transparent 1.7px);
+    background-size: 96px 96px, 150px 150px, 200px 200px, 260px 260px;
+    background-position: 0 0, 34px 60px, 78px 22px, 130px 100px;
+    -webkit-mask-image: radial-gradient(ellipse 68% 68% at center, transparent 22%, #000 82%);
+    mask-image: radial-gradient(ellipse 68% 68% at center, transparent 22%, #000 82%);
+    animation: glitter-twinkle 2.4s ease-in-out infinite;
+  }
+  /* 추가 반짝 입자 (다른 박자로 점멸) */
+  .glitter-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255, 255, 255, 0.95) 1.5px, transparent 2.1px),
+      radial-gradient(circle, rgba(221, 214, 254, 0.9) 1.5px, transparent 2.1px),
+      radial-gradient(circle, rgba(253, 230, 138, 0.85) 1.4px, transparent 2px);
+    background-size: 170px 170px, 240px 240px, 300px 300px;
+    background-position: 90px 24px, 50px 140px, 200px 80px;
+    animation: glitter-twinkle2 1.8s ease-in-out infinite;
+  }
+  /* 대각선으로 흐르는 쉬머 스윕 */
+  .glitter-overlay::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.55) 50%, rgba(186, 230, 253, 0.35) 54%, transparent 60%);
+    background-size: 220% 220%;
+    animation: glitter-sweep 6.5s ease-in-out infinite;
+  }
+  @keyframes glitter-twinkle {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+  @keyframes glitter-twinkle2 {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.3; }
+  }
+  @keyframes glitter-sweep {
+    0% { background-position: 120% -20%; opacity: 0; }
+    45% { opacity: 0.9; }
+    100% { background-position: -20% 120%; opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glitter-overlay, .glitter-overlay::after, .glitter-overlay::before { animation: none; }
+  }
+
+  /* 엔드바 능선 위를 걷는 사업단 캐릭터들 (사이드바보다 뒤: z-index 낮게) */
+  .footer-walkers {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 5;
+    overflow: visible;
+  }
+  /* 무릎 꿇은 캐릭터: 왼쪽 고정 */
+  .walker-still {
+    position: absolute;
+    bottom: -1px;
+    left: 3%;
+    height: 54px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
+  }
+  /* 개별 보행: 같은 주기·다른 지연 → 한 줄을 이루며 하나씩 유턴 */
+  .walker {
+    position: absolute;
+    bottom: -1px;
+    transform-origin: center bottom;
+    will-change: left, transform;
+    animation-name: ridgeWalk;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .walker img {
+    height: 100%;
+    width: auto;
+    display: block;
+    transform-origin: bottom center;
+    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
+    animation: walkBob 0.55s ease-in-out infinite;
+  }
+  /* 빨강(left 3%) 앞 좌측 16%에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
+  @keyframes ridgeWalk {
+    0%   { left: 16%; transform: scaleX(-1); }
+    49%  { left: 96%; transform: scaleX(-1); }
+    50%  { left: 96%; transform: scaleX(1); }
+    99%  { left: 16%; transform: scaleX(1); }
+    100% { left: 16%; transform: scaleX(-1); }
+  }
+  @keyframes walkBob {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-3px) rotate(1.5deg); }
+  }
+  @media (max-width: 639px) {
+    .walker { display: none; } /* 모바일은 공간상 보행 숨김 (빨강은 유지) */
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .footer-walkers .walker { display: none; }
   }
 }
 

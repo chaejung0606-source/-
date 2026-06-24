@@ -2,16 +2,17 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap } from "lucide-react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
-  { href: "/admin/programs", label: "프로그램", icon: CalendarRange },
-  { href: "/admin/content", label: "유형 세부내용", icon: ListChecks },
+  { href: "/admin/applicants", label: "신청자 정보", icon: Users },
+  { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
+  { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
+  { href: "/admin/content", label: "지원금 유형 안내", icon: ListChecks },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
-  { href: "/admin/settings", label: "내보내기 설정", icon: Settings },
-  { href: "/", label: "메인 사이트", icon: Home },
+  { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -53,9 +54,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           );
         })}
-        <button onClick={() => { setDrawerOpen(false); doLogout(); }} className="sidebar-item w-full text-left text-red-500 hover:text-red-600">
-          <LogOut className="w-[18px] h-[18px]" /> 로그아웃
-        </button>
       </nav>
 
       {/* 외부 바로가기 */}
@@ -101,6 +99,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Menu className="w-6 h-6" />
             </button>
             <span className="font-bold text-gray-800">관리자 시스템</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/" className="glass-pill px-3 sm:px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
+              <Home className="w-4 h-4" /> 메인 사이트
+            </Link>
+            <button onClick={doLogout} className="glass-pill px-3 sm:px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-red-500 transition-colors">
+              <LogOut className="w-4 h-4" /> 로그아웃
+            </button>
           </div>
         </header>
 
