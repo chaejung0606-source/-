@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, KeyRound, Users, Eye, EyeOff } from "lucide-react";
+import { Search, KeyRound, Users, Eye, EyeOff, Lock } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 interface Applicant {
@@ -20,14 +20,28 @@ const matchTerms = (s: Applicant, q: string) => {
 };
 
 export default function ApplicantsPage() {
+  // 진입 시마다 비밀번호 확인 (세션 저장하지 않음 — 메뉴 진입 때마다 재확인)
+  const [unlocked, setUnlocked] = useState(false);
+  const [gatePw, setGatePw] = useState("");
+  const [gateErr, setGateErr] = useState("");
+  const tryUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGateErr("");
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
+    const j = await res.json().catch(() => ({ success: false }));
+    if (j.success) { setUnlocked(true); setGatePw(""); }
+    else setGateErr("비밀번호가 올바르지 않습니다.");
+  };
+
   const [list, setList] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
+    if (!unlocked) return;
     fetch("/api/admin/applicants").then((r) => r.json()).then((d) => { setList(Array.isArray(d) ? d : []); setLoading(false); });
-  }, []);
+  }, [unlocked]);
 
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
 
@@ -53,6 +67,21 @@ export default function ApplicantsPage() {
     if (j.ok) alert(`비밀번호가 재설정되었습니다.\n학번: ${a.student_id}\n새 비밀번호: ${pw}\n\n신청자에게 안내해주세요.`);
     else alert("재설정 실패: " + (j.error || "알 수 없는 오류"));
   };
+
+  if (!unlocked) return (
+    <AdminLayout>
+      <div className="max-w-sm mx-auto mt-16 card text-center">
+        <div className="glass-pill w-14 h-14 flex items-center justify-center mx-auto mb-3"><Lock className="w-7 h-7 text-indigo-600" /></div>
+        <h1 className="text-lg font-bold text-gray-800 mb-1">신청자 정보 접근 확인</h1>
+        <p className="text-sm text-gray-500 mb-4">개인정보 보호를 위해 메뉴 진입 시마다 관리자 비밀번호를 입력해주세요.</p>
+        <form onSubmit={tryUnlock} className="space-y-3">
+          <input type="password" className="input-field" value={gatePw} onChange={(e) => setGatePw(e.target.value)} placeholder="관리자 비밀번호" autoFocus />
+          {gateErr && <p className="text-red-500 text-sm">{gateErr}</p>}
+          <button type="submit" disabled={!gatePw} className="btn-primary w-full">확인</button>
+        </form>
+      </div>
+    </AdminLayout>
+  );
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 

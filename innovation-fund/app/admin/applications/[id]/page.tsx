@@ -260,17 +260,11 @@ export default function ApplicationDetailPage() {
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => openPreview("form")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 신청서
-          </button>
-          <button onClick={() => openPreview("evidence")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 증빙서류
+          <button onClick={() => openPreview("payment")} className="btn-secondary text-sm flex items-center gap-1.5">
+            <FileText className="w-4 h-4" /> 지출자료
           </button>
           <button onClick={() => openPreview("review")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 심의요청서
-          </button>
-          <button onClick={() => openPreview("payment")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 지출자료
           </button>
           <button onClick={driveSync} disabled={syncing} className="btn-secondary text-sm flex items-center gap-1.5">
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "동기화 중..." : "Drive 재동기화"}

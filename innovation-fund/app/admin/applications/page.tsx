@@ -7,6 +7,7 @@ import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
 import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { buildExportName } from "@/lib/export-settings";
 
 export default function ApplicationsPage() {
   // 신청 목록 진입 비밀번호 게이트 (세션 동안 유지)
@@ -37,7 +38,6 @@ export default function ApplicationsPage() {
   const [payFilter, setPayFilter] = useState<PaymentStatus | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [reviewMonth, setReviewMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
@@ -71,9 +71,28 @@ export default function ApplicationsPage() {
     else setSelected(new Set(filtered.map((a) => a.id)));
   };
 
-  const handleExport = async (targetApps: Application[]) => {
+  const today10 = () => new Date().toISOString().slice(0, 10);
+
+  // 전체 목록 다운로드 — 신청 + 취소 병합, 접수번호 순 정렬
+  const exportAll = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
-    exportToExcel(targetApps);
+    const merged = [...apps].sort((a, b) => (a.receiptNumber || "").localeCompare(b.receiptNumber || "", "ko"));
+    exportToExcel(merged, buildExportName("listAll", { 날짜: today10() }) + ".xlsx");
+  };
+
+  // 선택 목록 다운로드 — 현재 보기(신청/취소)에서 선택된 항목만
+  const exportSelected = async () => {
+    const sel = filtered.filter((a) => selected.has(a.id));
+    if (sel.length === 0) { alert("먼저 다운로드할 항목을 선택하세요."); return; }
+    const { exportToExcel } = await import("@/lib/excel-export");
+    exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
+  };
+
+  // 선택 항목의 지출자료 / 심의요청서 PDF 일괄 내보내기
+  const exportPdfBatch = (doc: "payment" | "review") => {
+    const sel = filtered.filter((a) => selected.has(a.id));
+    if (sel.length === 0) { alert("먼저 내보낼 항목을 선택하세요."); return; }
+    window.open(`/admin/applications/print-batch?doc=${doc}&ids=${sel.map((a) => a.id).join(",")}`, "_blank");
   };
 
   const deleteApp = async (id: string) => {
@@ -105,12 +124,17 @@ export default function ApplicationsPage() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => handleExport(selected.size > 0 ? apps.filter((a) => selected.has(a.id)) : filtered)} className="btn-secondary flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" />
-            {selected.size > 0 ? `선택(${selected.size}) 다운로드` : "엑셀 다운로드"}
+          <button onClick={() => exportPdfBatch("payment")} className="btn-secondary flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" /> 지출자료{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
-          <button onClick={() => handleExport(filtered)} className="btn-secondary flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> 현재 목록 다운로드
+          <button onClick={() => exportPdfBatch("review")} className="btn-secondary flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" /> 심의요청서{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+          <button onClick={exportAll} className="btn-secondary flex items-center gap-2 text-sm">
+            <Download className="w-4 h-4" /> 전체 목록 다운로드
+          </button>
+          <button onClick={exportSelected} className="btn-secondary flex items-center gap-2 text-sm">
+            <Download className="w-4 h-4" /> 선택 목록 다운로드{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
         </div>
       </div>
@@ -123,19 +147,6 @@ export default function ApplicationsPage() {
         <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
           취소 목록 ({canceledCount})
         </button>
-      </div>
-
-      {/* 월별 심의요청서 */}
-      <div className="card mb-4 flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-gray-700">월별 심의요청서</span>
-        <input type="month" className="input-field w-auto" value={reviewMonth} onChange={(e) => setReviewMonth(e.target.value)} />
-        <button
-          onClick={() => window.open(`/admin/review-print?month=${reviewMonth}`, "_blank")}
-          className="btn-primary text-sm py-2"
-        >
-          심의요청서 내보내기 (PDF)
-        </button>
-        <span className="text-xs text-gray-400">선택한 월의 &apos;심의필요&apos; 상태 건만 포함됩니다.</span>
       </div>
 
       {/* 필터 */}
