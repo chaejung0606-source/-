@@ -175,6 +175,7 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS application_phase TEXT DEFAULT
 -- applications: 신청 취소
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled BOOLEAN DEFAULT FALSE;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled_ip TEXT;
 -- applications: 임시저장(작성 중)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS draft_step INT;

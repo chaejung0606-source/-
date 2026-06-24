@@ -123,7 +123,8 @@ export default function ApplicationsPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
-  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => apps.filter((a) => a[field] === val).length;
+  // 대시보드는 취소된 신청을 제외 (취소 목록은 집계에 포함하지 않음)
+  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => apps.filter((a) => !a.canceled && a[field] === val).length;
   // 관리자가 아직 확인하지 못한(검토 상태 '신청완료') 신청 건수
   const unconfirmedCount = apps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
 
@@ -238,6 +239,7 @@ export default function ApplicationsPage() {
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
               <th className="text-center whitespace-nowrap">지급 상태</th>
+              {view === "canceled" && <th className="whitespace-nowrap">취소 일시 / IP</th>}
               <th className="whitespace-nowrap">첨부</th>
               <th className="text-center whitespace-nowrap">상세</th>
             </tr>
@@ -245,7 +247,7 @@ export default function ApplicationsPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={13} className="text-center py-12 text-gray-400">
+                <td colSpan={view === "canceled" ? 14 : 13} className="text-center py-12 text-gray-400">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   검색 결과가 없습니다.
                 </td>
@@ -271,6 +273,12 @@ export default function ApplicationsPage() {
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
                 <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
+                {view === "canceled" && (
+                  <td className="text-xs whitespace-nowrap text-gray-600">
+                    {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}
+                    <span className="block font-mono text-gray-400">{app.canceledIp || "-"}</span>
+                  </td>
+                )}
                 <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
                 <td className="text-center whitespace-nowrap">
                   <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>

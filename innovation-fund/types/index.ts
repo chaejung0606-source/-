@@ -409,6 +409,7 @@ export interface Application {
   // 신청 취소
   canceled?: boolean;
   canceledAt?: string;
+  canceledIp?: string;
 
   // 임시저장 (작성 중)
   isDraft?: boolean;

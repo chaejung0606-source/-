@@ -93,6 +93,7 @@ export function fromRow(r: any): Application {
     calculatedAmount: r.calculated_amount ?? 0,
     canceled: !!r.canceled,
     canceledAt: r.canceled_at || undefined,
+    canceledIp: r.canceled_ip || undefined,
     isDraft: !!r.is_draft,
     draftStep: r.draft_step ?? undefined,
     isTest: !!r.is_test,

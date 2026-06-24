@@ -275,6 +275,16 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
+      {app.canceled && (
+        <div className="card mb-6" style={{ background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.3)" }}>
+          <h2 className="section-title" style={{ color: "#be123c" }}>신청자 취소 정보</h2>
+          <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-[80px]">취소 일시</dt><dd className="font-medium">{app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}</dd></div>
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-[80px]">취소 IP</dt><dd className="font-mono font-medium">{app.canceledIp || "-"}</dd></div>
+          </dl>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="card">

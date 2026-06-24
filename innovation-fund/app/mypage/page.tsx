@@ -406,7 +406,7 @@ export default function MyPage() {
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         신청일 {fmtDate(app.createdAt)}
-                        {app.canceled && app.canceledAt && ` · 취소일 ${fmtDate(app.canceledAt)}`}
+                        {app.canceled && app.canceledAt && ` · 취소 일시 ${new Date(app.canceledAt).toLocaleString("ko-KR")}`}
                       </div>
                     </div>
                     {!app.canceled && (
