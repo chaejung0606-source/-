@@ -1,12 +1,17 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, KeyRound, Users, Lock } from "lucide-react";
+import { Search, KeyRound, Users, Lock, CheckCircle } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import type { Application } from "@/types";
+import { APPLICATION_TYPE_LABELS } from "@/types";
 
 interface Applicant {
   id: string; student_id: string; name: string;
   department?: string; phone?: string; email?: string; university?: string;
 }
+
+const progNameOf = (a: Application): string =>
+  a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName || a.staffDetail?.programName || "(프로그램 미지정)";
 
 // 공백/쉼표로 구분된 여러 검색어 (여러 학생 동시 검색)
 const matchTerms = (s: Applicant, q: string) => {
@@ -30,15 +35,26 @@ export default function ApplicantsPage() {
   };
 
   const [list, setList] = useState<Applicant[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"students" | "eligible">("students");
 
   useEffect(() => {
     if (!unlocked) return;
     fetch("/api/admin/applicants").then((r) => r.json()).then((d) => { setList(Array.isArray(d) ? d : []); setLoading(false); });
+    fetch("/api/applications").then((r) => r.json()).then((d) => setApps(Array.isArray(d) ? d : [])).catch(() => {});
   }, [unlocked]);
 
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
+
+  // 프로그램별 지원금 신청 가능 학생 = 지원신청(pre) 승인 + 미취소
+  const eligibleByProgram = useMemo(() => {
+    const m: Record<string, Application[]> = {};
+    apps.filter((a) => a.applicationPhase === "pre" && a.reviewStatus === "approved" && !a.canceled)
+      .forEach((a) => { (m[progNameOf(a)] ||= []).push(a); });
+    return Object.entries(m).sort((x, y) => x[0].localeCompare(y[0], "ko"));
+  }, [apps]);
 
   const resetPw = async (a: Applicant) => {
     const pw = window.prompt(`${a.name}(${a.student_id})님의 새 비밀번호를 입력하세요. (6자 이상)`);
@@ -74,48 +90,94 @@ export default function ApplicantsPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2"><Users className="w-6 h-6 text-indigo-500" /> 신청자 정보</h1>
       <p className="text-gray-500 text-sm mb-4">신청자 로그인 지원용 화면입니다. 보안상 비밀번호 원문은 조회할 수 없으며, 필요 시 새 비밀번호로 재설정할 수 있습니다.</p>
 
-      <div className="card mb-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <p className="text-xs text-gray-400 mt-2">{filtered.length}명</p>
+      {/* 보기 전환 */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setView("students")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "students" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>학생 검색</button>
+        <button onClick={() => setView("eligible")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "eligible" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>프로그램별 지원금 신청 가능 학생</button>
       </div>
 
-      <div className="overflow-x-auto rounded-[32px]">
-        <table className="table-glass text-sm">
-          <thead>
-            <tr>
-              <th className="whitespace-nowrap">학번</th>
-              <th className="whitespace-nowrap">이름</th>
-              <th className="whitespace-nowrap">소속</th>
-              <th className="whitespace-nowrap">학과</th>
-              <th className="whitespace-nowrap">연락처</th>
-              <th className="whitespace-nowrap">비밀번호</th>
-              <th className="text-center whitespace-nowrap">관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
-            ) : filtered.map((a) => (
-              <tr key={a.id}>
-                <td className="font-mono text-xs">{a.student_id}</td>
-                <td className="font-medium whitespace-nowrap">{a.name || "-"}</td>
-                <td className="text-gray-600 whitespace-nowrap">{a.university || "-"}</td>
-                <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
-                <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
-                <td className="text-gray-400">•••••• (비공개)</td>
-                <td className="text-center">
-                  <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
-                    <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {view === "students" ? (
+        <>
+          <div className="card mb-4">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">{filtered.length}명</p>
+          </div>
+
+          <div className="overflow-x-auto rounded-[32px]">
+            <table className="table-glass text-sm">
+              <thead>
+                <tr>
+                  <th className="whitespace-nowrap">학번</th>
+                  <th className="whitespace-nowrap">이름</th>
+                  <th className="whitespace-nowrap">소속</th>
+                  <th className="whitespace-nowrap">학과</th>
+                  <th className="whitespace-nowrap">연락처</th>
+                  <th className="whitespace-nowrap">비밀번호</th>
+                  <th className="text-center whitespace-nowrap">관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                ) : filtered.map((a) => (
+                  <tr key={a.id}>
+                    <td className="font-mono text-xs">{a.student_id}</td>
+                    <td className="font-medium whitespace-nowrap">{a.name || "-"}</td>
+                    <td className="text-gray-600 whitespace-nowrap">{a.university || "-"}</td>
+                    <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
+                    <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
+                    <td className="text-gray-400">•••••• (비공개)</td>
+                    <td className="text-center">
+                      <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
+                        <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 지원신청이 <strong>승인</strong>된 학생만 해당 프로그램의 지원금 신청이 가능합니다. (프로그램별 목록)</p>
+          {eligibleByProgram.length === 0 ? (
+            <div className="card text-center py-12 text-gray-400">승인된 지원신청이 없습니다.</div>
+          ) : eligibleByProgram.map(([prog, students]) => (
+            <div key={prog} className="card">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <h3 className="font-bold text-gray-800">{prog}</h3>
+                <span className="badge bg-emerald-100 text-emerald-700">{students.length}명 신청 가능</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="table-glass text-sm">
+                  <thead><tr>
+                    <th className="whitespace-nowrap">학번</th>
+                    <th className="whitespace-nowrap">이름</th>
+                    <th className="whitespace-nowrap">학과</th>
+                    <th className="whitespace-nowrap">신청 유형</th>
+                    <th className="whitespace-nowrap">지원신청일</th>
+                  </tr></thead>
+                  <tbody>
+                    {students.map((a) => (
+                      <tr key={a.id}>
+                        <td className="font-mono text-xs">{a.studentId}</td>
+                        <td className="font-medium whitespace-nowrap">{a.name}</td>
+                        <td className="text-gray-600 max-w-[160px] truncate">{a.department}</td>
+                        <td className="text-xs whitespace-nowrap">{APPLICATION_TYPE_LABELS[a.applicationType]}</td>
+                        <td className="text-gray-500 whitespace-nowrap">{a.applicationDate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </AdminLayout>
   );
 }

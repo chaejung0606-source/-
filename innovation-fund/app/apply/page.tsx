@@ -86,6 +86,14 @@ function ApplyInner() {
       const { data } = await supabase.from("applications").select("*").eq("id", fromId).maybeSingle();
       if (data) {
         const app = fromRow(data);
+        // 지원신청(pre) 건은 관리자 승인된 경우에만 지원금 신청 가능
+        if (app.applicationPhase === "pre" && app.reviewStatus !== "approved") {
+          alert(app.reviewStatus === "rejected"
+            ? `지원금 신청 불가\n\n사유: ${app.adminMemo || "지원신청이 반려되었습니다. 자세한 사항은 사업단에 문의해주세요."}`
+            : "아직 지원신청이 승인되지 않았습니다. 관리자 승인 후 지원금 신청이 가능합니다.");
+          router.replace("/mypage");
+          return;
+        }
         setPrefill(app);
         setCategory(categoryOfType(app.applicationType));
         setSelectedType(app.applicationType);
@@ -104,7 +112,8 @@ function ApplyInner() {
       const { data } = await supabase.from("applications").select("*")
         .eq("applicant_id", user.id).eq("application_phase", "pre")
         .order("created_at", { ascending: false });
-      const apps = (data || []).map(fromRow).filter((a) => categoryOfType(a.applicationType) === category && !a.canceled);
+      // 관리자가 승인한 지원신청만 지원금 신청 대상으로 노출
+      const apps = (data || []).map(fromRow).filter((a) => categoryOfType(a.applicationType) === category && !a.canceled && a.reviewStatus === "approved");
       setPreApps(apps);
       setPreChecked(true);
     })();

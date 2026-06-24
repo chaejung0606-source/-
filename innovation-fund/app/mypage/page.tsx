@@ -11,7 +11,7 @@ import TimetableEditor from "@/components/mypage/TimetableEditor";
 import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
-import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
+import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 
 const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학교", "연세대학교(미래)", "상지대학교", "가톨릭관동대학교", "경동대학교"];
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
@@ -27,6 +27,8 @@ export default function MyPage() {
   const [name, setName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [apps, setApps] = useState<Application[]>([]);
+  const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
+  useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>({ name: "", campus: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
@@ -390,10 +392,10 @@ export default function MyPage() {
         ) : (
           <div className="space-y-4">
             {submitted.map((app) => {
-              const rm = REVIEW_STATUS_META[app.reviewStatus];
-              const pm = PAYMENT_STATUS_META[app.paymentStatus];
-              const stepIdx = REVIEW_STATUS_ORDER.indexOf(app.reviewStatus);
-              const totalSteps = REVIEW_STATUS_ORDER.length;
+              const rm = statusMeta(statusCfg, "review", app.reviewStatus);
+              const pm = statusMeta(statusCfg, "payment", app.paymentStatus);
+              const stepIdx = statusCfg.review.findIndex((o) => o.key === app.reviewStatus);
+              const totalSteps = statusCfg.review.length;
               return (
                 <div key={app.id} className={`card ${app.canceled ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -421,9 +423,9 @@ export default function MyPage() {
                   {!app.canceled && (
                   <div className="mt-4">
                     <div className="flex gap-1">
-                      {REVIEW_STATUS_ORDER.map((s, i) => (
+                      {statusCfg.review.map((o, i) => (
                         <div
-                          key={s}
+                          key={o.key}
                           className="flex-1 h-1.5 rounded-full"
                           style={{ background: app.reviewStatus === "rejected" ? "#fca5a5" : i <= stepIdx ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(0,0,0,0.08)" }}
                         />
@@ -451,14 +453,30 @@ export default function MyPage() {
                   </div>
                   )}
 
-                  {/* 지원신청 → 지원금 신청 연계 */}
+                  {/* 지원신청 → 지원금 신청 연계 (관리자 승인 시에만 가능) */}
                   {!app.canceled && app.applicationPhase === "pre" && (
-                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <span className="text-xs text-gray-600">활동을 마치셨다면 이 내역으로 지원금을 신청하세요. 중복 항목이 자동 입력됩니다.</span>
-                      <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
-                        지원금 신청 <ChevronRight className="w-4 h-4" />
-                      </Link>
-                    </div>
+                    app.reviewStatus === "approved" ? (
+                      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                        <span className="text-xs text-gray-600">✅ 지원신청이 <strong>승인</strong>되었습니다. 활동을 마치셨다면 이 내역으로 지원금을 신청하세요. (중복 항목 자동 입력)</span>
+                        <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
+                          지원금 신청하기 <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    ) : app.reviewStatus === "rejected" ? (
+                      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(244,63,94,0.07)", border: "1px solid rgba(244,63,94,0.25)" }}>
+                        <span className="text-xs text-rose-700">⛔ 지원신청이 <strong>반려</strong>되어 지원금 신청을 진행할 수 없습니다.</span>
+                        <button
+                          onClick={() => alert(`지원금 신청 불가\n\n사유: ${app.adminMemo || "지원신청이 반려되었습니다. 자세한 사항은 사업단에 문의해주세요."}`)}
+                          className="btn-secondary text-sm shrink-0"
+                        >
+                          사유 보기
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-xl px-3 py-2.5 text-xs text-gray-500" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
+                        ⏳ 관리자 <strong>승인</strong> 후 지원금 신청이 가능합니다. (현재 검토 상태: {statusMeta(statusCfg, "review", app.reviewStatus).label})
+                      </div>
+                    )
                   )}
 
                   {app.adminMemo && (

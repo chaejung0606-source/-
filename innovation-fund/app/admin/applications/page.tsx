@@ -4,10 +4,9 @@ import Link from "next/link";
 import { Download, Search, FileText, Lock } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
-import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER } from "@/config/status";
-import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { buildExportName } from "@/lib/export-settings";
+import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 
 export default function ApplicationsPage() {
   // 신청 목록 진입 비밀번호 게이트 (진입 시마다 재확인 — 세션 저장 안 함)
@@ -26,6 +25,8 @@ export default function ApplicationsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
+  useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
   // 신청 / 취소 목록 분리
   const [view, setView] = useState<"active" | "canceled">("active");
@@ -135,24 +136,24 @@ export default function ApplicationsPage() {
         <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
           <span className="text-sm text-gray-500">관리자 미확인 신청</span>
           <span className="text-5xl font-bold text-rose-600 my-1.5">{unconfirmedCount}<span className="text-lg text-gray-500 font-medium ml-1">건</span></span>
-          <span className="text-[11px] text-gray-400">검토 상태 ‘{REVIEW_STATUS_META.received.label}’</span>
+          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}’</span>
         </div>
         <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
           <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {REVIEW_STATUS_ORDER.map((s) => (
-              <div key={s} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${REVIEW_STATUS_META[s].badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5">{REVIEW_STATUS_META[s].label}</div>
-                <div className="text-lg font-bold leading-none">{statCount("reviewStatus", s)}</div>
+            {statusCfg.review.map((o) => (
+              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("reviewStatus", o.key)}</div>
               </div>
             ))}
           </div>
           <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {PAYMENT_STATUS_ORDER.map((s) => (
-              <div key={s} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${PAYMENT_STATUS_META[s].badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5">{PAYMENT_STATUS_META[s].label}</div>
-                <div className="text-lg font-bold leading-none">{statCount("paymentStatus", s)}</div>
+            {statusCfg.payment.map((o) => (
+              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("paymentStatus", o.key)}</div>
               </div>
             ))}
           </div>
@@ -202,14 +203,14 @@ export default function ApplicationsPage() {
           </select>
           <select className="input-field" value={reviewFilter} onChange={(e) => setReviewFilter(e.target.value as ReviewStatus | "")}>
             <option value="">검토 상태 전체</option>
-            {(Object.keys(REVIEW_STATUS_META) as ReviewStatus[]).map((k) => (
-              <option key={k} value={k}>{REVIEW_STATUS_META[k].label}</option>
+            {statusCfg.review.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
           <select className="input-field" value={payFilter} onChange={(e) => setPayFilter(e.target.value as PaymentStatus | "")}>
             <option value="">지급 상태 전체</option>
-            {(Object.keys(PAYMENT_STATUS_META) as PaymentStatus[]).map((k) => (
-              <option key={k} value={k}>{PAYMENT_STATUS_META[k].label}</option>
+            {statusCfg.payment.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
         </div>
@@ -272,8 +273,8 @@ export default function ApplicationsPage() {
                 </td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
-                <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
-                <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
+                <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "review", app.reviewStatus).badge}`}>{statusMeta(statusCfg, "review", app.reviewStatus).label}</span></td>
+                <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "payment", app.paymentStatus).badge}`}>{statusMeta(statusCfg, "payment", app.paymentStatus).label}</span></td>
                 {view === "canceled" && (
                   <td className="text-xs whitespace-nowrap text-gray-600">
                     {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}

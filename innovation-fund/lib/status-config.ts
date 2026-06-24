@@ -28,6 +28,13 @@ export function newStatusKey(): string {
   return "st-" + Math.random().toString(36).slice(2, 9);
 }
 
+// 상태 키 → {label, badge} 조회 (config 우선, 없으면 기본값, 그래도 없으면 키 그대로)
+export function statusMeta(config: StatusConfig, kind: "review" | "payment", key: string): StatusOpt {
+  return config[kind].find((o) => o.key === key)
+    || DEFAULT_STATUS_CONFIG[kind].find((o) => o.key === key)
+    || { key, label: key, badge: "bg-slate-100 text-slate-600" };
+}
+
 // 저장 값 정규화 (잘못된 형태면 기본값)
 export function normalizeStatusConfig(value: unknown): StatusConfig {
   const v = (value || {}) as Partial<StatusConfig>;
