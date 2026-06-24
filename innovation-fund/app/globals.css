@@ -138,13 +138,13 @@
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
     animation: walkBob 0.55s ease-in-out infinite;
   }
-  /* 빨강(left 3%) 앞 좌측 16%에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
+  /* 빨강(left 3%) 바로 앞(좌측 8%)에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
   @keyframes ridgeWalk {
-    0%   { left: 16%; transform: scaleX(-1); }
+    0%   { left: 8%; transform: scaleX(-1); }
     49%  { left: 96%; transform: scaleX(-1); }
     50%  { left: 96%; transform: scaleX(1); }
-    99%  { left: 16%; transform: scaleX(1); }
-    100% { left: 16%; transform: scaleX(-1); }
+    99%  { left: 8%; transform: scaleX(1); }
+    100% { left: 8%; transform: scaleX(-1); }
   }
   @keyframes walkBob {
     0%, 100% { transform: translateY(0) rotate(-1.5deg); }
