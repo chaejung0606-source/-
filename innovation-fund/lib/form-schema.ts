@@ -124,6 +124,41 @@ export function emptySchema(): FormSchema {
   return { submitLabel: "신청 제출", steps: [{ id: newSchemaId(), title: "1단계", fields: [] }] };
 }
 
+// 혁신인재지원금 — 기존(코드 내장) 신청서 양식을 모두 수정 가능한 항목으로 옮긴 기본 폼.
+// 프로그램 참여(교과·비교과/현장실습/학회 등) 기준의 종합 양식. 모든 항목 편집·삭제 가능.
+export function defaultInnovationSchema(programName: string, phase: "pre" | "fund"): FormSchema {
+  const isPre = phase === "pre";
+  const f = (label: string, type: FormFieldType, extra: Partial<FormField> = {}): FormField => ({ id: newSchemaId("f"), label, type, ...extra });
+  const steps: FormStep[] = [
+    { id: newSchemaId(), title: "기본 정보", fields: [
+      f("신청자 기본정보", "applicantInfo", { required: true }),
+      f("개인정보 수집·이용 및 신청 동의", "privacyConsent", { required: true }),
+    ] },
+    { id: newSchemaId(), title: "프로그램 정보", fields: [
+      f("프로그램명", "shortText", { required: true, placeholder: programName || "참여 프로그램명" }),
+      f("역할/직무", "shortText", {}),
+      f("활동 기간", "date", { required: true, range: true }),
+      f("활동 내용", "longText", { required: true, placeholder: "참여한 활동 내용을 작성하세요." }),
+      f("활동 실적/성과", "longText", {}),
+    ] },
+  ];
+  if (!isPre) {
+    steps.push({ id: newSchemaId(), title: "비용", fields: [
+      f("등록비", "registration"),
+      f("교통비", "transport"),
+      f("숙박비", "lodging"),
+    ] });
+  }
+  steps.push({ id: newSchemaId(), title: "서류 업로드", fields: [
+    f("증빙 서류 (참가확인서·결과보고 등)", "file", { required: !isPre }),
+  ] });
+  steps.push({ id: newSchemaId(), title: isPre ? "동의 및 서명" : "계좌 및 서명", fields: [
+    ...(isPre ? [] : [f("입금 계좌 정보", "account", { required: true })]),
+    f("신청인 서명", "signature", { required: true }),
+  ] });
+  return { submitLabel: isPre ? "지원신청 제출" : "신청 제출", steps };
+}
+
 // 스키마를 새 id로 깊은 복사 (템플릿 복사용 — 원본/복사본 id 충돌 방지)
 export function cloneSchema(schema: FormSchema): FormSchema {
   return {

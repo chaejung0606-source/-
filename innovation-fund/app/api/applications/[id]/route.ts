@@ -36,8 +36,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.adminMemo !== undefined) patch.admin_memo = body.adminMemo;
   if (body.approvedAmount !== undefined) patch.approved_amount = body.approvedAmount;
   if (body.verifiedAccount !== undefined) patch.verified_account = body.verifiedAccount;
+  const stagePatch: Record<string, any> = {};
+  if (body.reviewStage !== undefined) stagePatch.review_stage = body.reviewStage;
+  if (body.handoffNote !== undefined) stagePatch.handoff_note = body.handoffNote;
 
-  const { data, error } = await supabaseAdmin().from("applications").update(patch).eq("id", id).select("*").maybeSingle();
+  const adminDb = supabaseAdmin();
+  let { data, error } = await adminDb.from("applications").update({ ...patch, ...stagePatch }).eq("id", id).select("*").maybeSingle();
+  // review_stage/handoff_note 컬럼이 없으면(마이그레이션 전) 해당 필드 제외 후 재시도
+  if (error && /review_stage|handoff_note/i.test(error.message)) {
+    ({ data, error } = await adminDb.from("applications").update(patch).eq("id", id).select("*").maybeSingle());
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(fromRow(data));

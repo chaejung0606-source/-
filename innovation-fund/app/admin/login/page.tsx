@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Lock } from "lucide-react";
+import { Shield, Lock, User } from "lucide-react";
 
 export default function AdminLoginPage() {
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ loginId, password }),
       });
       const data = await res.json();
       if (data.success) {
@@ -46,6 +47,20 @@ export default function AdminLoginPage() {
         <div className="card">
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
+              <label className="label">아이디</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  className="input-field pl-10"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="관리자 아이디"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div>
               <label className="label">비밀번호</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -54,13 +69,12 @@ export default function AdminLoginPage() {
                   className="input-field pl-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="관리자 비밀번호 입력"
-                  autoFocus
+                  placeholder="비밀번호"
                 />
               </div>
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <button type="submit" disabled={loading || !password} className="btn-primary w-full">
+            <button type="submit" disabled={loading || !loginId || !password} className="btn-primary w-full">
               {loading ? "로그인 중..." : "로그인"}
             </button>
           </form>

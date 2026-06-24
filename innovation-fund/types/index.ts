@@ -406,6 +406,10 @@ export interface Application {
   requestAmount: number;
   calculatedAmount: number;
 
+  // 검토 단계(서류 인계): "program"=프로그램 관리자 검토중 / "expense"=지출관리자에게 전달됨
+  reviewStage?: "program" | "expense";
+  handoffNote?: string; // 지출관리자→프로그램관리자 보완 요청 메모
+
   // 신청 취소
   canceled?: boolean;
   canceledAt?: string;

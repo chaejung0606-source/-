@@ -88,6 +88,8 @@ export function fromRow(r: any): Application {
     reviewStatus: r.review_status,
     paymentStatus: r.payment_status,
     adminMemo: r.admin_memo || "",
+    reviewStage: r.review_stage ?? undefined,
+    handoffNote: r.handoff_note || undefined,
     approvedAmount: r.approved_amount ?? undefined,
     requestAmount: r.request_amount ?? 0,
     calculatedAmount: r.calculated_amount ?? 0,

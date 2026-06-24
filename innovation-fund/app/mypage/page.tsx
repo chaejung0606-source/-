@@ -479,6 +479,15 @@ export default function MyPage() {
                     )
                   )}
 
+                  {!app.canceled && app.reviewStatus === "supplement" && (
+                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.3)" }}>
+                      <span className="text-xs text-orange-700">✍️ <strong>보완 요청</strong>이 있습니다. 아래 안내를 확인하고 신청서를 수정해 다시 제출해주세요.</span>
+                      <Link href={`/apply?draft=${app.id}&mode=${app.applicationPhase || "fund"}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
+                        수정 후 재제출 <ChevronRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  )}
+
                   {app.adminMemo && (
                     <div className="mt-3 text-xs text-gray-600 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.06)" }}>
                       <span className="font-semibold text-indigo-600">안내: </span>{app.adminMemo}

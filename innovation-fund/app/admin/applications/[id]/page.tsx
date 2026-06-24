@@ -26,7 +26,22 @@ export default function ApplicationDetailPage() {
   const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
   const [statusEdit, setStatusEdit] = useState(false);
   const [cfgSaving, setCfgSaving] = useState(false);
+  const [myRole, setMyRole] = useState<"expense" | "program" | null>(null);
   useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
+  useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => { if (d?.admin) setMyRole(d.role || "expense"); }).catch(() => {}); }, []);
+
+  // 서류 인계 (단일 건)
+  const handoff = async (stage: "expense" | "program") => {
+    let note: string | undefined;
+    if (stage === "program") note = window.prompt("프로그램 관리자에게 전달할 보완 요청 내용을 입력하세요. (선택)") || "";
+    else if (!window.confirm("이 신청 서류를 지출관리자에게 보낼까요?")) return;
+    const res = await fetch(`/api/applications/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stage === "program" ? { reviewStage: "program", handoffNote: note || "" } : { reviewStage: "expense" }),
+    });
+    if (res.ok) { const d = await res.json(); setApp(d); alert(stage === "expense" ? "지출관리자에게 전달했습니다." : "프로그램 관리자에게 반송했습니다."); }
+    else alert("처리 실패");
+  };
   const setOpts = (kind: "review" | "payment", opts: StatusOpt[]) => setStatusCfg((c) => ({ ...c, [kind]: opts }));
   const addOpt = (kind: "review" | "payment") => setOpts(kind, [...statusCfg[kind], { key: newStatusKey(), label: "새 상태", badge: BADGE_PRESETS[0].badge }]);
   const updOpt = (kind: "review" | "payment", i: number, patch: Partial<StatusOpt>) => setOpts(kind, statusCfg[kind].map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
@@ -507,6 +522,29 @@ export default function ApplicationDetailPage() {
                 {saving ? "저장 중..." : "저장"}
               </button>
             </div>
+          </div>
+
+          {/* 서류 인계 */}
+          <div className="card">
+            <h2 className="section-title mb-2">서류 인계</h2>
+            {app.handoffNote && (
+              <div className="mb-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <span className="font-semibold">지출관리자 보완 요청: </span>{app.handoffNote}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mb-2">
+              현재 단계: {app.reviewStage === "expense" ? <span className="badge bg-teal-100 text-teal-700">지출관리자</span> : <span className="badge bg-indigo-100 text-indigo-700">프로그램 검토</span>}
+            </p>
+            {myRole === "program" && app.reviewStage !== "expense" && (
+              <button onClick={() => handoff("expense")} className="btn-primary w-full text-sm flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" /> 서류 확인 완료 — 지출관리자에게 보내기
+              </button>
+            )}
+            {myRole === "expense" && (
+              <button onClick={() => handoff("program")} className="btn-secondary w-full text-sm">
+                프로그램 관리자에게 반송(보완 요청)
+              </button>
+            )}
           </div>
 
           <div className="card bg-gray-50">

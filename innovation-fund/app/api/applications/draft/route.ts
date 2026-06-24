@@ -21,18 +21,29 @@ export async function POST(req: NextRequest) {
 
   const admin = supabaseAdmin();
   // 보안: 본인 소유로 강제, 임시저장 여부는 서버가 결정
-  const payload = { ...row, applicant_id: user.id, is_draft: !finalize };
+  const payload: Record<string, any> = { ...row, applicant_id: user.id, is_draft: !finalize };
+  // 보완요청 후 재제출: 검토 상태를 '신청완료'로 되돌리고, 프로그램 관리자 재검토 단계로 복귀
+  if (finalize) { payload.review_status = "received"; payload.review_stage = null; }
 
   if (id) {
     const { data: existing } = await admin.from("applications").select("applicant_id").eq("id", id).maybeSingle();
     if (!existing) return NextResponse.json({ ok: false, error: "내역을 찾을 수 없습니다." }, { status: 404 });
     if (existing.applicant_id !== user.id) return NextResponse.json({ ok: false, error: "본인 신청만 수정할 수 있습니다." }, { status: 403 });
-    const { data, error } = await admin.from("applications").update(payload).eq("id", id).select("id,receipt_number").single();
+    let { data, error } = await admin.from("applications").update(payload).eq("id", id).select("id,receipt_number").single();
+    // review_stage 컬럼이 없으면(마이그레이션 전) 제외 후 재시도
+    if (error && /review_stage/i.test(error.message)) {
+      const { review_stage, ...rest } = payload;
+      ({ data, error } = await admin.from("applications").update(rest).eq("id", id).select("id,receipt_number").single());
+    }
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, id: data.id, receiptNumber: data.receipt_number });
   }
 
-  const { data, error } = await admin.from("applications").insert(payload).select("id,receipt_number").single();
+  let { data, error } = await admin.from("applications").insert(payload).select("id,receipt_number").single();
+  if (error && /review_stage/i.test(error.message)) {
+    const { review_stage, ...rest } = payload;
+    ({ data, error } = await admin.from("applications").insert(rest).select("id,receipt_number").single());
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, id: data.id, receiptNumber: data.receipt_number });
 }

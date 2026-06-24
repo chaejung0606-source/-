@@ -1,22 +1,39 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Download, Search, FileText, Lock } from "lucide-react";
+import { Download, Search, FileText, Lock, Send, Undo2 } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { buildExportName } from "@/lib/export-settings";
 import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
+import { fetchPrograms, type Program } from "@/lib/programs";
+
+// 신청 건의 프로그램명 추출
+const progNameOf = (a: Application): string =>
+  a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName || a.staffDetail?.programName || "";
 
 export default function ApplicationsPage() {
   // 신청 목록 진입 비밀번호 게이트 (진입 시마다 재확인 — 세션 저장 안 함)
   const [unlocked, setUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
+  // 현재 관리자 세션(역할/아이디/담당 프로그램)
+  const [me, setMe] = useState<{ role: "expense" | "program"; id: string; programIds: string[] } | null>(null);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [allAssigned, setAllAssigned] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/admin/status").then((r) => r.json()).then((d) => {
+      if (d?.admin) setMe({ role: d.role || "expense", id: d.id || "", programIds: d.programIds || [] });
+    }).catch(() => {});
+    fetchPrograms().then(setPrograms).catch(() => {});
+  }, []);
+
   const tryUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setGateErr("");
-    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginId: me?.id || "", password: gatePw }) });
     const j = await res.json().catch(() => ({ success: false }));
     if (j.success) { setUnlocked(true); setGatePw(""); }
     else setGateErr("비밀번호가 올바르지 않습니다.");
@@ -44,11 +61,42 @@ export default function ApplicationsPage() {
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
   }, [unlocked]);
 
+  // 지출관리자: 프로그램별 관리자에게 배정된 프로그램 집합(인계 단계 기본값 판단용)
+  useEffect(() => {
+    if (!unlocked || me?.role !== "expense") return;
+    fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
+      const s = new Set<string>();
+      (j?.accounts || []).forEach((a: { programIds?: string[] }) => (a.programIds || []).forEach((p) => s.add(p)));
+      setAllAssigned(s);
+    }).catch(() => {});
+  }, [unlocked, me]);
+
+  const nameToId = useMemo(() => Object.fromEntries(programs.map((p) => [p.name, p.id])), [programs]);
+  const ownerProgramId = (a: Application) => nameToId[progNameOf(a)] || "";
+  // 인계 단계: 명시값 우선, 없으면 담당 프로그램 관리자 존재 여부로 결정
+  const effStage = (a: Application): "program" | "expense" => {
+    if (a.reviewStage === "program" || a.reviewStage === "expense") return a.reviewStage;
+    const pid = ownerProgramId(a);
+    if (me?.role === "program") return "program"; // 본인 담당 프로그램 기본은 검토중
+    return pid && allAssigned.has(pid) ? "program" : "expense";
+  };
+
   const canceledCount = useMemo(() => apps.filter((a) => a.canceled).length, [apps]);
   const activeCount = apps.length - canceledCount;
 
+  // 역할별 노출: 프로그램 관리자=담당 프로그램의 검토중 건 / 지출관리자=전달됨(또는 담당자 없는) 건
+  const roleVisible = (a: Application): boolean => {
+    if (!me) return true;
+    if (me.role === "program") {
+      const pid = ownerProgramId(a);
+      return !!pid && me.programIds.includes(pid) && effStage(a) === "program";
+    }
+    return effStage(a) === "expense";
+  };
+
   const filtered = useMemo(() => {
     return apps.filter((a) => {
+      if (!roleVisible(a)) return false;
       if (view === "active" && a.canceled) return false;
       if (view === "canceled" && !a.canceled) return false;
       if (search && !a.name.includes(search) && !a.studentId.includes(search)) return false;
@@ -59,7 +107,8 @@ export default function ApplicationsPage() {
       if (dateTo && a.applicationDate > dateTo) return false;
       return true;
     });
-  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, me, nameToId, allAssigned]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -98,6 +147,26 @@ export default function ApplicationsPage() {
     sel.forEach((a, i) => {
       setTimeout(() => window.open(`/admin/applications/${a.id}/print?doc=${doc}`, `print_${doc}_${a.id}`), i * 350);
     });
+  };
+
+  // 서류 인계: 선택 건을 지출관리자에게 보내기 / 프로그램 관리자에게 돌려보내기
+  const handoff = async (stage: "expense" | "program", note?: string) => {
+    const sel = filtered.filter((a) => selected.has(a.id));
+    if (sel.length === 0) { alert("먼저 보낼 항목을 선택하세요."); return; }
+    const verb = stage === "expense" ? "지출관리자에게 전달" : "프로그램 관리자에게 반송";
+    if (!confirm(`${sel.length}건을 ${verb}할까요?`)) return;
+    await Promise.all(sel.map((a) => fetch(`/api/applications/${a.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stage === "program" ? { reviewStage: "program", handoffNote: note || "" } : { reviewStage: "expense" }),
+    })));
+    setApps((prev) => prev.map((a) => selected.has(a.id) ? { ...a, reviewStage: stage, handoffNote: stage === "program" ? (note || "") : a.handoffNote } : a));
+    setSelected(new Set());
+    alert(`${sel.length}건을 ${verb}했습니다.`);
+  };
+  const sendToExpense = () => handoff("expense");
+  const returnToProgram = () => {
+    const note = window.prompt("프로그램 관리자에게 전달할 보완 요청 내용을 입력하세요. (선택)") || "";
+    handoff("program", note);
   };
 
   const deleteApp = async (id: string) => {
@@ -163,6 +232,16 @@ export default function ApplicationsPage() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
         <div className="flex gap-2 flex-wrap">
+          {me?.role === "program" && view === "active" && (
+            <button onClick={sendToExpense} className="btn-primary flex items-center gap-2 text-sm">
+              <Send className="w-4 h-4" /> 지출관리자에게 보내기{selected.size > 0 ? ` (${selected.size})` : ""}
+            </button>
+          )}
+          {me?.role === "expense" && view === "active" && (
+            <button onClick={returnToProgram} className="btn-secondary flex items-center gap-2 text-sm">
+              <Undo2 className="w-4 h-4" /> 프로그램 관리자에게 반송{selected.size > 0 ? ` (${selected.size})` : ""}
+            </button>
+          )}
           <button onClick={() => exportPdfBatch("payment")} className="btn-secondary flex items-center gap-2 text-sm">
             <FileText className="w-4 h-4" /> 지출자료{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
@@ -241,6 +320,7 @@ export default function ApplicationsPage() {
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
               <th className="text-center whitespace-nowrap">지급 상태</th>
+              <th className="text-center whitespace-nowrap">단계</th>
               {view === "canceled" && <th className="whitespace-nowrap">취소 일시 / IP</th>}
               <th className="whitespace-nowrap">첨부</th>
               <th className="text-center whitespace-nowrap">상세</th>
@@ -249,7 +329,7 @@ export default function ApplicationsPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={view === "canceled" ? 14 : 13} className="text-center py-12 text-gray-400">
+                <td colSpan={view === "canceled" ? 15 : 14} className="text-center py-12 text-gray-400">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   검색 결과가 없습니다.
                 </td>
@@ -275,6 +355,10 @@ export default function ApplicationsPage() {
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "review", app.reviewStatus).badge}`}>{statusMeta(statusCfg, "review", app.reviewStatus).label}</span></td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "payment", app.paymentStatus).badge}`}>{statusMeta(statusCfg, "payment", app.paymentStatus).label}</span></td>
+                <td className="text-center text-xs whitespace-nowrap">
+                  {effStage(app) === "expense" ? <span className="badge bg-teal-100 text-teal-700">지출관리자</span> : <span className="badge bg-indigo-100 text-indigo-700">프로그램검토</span>}
+                  {app.handoffNote && <span title={app.handoffNote} className="ml-1 text-amber-500 cursor-help">⚠</span>}
+                </td>
                 {view === "canceled" && (
                   <td className="text-xs whitespace-nowrap text-gray-600">
                     {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}

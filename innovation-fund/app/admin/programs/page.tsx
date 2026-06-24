@@ -6,7 +6,7 @@ import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, SEED, newProgramId, effectiveReportFields, isPhaseEnabled, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
-import { type FormSchema, defaultSchemaFromFields, cloneSchema } from "@/lib/form-schema";
+import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
 
 const CATEGORIES: FundCategory[] = ["labor", "innovation"];
 const today = () => new Date().toISOString().split("T")[0];
@@ -95,8 +95,13 @@ export default function ProgramsAdminPage() {
     if (!p) return;
     const key: SchemaKey = selectedStep === "pre" ? "preFormSchema" : "fundFormSchema";
     if (!p[key]) {
-      const fields = selectedStep === "pre" ? (p.preReportFields || []) : (p.reportFields || []);
-      update(p.id, { [key]: defaultSchemaFromFields(p.name, fields, selectedStep) });
+      // 혁신인재지원금: 기존(코드 내장) 신청서 양식을 모두 수정 가능한 항목으로 기본 적용
+      if (p.category === "innovation") {
+        update(p.id, { [key]: defaultInnovationSchema(p.name, selectedStep) });
+      } else {
+        const fields = selectedStep === "pre" ? (p.preReportFields || []) : (p.reportFields || []);
+        update(p.id, { [key]: defaultSchemaFromFields(p.name, fields, selectedStep) });
+      }
     }
   }, [selectedId, selectedStep, list]);
   const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSelectedId(null); setSaved(false); };

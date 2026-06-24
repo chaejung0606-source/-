@@ -1,24 +1,37 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog } from "lucide-react";
 
+// expenseOnly: 지출관리자(전체 권한)만 보이는 메뉴. 프로그램별 관리자는 '신청 목록'만.
 const NAV = [
-  { href: "/admin/applications", label: "신청 목록", icon: FileText },
-  { href: "/admin/applicants", label: "신청자 정보", icon: Users },
-  { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
-  { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
-  { href: "/admin/content", label: "유형별 지급 기준", icon: ListChecks },
-  { href: "/admin/certificates", label: "자격증 목록", icon: Award },
-  { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
-  { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },
+  { href: "/admin/applications", label: "신청 목록", icon: FileText, expenseOnly: false },
+  { href: "/admin/applicants", label: "신청자 정보", icon: Users, expenseOnly: true },
+  { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap, expenseOnly: true },
+  { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange, expenseOnly: true },
+  { href: "/admin/content", label: "유형별 지급 기준", icon: ListChecks, expenseOnly: true },
+  { href: "/admin/certificates", label: "자격증 목록", icon: Award, expenseOnly: true },
+  { href: "/admin/admins", label: "관리자 설정", icon: UserCog, expenseOnly: true },
+  { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal, expenseOnly: true },
+  { href: "/admin/settings", label: "파일 저장 경로", icon: Settings, expenseOnly: true },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [role, setRole] = useState<"expense" | "program" | null>(null);
+  const [adminName, setAdminName] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/status").then((r) => r.json()).then((d) => {
+      if (d?.admin) { setRole(d.role || "expense"); setAdminName(d.name || ""); }
+    }).catch(() => {});
+  }, []);
+
+  // 역할별 메뉴: 지출관리자=전체, 프로그램 관리자=신청 목록만
+  const navItems = NAV.filter((n) => role === "expense" || !n.expenseOnly);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
@@ -40,8 +53,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="font-bold text-sm holo-text">혁신인재지원금</div>
         </div>
       </div>
+      {role && (
+        <div className="px-3 mb-3 -mt-3">
+          <span className={`badge ${role === "expense" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>
+            {role === "expense" ? "지출관리자" : `프로그램 관리자${adminName ? ` · ${adminName}` : ""}`}
+          </span>
+        </div>
+      )}
       <nav className="space-y-1.5">
-        {NAV.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
