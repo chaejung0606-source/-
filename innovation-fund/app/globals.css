@@ -536,11 +536,11 @@
     letter-spacing: 0.01em;
   }
 
-  /* ===== 구름체(동글·가벼움) ===== */
+  /* ===== 타이틀체(고운돋움) ===== */
   .bubble-text {
-    font-family: var(--font-bubble), "Dongle", system-ui, sans-serif;
+    font-family: var(--font-bubble), "Gowun Dodum", system-ui, sans-serif;
     letter-spacing: 0.005em;
-    font-weight: 700;
+    font-weight: 400;
   }
 
   /* ===== 강조 텍스트 ===== */

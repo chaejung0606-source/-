@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nanum_Pen_Script, Dongle } from "next/font/google";
+import { Nanum_Pen_Script, Gowun_Dodum } from "next/font/google";
 import "./globals.css";
 import CursorGlitter from "@/components/common/CursorGlitter";
 
@@ -10,9 +10,9 @@ const handwriting = Nanum_Pen_Script({
   display: "swap",
 });
 
-// 구름처럼 둥글고 가벼운 한글 글씨체
-const bubble = Dongle({
-  weight: ["300", "400", "700"],
+// 단정하고 부드러운 한글 글씨체 (고운돋움)
+const bubble = Gowun_Dodum({
+  weight: "400",
   subsets: ["latin"],
   variable: "--font-bubble",
   display: "swap",
