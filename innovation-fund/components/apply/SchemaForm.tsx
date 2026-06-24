@@ -14,6 +14,21 @@ interface Props {
   onChange?: (schema: FormSchema) => void;
 }
 
+// 항목 추가 시 기본 라벨 / 기본 필수 여부
+const FIELD_DEFAULT_LABEL: Partial<Record<FormFieldType, string>> = {
+  applicantInfo: "신청자 기본정보", account: "입금 계좌 정보", privacyConsent: "개인정보 수집·이용 및 신청 동의",
+  signature: "신청인 서명", workLog: "근무상황부", transport: "교통비", registration: "등록비", lodging: "숙박비", file: "증빙 서류",
+};
+const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
+  applicantInfo: true, account: true, privacyConsent: true, signature: true,
+};
+// 항목 추가 메뉴 구성 — 입력 항목 / 표준 블록(필수요소 포함)
+const ADD_GROUPS: { title: string; types: FormFieldType[] }[] = [
+  { title: "필수·표준 항목", types: ["applicantInfo", "privacyConsent", "account", "signature"] },
+  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "select", "file", "agreement"] },
+  { title: "비용·근무 항목", types: ["workLog", "transport", "registration", "lodging"] },
+];
+
 function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
   const req = f.required ? <span className="text-red-500"> *</span> : null;
   switch (f.type) {
@@ -203,6 +218,7 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
 export default function SchemaForm({ schema, editable = false, accent = "#6366f1", onChange }: Props) {
   const steps = schema.steps || [];
   const [step, setStep] = useState(0);
+  const [addOpen, setAddOpen] = useState<string | null>(null);
   const total = steps.length;
   const isReview = step === total;
   const cur = steps[Math.min(step, total - 1)];
@@ -213,7 +229,10 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
   const renameStep = (sid: string, title: string) => mutSteps((st) => st.map((s) => s.id === sid ? { ...s, title } : s));
   const removeStep = (sid: string) => { mutSteps((st) => st.filter((s) => s.id !== sid)); setStep((p) => Math.max(0, p - 1)); };
   const moveStep = (sid: string, dir: -1 | 1) => mutSteps((st) => { const a = [...st]; const i = a.findIndex((s) => s.id === sid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return st; [a[i], a[j]] = [a[j], a[i]]; return a; });
-  const addField = (sid: string) => mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: [...s.fields, { id: newSchemaId("f"), label: "", type: "shortText", required: false }] } : s));
+  const addField = (sid: string, type: FormFieldType = "shortText") => {
+    mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: [...s.fields, { id: newSchemaId("f"), label: FIELD_DEFAULT_LABEL[type] || "", type, required: !!FIELD_DEFAULT_REQUIRED[type] }] } : s));
+    setAddOpen(null);
+  };
   const updField = (sid: string, fid: string, patch: Partial<FormField>) => mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: s.fields.map((f) => f.id === fid ? { ...f, ...patch } : f) } : s));
   const removeField = (sid: string, fid: string) => mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: s.fields.filter((f) => f.id !== fid) } : s));
   const moveField = (sid: string, fid: string, dir: -1 | 1) => mutSteps((st) => st.map((s) => {
@@ -331,9 +350,28 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
           ))}
 
           {editable && (
-            <button onClick={() => addField(cur.id)} className="w-full rounded-2xl border-2 border-dashed py-2.5 text-sm font-medium flex items-center justify-center gap-1.5" style={{ borderColor: `${accent}55`, color: accent }}>
-              <Plus className="w-4 h-4" /> 항목 추가
-            </button>
+            <div>
+              <button onClick={() => setAddOpen(addOpen === cur.id ? null : cur.id)} className="w-full rounded-2xl border-2 border-dashed py-2.5 text-sm font-medium flex items-center justify-center gap-1.5" style={{ borderColor: `${accent}55`, color: accent }}>
+                <Plus className="w-4 h-4" /> 항목 추가 (종류 선택)
+              </button>
+              {addOpen === cur.id && (
+                <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-3 space-y-3">
+                  <p className="text-[11px] text-gray-400">추가할 항목 종류를 선택하세요. 기본정보·개인정보동의·계좌정보·서명 등 필수 항목은 새 폼에 기본 포함되어 있습니다.</p>
+                  {ADD_GROUPS.map((grp) => (
+                    <div key={grp.title}>
+                      <p className="text-[11px] font-semibold text-gray-500 mb-1">{grp.title}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {grp.types.map((t) => (
+                          <button key={t} onClick={() => addField(cur.id, t)} className="px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-white/70 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 transition">
+                            {FIELD_TYPE_LABELS[t]}{FIELD_DEFAULT_REQUIRED[t] ? " *" : ""}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       ) : (

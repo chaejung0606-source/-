@@ -96,7 +96,10 @@ export function defaultSchemaFromFields(programName: string, fields: ReportField
     steps: [
       {
         id: newSchemaId(), title: "기본 정보",
-        fields: [{ id: newSchemaId("f"), label: "신청자 기본정보", type: "applicantInfo", required: true }],
+        fields: [
+          { id: newSchemaId("f"), label: "신청자 기본정보", type: "applicantInfo", required: true },
+          { id: newSchemaId("f"), label: "개인정보 수집·이용 및 신청 동의", type: "privacyConsent", required: true },
+        ],
       },
       {
         id: newSchemaId(), title: "신청 정보",
