@@ -56,9 +56,10 @@ function ApplyInner() {
     fetchPrograms().then(setPrograms).catch(() => {});
     fetch("/api/admin/program-forms").then((r) => r.json()).then((d) => setProgramForms(d || {})).catch(() => {});
   }, []);
-  // 선택한 분야에서 현재 단계(pre/fund) 폼이 설정된 활성 프로그램
-  // (우선 근로장학금에만 스키마 기반 신청 폼 적용)
-  const schemaPrograms = (category === "labor" ? programs.filter((p) => p.category === "labor" && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
+  // 스키마(관리자 폼) 기반 신청 적용 대상: 근로장학금 전체 + 혁신인재지원금의 프로그램 참여지원비(program)·진행요원비(staff)
+  // (성적/경진대회/자격증은 기존 고정 양식 유지)
+  const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff"));
+  const schemaPrograms = (schemaTypeOk && category ? programs.filter((p) => p.category === category && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
   const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
   const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;
 
