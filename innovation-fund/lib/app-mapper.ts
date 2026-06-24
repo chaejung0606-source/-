@@ -102,6 +102,6 @@ export function fromRow(r: any): Application {
     draftStep: r.draft_step ?? undefined,
     isTest: !!r.is_test,
     verifiedAccount: r.verified_account ?? undefined,
-    formAnswers: r.form_answers ?? undefined,
+    formAnswers: r.form_answers ?? (r.program_detail && r.program_detail.formAnswers) ?? undefined,
   };
 }

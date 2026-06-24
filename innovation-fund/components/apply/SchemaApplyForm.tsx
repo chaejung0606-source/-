@@ -25,6 +25,8 @@ interface Props {
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
+const DAILY_MAX_HOURS = 8; // 일일 최대 근무시간
 const toMin = (t: string) => { const [h, m] = (t || "").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
 
 // 근무상황부 입력 (관리자 미리보기와 동일한 양식)
@@ -44,6 +46,9 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
     const mins = toMin(end) - toMin(start);
     if (mins <= 0) { alert("종료 시간이 시작 시간보다 늦어야 합니다."); return; }
     const hours = Math.round((mins / 60) * 10) / 10;
+    if (hours > DAILY_MAX_HOURS) { alert(`일일 최대 근무시간은 ${DAILY_MAX_HOURS}시간입니다. (입력: ${hours}시간)`); return; }
+    const dayTotal = entries.filter((x) => x.date === date).reduce((s, x) => s + (Number(x.hours) || 0), 0) + hours;
+    if (dayTotal > DAILY_MAX_HOURS) { alert(`같은 날짜 합계가 일일 최대 ${DAILY_MAX_HOURS}시간을 초과합니다. (${date} 합계 ${dayTotal}시간)`); return; }
     onChange([...entries, { date, startTime: start, endTime: end, hours, detail: "" }].sort((a, b) => a.date.localeCompare(b.date)));
     setStart(""); setEnd("");
   };
@@ -57,6 +62,7 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
         <div><span className="text-[11px] text-gray-500">종료</span><input type="time" className="input-field" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
         <div className="flex items-end"><button type="button" onClick={add} className="btn-secondary text-sm w-full">＋ 등록</button></div>
       </div>
+      <p className="text-[11px] text-gray-400">※ 일일 최대 근무시간은 {DAILY_MAX_HOURS}시간입니다.</p>
       {entries.length === 0 ? (
         <p className="text-xs text-gray-400">근무 기록을 등록해주세요.</p>
       ) : entries.map((e, i) => (
@@ -224,14 +230,21 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationPhase: mode, applicationType: type,
-        programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined },
+        // programDetail(JSONB)에도 답변을 함께 저장 → form_answers 컬럼 미마이그레이션 환경에서도 보존
+        programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, formAnswers },
         files,
         privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
         signature,
         accountMismatch: isPre || !hasAccount ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
         requestAmount, calculatedAmount: requestAmount, formAnswers,
       };
-      const { data, error } = await supabase.from("applications").insert(toRow(payload, user.id)).select("id,receipt_number").single();
+      const row = toRow(payload, user.id);
+      let { data, error } = await supabase.from("applications").insert(row).select("id,receipt_number").single();
+      // form_answers 컬럼이 없으면(마이그레이션 전) 제외하고 재시도 — 답변은 programDetail에 보존됨
+      if (error && /form_answers/i.test(error.message)) {
+        const { form_answers, ...rest } = row;
+        ({ data, error } = await supabase.from("applications").insert(rest).select("id,receipt_number").single());
+      }
       if (error) { alert("신청 저장 중 오류가 발생했습니다.\n" + error.message); return; }
       try { await fetch("/api/drive-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: data.id }) }); } catch { /* ignore */ }
       router.push(`/apply/complete?receipt=${data.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[type])}&amount=${requestAmount}&phase=${mode}`);
@@ -245,17 +258,25 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     const label = <label className="label">{f.label || "(제목 없음)"}{req}</label>;
     switch (f.type) {
       case "applicantInfo": return <BasicInfoSection key={f.id} values={basicInfo} onChange={setBasicInfo} hideAccount={true} />;
-      case "account":
+      case "account": {
         if (isPre) return null;
+        const mismatch = !!basicInfo.accountHolder.trim() && basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, "");
         return (
           <div key={f.id}>{label}
             <div className="grid sm:grid-cols-3 gap-2">
-              <input className="input-field" value={basicInfo.bankName} onChange={(e) => setBasicInfo((b) => ({ ...b, bankName: e.target.value }))} placeholder="은행" />
-              <input className="input-field" value={basicInfo.accountNumber} onChange={(e) => setBasicInfo((b) => ({ ...b, accountNumber: e.target.value.replace(/[^\d-]/g, "") }))} placeholder="계좌번호" />
+              <select className="input-field" value={basicInfo.bankName} onChange={(e) => setBasicInfo((b) => ({ ...b, bankName: e.target.value }))}>
+                <option value="">은행 선택</option>
+                {BANKS.map((bk) => <option key={bk} value={bk}>{bk}</option>)}
+              </select>
+              <input className="input-field" value={basicInfo.accountNumber} onChange={(e) => setBasicInfo((b) => ({ ...b, accountNumber: e.target.value.replace(/[^\d-]/g, "") }))} placeholder="계좌번호 (숫자·- )" />
               <input className="input-field" value={basicInfo.accountHolder} onChange={(e) => setBasicInfo((b) => ({ ...b, accountHolder: e.target.value }))} placeholder="예금주" />
             </div>
+            {mismatch && (
+              <p className="text-xs text-rose-600 mt-1.5">⚠️ 예금주(<strong>{basicInfo.accountHolder}</strong>)가 신청자 이름(<strong>{basicInfo.name}</strong>)과 다릅니다. 본인 명의 계좌만 지급 가능하니 확인해주세요.</p>
+            )}
           </div>
         );
+      }
       case "privacyConsent": return <ConsentChecklist key={f.id} values={consent} onChange={setConsent} isPre={isPre || !hasAccount} />;
       case "signature": return <ConsentSection key={f.id} signature={signature} onSignatureChange={setSignature} isPre={isPre} summary={summary} />;
       case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
