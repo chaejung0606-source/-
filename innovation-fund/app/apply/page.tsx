@@ -74,14 +74,14 @@ function ApplyInner() {
     })();
   }, [draftId]);
 
-  // 로그인 게이트 (신청자 로그인 / 관리자는 테스트 모드로 접근)
-  const [testMode, setTestMode] = useState(false);
+  // 로그인 게이트 (신청자 로그인 / 관리자는 화면 확인용으로 접근)
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     (async () => {
       const u = await currentUser();
       if (u) { setUserName(u.name); setReady(true); return; }
       const status = await fetch("/api/admin/status").then((r) => r.json()).catch(() => ({ admin: false }));
-      if (status.admin) { setTestMode(true); setUserName("관리자 테스트"); setReady(true); return; }
+      if (status.admin) { setIsAdmin(true); setUserName("관리자"); setReady(true); return; }
       router.replace("/login?next=/apply");
     })();
   }, [router]);
@@ -170,9 +170,13 @@ function ApplyInner() {
           <span className="font-bold holo-text">{APPLICATION_PHASE_LABELS[mode]}</span>
           <div className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
-            <Link href="/mypage" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><User className="w-4 h-4" /> 마이페이지</Link>
+            {isAdmin ? (
+              <Link href="/admin" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><Shield className="w-4 h-4" /> 관리자 페이지</Link>
+            ) : (
+              <Link href="/mypage" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><User className="w-4 h-4" /> 마이페이지</Link>
+            )}
             <Link href="/" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
-            <button onClick={doLogout} className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-red-500"><LogOut className="w-4 h-4" /> 로그아웃</button>
+            {!isAdmin && <button onClick={doLogout} className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-red-500"><LogOut className="w-4 h-4" /> 로그아웃</button>}
           </div>
         </div>
       </header>
@@ -200,11 +204,13 @@ function ApplyInner() {
             mode={mode}
             prefill={prefill}
             draft={draftApp}
-            testMode={testMode}
+            isAdmin={isAdmin}
             onBack={() => {
               setPrefill(null);
-              // 지원신청(pre)·단일유형은 카테고리 선택으로, 혁신인재지원금(지원금)은 유형 선택으로
-              if (mode === "fund" && category && CATEGORY_TYPES[category].length > 1 && skipPre) setSelectedType(null);
+              // 지원신청(pre)서 작성 중 뒤로가기는 곧장 홈으로(종류 선택을 다시 거치지 않도록)
+              if (mode === "pre") { router.push("/"); return; }
+              // 혁신인재지원금(지원금)은 유형 선택으로, 그 외는 종류 선택으로
+              if (category && CATEGORY_TYPES[category].length > 1 && skipPre) setSelectedType(null);
               else { setSelectedType(null); setCategory(null); setSkipPre(false); }
             }}
           />

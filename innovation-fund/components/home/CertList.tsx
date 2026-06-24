@@ -9,7 +9,7 @@ export default function CertList() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/cert-list", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.sheets) setList(d); }).catch(() => {});
+    fetch("/api/admin/cert-list?pub=1", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.sheets) setList(d); }).catch(() => {});
   }, []);
 
   // 공개 열이 있고 자격증이 있는 시트만 노출

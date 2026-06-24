@@ -2,7 +2,7 @@
 // app_config 'cert_list' 보관.
 
 export interface CertColumn { id: string; name: string; pub: boolean; } // pub = 학생 공개
-export interface CertRow { id: string; cells: Record<string, string>; }
+export interface CertRow { id: string; cells: Record<string, string>; pub?: boolean; } // pub = 학생 공개(기본 true)
 export interface CertSheet { id: string; name: string; columns: CertColumn[]; rows: CertRow[]; }
 export interface CertList { sheets: CertSheet[]; updatedAt?: string; updateNote?: string; }
 
@@ -36,7 +36,7 @@ function normRows(arr: unknown): CertRow[] {
   return (arr as unknown[]).map((r, i) => {
     const o = (r || {}) as Record<string, unknown>;
     const cells = (o.cells && typeof o.cells === "object") ? o.cells as Record<string, string> : {};
-    return { id: String(o.id || `row-${i}`), cells: Object.fromEntries(Object.entries(cells).map(([k, val]) => [k, String(val ?? "")])) };
+    return { id: String(o.id || `row-${i}`), pub: o.pub !== false, cells: Object.fromEntries(Object.entries(cells).map(([k, val]) => [k, String(val ?? "")])) };
   });
 }
 
@@ -68,7 +68,8 @@ export function publicCertList(list: CertList): CertList {
     sheets: list.sheets.map((sh) => {
       const cols = sh.columns.filter((c) => c.pub);
       const ids = new Set(cols.map((c) => c.id));
-      return { id: sh.id, name: sh.name, columns: cols, rows: sh.rows.map((r) => ({ id: r.id, cells: Object.fromEntries(Object.entries(r.cells).filter(([k]) => ids.has(k))) })) };
+      // 비공개 열 제거 + 비공개 행(pub === false) 제거
+      return { id: sh.id, name: sh.name, columns: cols, rows: sh.rows.filter((r) => r.pub !== false).map((r) => ({ id: r.id, cells: Object.fromEntries(Object.entries(r.cells).filter(([k]) => ids.has(k))) })) };
     }),
   };
 }
@@ -101,6 +102,7 @@ export function gridToSheetData(grid: string[][]): { columns: CertColumn[]; rows
   const columns: CertColumn[] = header.map((h, i) => ({ id: newCertId("col"), name: h.trim() || `구분 ${i + 1}`, pub: true }));
   const rows: CertRow[] = grid.slice(1).map((r) => ({
     id: newCertId("row"),
+    pub: true,
     cells: Object.fromEntries(columns.map((c, i) => [c.id, (r[i] ?? "").trim()])),
   }));
   return { columns, rows };

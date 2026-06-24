@@ -33,8 +33,9 @@ export default function CertificatesAdminPage() {
   const setCol = (id: string, patch: Partial<CertList["sheets"][number]["columns"][number]>) => patchSheet((s) => ({ ...s, columns: s.columns.map((c) => c.id === id ? { ...c, ...patch } : c) }));
   const addCol = () => patchSheet((s) => ({ ...s, columns: [...s.columns, { id: newCertId("col"), name: "새 구분", pub: true }] }));
   const removeCol = (id: string) => patchSheet((s) => ({ ...s, columns: s.columns.filter((c) => c.id !== id), rows: s.rows.map((r) => { const { [id]: _drop, ...rest } = r.cells; return { ...r, cells: rest }; }) }));
-  const addRow = () => patchSheet((s) => ({ ...s, rows: [...s.rows, { id: newCertId("row"), cells: {} }] }));
+  const addRow = () => patchSheet((s) => ({ ...s, rows: [...s.rows, { id: newCertId("row"), pub: true, cells: {} }] }));
   const removeRow = (id: string) => patchSheet((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== id) }));
+  const toggleRow = (id: string) => patchSheet((s) => ({ ...s, rows: s.rows.map((r) => r.id === id ? { ...r, pub: r.pub === false ? true : false } : r) }));
   const setCell = (rowId: string, colId: string, val: string) => patchSheet((s) => ({ ...s, rows: s.rows.map((r) => r.id === rowId ? { ...r, cells: { ...r.cells, [colId]: val } } : r) }));
 
   const save = async () => {
@@ -101,7 +102,7 @@ export default function CertificatesAdminPage() {
           <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
         </div>
       </div>
-      <p className="text-gray-500 text-sm mb-3">시트(지원 가능/심의대상/지원 불가 등)별로 편집합니다. 행=자격증, 열=구분이며 열별 <strong>학생 공개/비공개</strong>를 설정할 수 있습니다. 저장하면 홈 ‘자격증 목록’에 즉시 반영됩니다.</p>
+      <p className="text-gray-500 text-sm mb-3">시트(지원 가능/심의대상/지원 불가 등)별로 편집합니다. 행=자격증, 열=구분이며 <strong>열별·행별로 학생 공개/비공개</strong>를 설정할 수 있습니다(각 행 왼쪽 눈 아이콘). 저장하면 홈 ‘자격증 목록’에 즉시 반영됩니다.</p>
 
       {/* 시트 선택 */}
       <div className="flex items-center gap-1.5 mb-3 flex-wrap">
@@ -173,8 +174,15 @@ export default function CertificatesAdminPage() {
                 ) : visibleRows.length === 0 ? (
                   <tr><td colSpan={sheet.columns.length + 2} className="text-center text-gray-400 py-8 text-xs">검색 결과가 없습니다.</td></tr>
                 ) : visibleRows.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-100">
-                    <td className="text-center"><button onClick={() => removeRow(r.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                  <tr key={r.id} className={`border-t border-gray-100 ${r.pub === false ? "bg-gray-50/80" : ""}`}>
+                    <td className="px-1 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => toggleRow(r.id)} className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${r.pub === false ? "bg-gray-200 text-gray-500" : "bg-emerald-100 text-emerald-700"}`} title="이 행(자격증) 학생 공개 여부">
+                          {r.pub === false ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                        <button onClick={() => removeRow(r.id)} className="text-gray-300 hover:text-red-500" title="행 삭제"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </td>
                     {sheet.columns.map((c) => (
                       <td key={c.id} className="p-1"><input className="input-field !py-1 text-xs" value={r.cells[c.id] || ""} onChange={(e) => setCell(r.id, c.id, e.target.value)} /></td>
                     ))}

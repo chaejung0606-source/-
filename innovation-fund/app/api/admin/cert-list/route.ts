@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
   const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", KEY).maybeSingle();
   const full = normalizeCertList(data?.value);
   const isAdmin = req.cookies.get("admin_auth")?.value === "true";
-  return NextResponse.json(isAdmin ? full : publicCertList(full));
+  // ?pub=1 : 관리자 쿠키가 있어도 공개본만 반환(홈에서 학생 화면 그대로 확인)
+  const forcePublic = req.nextUrl.searchParams.get("pub") === "1";
+  return NextResponse.json(isAdmin && !forcePublic ? full : publicCertList(full));
 }
 
 // POST: 관리자 — 전체 저장
