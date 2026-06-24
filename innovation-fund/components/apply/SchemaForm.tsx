@@ -70,7 +70,17 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
       return (
         <div>
           <label className="label">{f.label || "서명"}{req}</label>
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 h-24 flex items-center justify-center text-gray-400 text-sm">여기에 서명</div>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 h-24 flex flex-col items-center justify-center text-gray-400 text-sm gap-1">
+              <span>여기에 직접 서명</span>
+              <span className="text-[11px] text-gray-300">마우스·터치로 그리기</span>
+            </div>
+            <div className="upload-card p-4 text-center text-gray-400 text-sm bg-gray-50 flex flex-col items-center justify-center gap-1">
+              <Upload className="w-5 h-5 opacity-60" /> 서명 이미지 업로드
+              <span className="text-[11px] text-gray-300">PNG·JPG 등</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">직접 서명하거나 서명 이미지를 업로드할 수 있습니다.</p>
         </div>
       );
     case "privacyConsent":
