@@ -409,6 +409,7 @@ export interface Application {
   // 신청 취소
   canceled?: boolean;
   canceledAt?: string;
+  canceledIp?: string;
 
   // 임시저장 (작성 중)
   isDraft?: boolean;
@@ -422,7 +423,7 @@ export interface Application {
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  received: "접수완료",
+  received: "신청완료",
   reviewing: "검토중",
   supplement: "보완요청",
   committee: "심의필요",

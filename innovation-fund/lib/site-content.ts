@@ -7,8 +7,23 @@ export interface TypeContent {
   intro: string;
   sections: ContentSection[];
   showPrograms?: boolean;
+  html?: string;   // 리치 텍스트(한글 편집) 본문 — 있으면 intro/sections 대신 이 HTML을 표시
 }
 export type SiteContent = Partial<Record<ApplicationType, TypeContent>>;
+
+// intro/sections → 기본 HTML (리치 에디터 최초 진입 시 기존 내용 이관)
+export function htmlFromContent(tc: TypeContent): string {
+  if (tc.html) return tc.html;
+  let h = tc.intro ? `<p>${escapeHtml(tc.intro)}</p>` : "";
+  for (const sec of tc.sections || []) {
+    if (sec.heading) h += `<p><b>${escapeHtml(sec.heading)}</b></p>`;
+    if (sec.items?.length) h += "<ul>" + sec.items.map((i) => `<li>${escapeHtml(i)}</li>`).join("") + "</ul>";
+  }
+  return h || "<p></p>";
+}
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 export const DEFAULT_CONTENT: Record<ApplicationType, TypeContent> = {
   program: {

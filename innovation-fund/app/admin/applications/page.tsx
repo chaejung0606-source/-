@@ -4,28 +4,29 @@ import Link from "next/link";
 import { Download, Search, FileText, Lock } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
-import { REVIEW_STATUS_META, PAYMENT_STATUS_META } from "@/config/status";
-import { ReviewBadge, PaymentBadge } from "@/components/common/StatusBadge";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { buildExportName } from "@/lib/export-settings";
+import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 
 export default function ApplicationsPage() {
-  // 신청 목록 진입 비밀번호 게이트 (세션 동안 유지)
+  // 신청 목록 진입 비밀번호 게이트 (진입 시마다 재확인 — 세션 저장 안 함)
   const [unlocked, setUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
-  useEffect(() => { if (typeof window !== "undefined" && sessionStorage.getItem("apps_unlocked") === "1") setUnlocked(true); }, []);
   const tryUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setGateErr("");
     const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
     const j = await res.json().catch(() => ({ success: false }));
-    if (j.success) { sessionStorage.setItem("apps_unlocked", "1"); setUnlocked(true); }
+    if (j.success) { setUnlocked(true); setGatePw(""); }
     else setGateErr("비밀번호가 올바르지 않습니다.");
   };
 
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
+  useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
   // 신청 / 취소 목록 분리
   const [view, setView] = useState<"active" | "canceled">("active");
@@ -37,11 +38,11 @@ export default function ApplicationsPage() {
   const [payFilter, setPayFilter] = useState<PaymentStatus | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [reviewMonth, setReviewMonth] = useState(new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
+    if (!unlocked) return;
     fetch("/api/applications").then((r) => r.json()).then((d) => { setApps(d); setLoading(false); });
-  }, []);
+  }, [unlocked]);
 
   const canceledCount = useMemo(() => apps.filter((a) => a.canceled).length, [apps]);
   const activeCount = apps.length - canceledCount;
@@ -71,9 +72,32 @@ export default function ApplicationsPage() {
     else setSelected(new Set(filtered.map((a) => a.id)));
   };
 
-  const handleExport = async (targetApps: Application[]) => {
+  const today10 = () => new Date().toISOString().slice(0, 10);
+
+  // 전체 목록 다운로드 — 신청 + 취소 병합, 접수번호 순 정렬
+  const exportAll = async () => {
     const { exportToExcel } = await import("@/lib/excel-export");
-    exportToExcel(targetApps);
+    const merged = [...apps].sort((a, b) => (a.receiptNumber || "").localeCompare(b.receiptNumber || "", "ko"));
+    exportToExcel(merged, buildExportName("listAll", { 날짜: today10() }) + ".xlsx");
+  };
+
+  // 선택 목록 다운로드 — 현재 보기(신청/취소)에서 선택된 항목만
+  const exportSelected = async () => {
+    const sel = filtered.filter((a) => selected.has(a.id));
+    if (sel.length === 0) { alert("먼저 다운로드할 항목을 선택하세요."); return; }
+    const { exportToExcel } = await import("@/lib/excel-export");
+    exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
+  };
+
+  // 선택 항목의 지출자료 / 심의요청서 PDF 내보내기 — 항목별로 각각(유형에 맞는 파일명·경로)
+  const exportPdfBatch = (doc: "payment" | "review") => {
+    const sel = filtered.filter((a) => selected.has(a.id));
+    if (sel.length === 0) { alert("먼저 내보낼 항목을 선택하세요."); return; }
+    if (sel.length > 8 && !confirm(`${sel.length}건을 항목별로 각각 인쇄 창으로 엽니다. 계속할까요?`)) return;
+    // 항목마다 개별 인쇄 창 — 각 신청 건의 유형에 맞는 파일명으로 저장됩니다.
+    sel.forEach((a, i) => {
+      setTimeout(() => window.open(`/admin/applications/${a.id}/print?doc=${doc}`, `print_${doc}_${a.id}`), i * 350);
+    });
   };
 
   const deleteApp = async (id: string) => {
@@ -100,17 +124,56 @@ export default function ApplicationsPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
+  // 대시보드는 취소된 신청을 제외 (취소 목록은 집계에 포함하지 않음)
+  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => apps.filter((a) => !a.canceled && a[field] === val).length;
+  // 관리자가 아직 확인하지 못한(검토 상태 '신청완료') 신청 건수
+  const unconfirmedCount = apps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
+
   return (
     <AdminLayout>
+      {/* 대시보드 (신청 목록 상단 통합) — 좌: 미확인 신청 / 우: 상태 표시 */}
+      <div className="card mb-5 flex flex-col sm:flex-row gap-5">
+        <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
+          <span className="text-sm text-gray-500">관리자 미확인 신청</span>
+          <span className="text-5xl font-bold text-rose-600 my-1.5">{unconfirmedCount}<span className="text-lg text-gray-500 font-medium ml-1">건</span></span>
+          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}’</span>
+        </div>
+        <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
+          <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {statusCfg.review.map((o) => (
+              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("reviewStatus", o.key)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {statusCfg.payment.map((o) => (
+              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("paymentStatus", o.key)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => handleExport(selected.size > 0 ? apps.filter((a) => selected.has(a.id)) : filtered)} className="btn-secondary flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" />
-            {selected.size > 0 ? `선택(${selected.size}) 다운로드` : "엑셀 다운로드"}
+          <button onClick={() => exportPdfBatch("payment")} className="btn-secondary flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" /> 지출자료{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
-          <button onClick={() => handleExport(filtered)} className="btn-secondary flex items-center gap-2 text-sm">
-            <Download className="w-4 h-4" /> 현재 목록 다운로드
+          <button onClick={() => exportPdfBatch("review")} className="btn-secondary flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" /> 심의요청서{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+          <button onClick={exportAll} className="btn-secondary flex items-center gap-2 text-sm">
+            <Download className="w-4 h-4" /> 전체 목록 다운로드
+          </button>
+          <button onClick={exportSelected} className="btn-secondary flex items-center gap-2 text-sm">
+            <Download className="w-4 h-4" /> 선택 목록 다운로드{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
         </div>
       </div>
@@ -123,19 +186,6 @@ export default function ApplicationsPage() {
         <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
           취소 목록 ({canceledCount})
         </button>
-      </div>
-
-      {/* 월별 심의요청서 */}
-      <div className="card mb-4 flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-gray-700">월별 심의요청서</span>
-        <input type="month" className="input-field w-auto" value={reviewMonth} onChange={(e) => setReviewMonth(e.target.value)} />
-        <button
-          onClick={() => window.open(`/admin/review-print?month=${reviewMonth}`, "_blank")}
-          className="btn-primary text-sm py-2"
-        >
-          심의요청서 내보내기 (PDF)
-        </button>
-        <span className="text-xs text-gray-400">선택한 월의 &apos;심의필요&apos; 상태 건만 포함됩니다.</span>
       </div>
 
       {/* 필터 */}
@@ -153,14 +203,14 @@ export default function ApplicationsPage() {
           </select>
           <select className="input-field" value={reviewFilter} onChange={(e) => setReviewFilter(e.target.value as ReviewStatus | "")}>
             <option value="">검토 상태 전체</option>
-            {(Object.keys(REVIEW_STATUS_META) as ReviewStatus[]).map((k) => (
-              <option key={k} value={k}>{REVIEW_STATUS_META[k].label}</option>
+            {statusCfg.review.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
           <select className="input-field" value={payFilter} onChange={(e) => setPayFilter(e.target.value as PaymentStatus | "")}>
             <option value="">지급 상태 전체</option>
-            {(Object.keys(PAYMENT_STATUS_META) as PaymentStatus[]).map((k) => (
-              <option key={k} value={k}>{PAYMENT_STATUS_META[k].label}</option>
+            {statusCfg.payment.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
             ))}
           </select>
         </div>
@@ -191,6 +241,7 @@ export default function ApplicationsPage() {
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
               <th className="text-center whitespace-nowrap">지급 상태</th>
+              {view === "canceled" && <th className="whitespace-nowrap">취소 일시 / IP</th>}
               <th className="whitespace-nowrap">첨부</th>
               <th className="text-center whitespace-nowrap">상세</th>
             </tr>
@@ -198,7 +249,7 @@ export default function ApplicationsPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={13} className="text-center py-12 text-gray-400">
+                <td colSpan={view === "canceled" ? 14 : 13} className="text-center py-12 text-gray-400">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   검색 결과가 없습니다.
                 </td>
@@ -222,8 +273,14 @@ export default function ApplicationsPage() {
                 </td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
-                <td className="text-center"><ReviewBadge status={app.reviewStatus} /></td>
-                <td className="text-center"><PaymentBadge status={app.paymentStatus} /></td>
+                <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "review", app.reviewStatus).badge}`}>{statusMeta(statusCfg, "review", app.reviewStatus).label}</span></td>
+                <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "payment", app.paymentStatus).badge}`}>{statusMeta(statusCfg, "payment", app.paymentStatus).label}</span></td>
+                {view === "canceled" && (
+                  <td className="text-xs whitespace-nowrap text-gray-600">
+                    {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}
+                    <span className="block font-mono text-gray-400">{app.canceledIp || "-"}</span>
+                  </td>
+                )}
                 <td className="text-center text-gray-400">{app.files.length > 0 ? `📎 ${app.files.length}` : "-"}</td>
                 <td className="text-center whitespace-nowrap">
                   <Link href={`/admin/applications/${app.id}`} className="text-[#4f8cff] hover:underline text-xs font-medium">상세</Link>

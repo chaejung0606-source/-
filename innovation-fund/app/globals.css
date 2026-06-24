@@ -2,6 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 히어로 하늘 + 큰 뭉게구름 — 경계는 완전 그라데이션으로 원래 배경과 섞임 */
+.hero-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* 옅은 하늘색 — 위·아래/가장자리가 투명으로 사라져 원래 배경과 완전 블렌딩 */
+.hero-sky .sky-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 50% 45%, rgba(196, 226, 252, 0.45) 0%, rgba(208, 232, 252, 0.28) 45%, rgba(214, 236, 252, 0) 75%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 72%, transparent 100%);
+}
+/* 크고 작은 뭉게구름들 (뭉실뭉실) */
+.hero-sky .cloud {
+  position: absolute;
+  width: 170px;
+  height: 54px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 60px;
+  filter: blur(4px) drop-shadow(0 12px 22px rgba(120, 140, 200, 0.16));
+  will-change: transform;
+  animation-name: cloudFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.hero-sky .cloud::before,
+.hero-sky .cloud::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.93);
+  border-radius: 50%;
+}
+.hero-sky .cloud::before { width: 78px; height: 78px; top: -32px; left: 22px; }
+.hero-sky .cloud::after { width: 106px; height: 106px; top: -52px; right: 20px; }
+@keyframes cloudFloat {
+  0%, 100% { transform: translate(0, 0) scale(var(--s)); }
+  50%      { transform: translate(var(--drift), -16px) scale(calc(var(--s) * 1.04)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-sky .cloud { animation: none; }
+}
+
+/* 리치 텍스트(지원금 유형 안내) 본문 공통 스타일 */
+.rich-content { line-height: 1.6; word-break: keep-all; }
+.rich-content p { margin: 0 0 8px; }
+.rich-content b, .rich-content strong { font-weight: 700; }
+.rich-content ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 8px; }
+.rich-content ol { list-style: decimal; padding-left: 1.25rem; margin: 0 0 8px; }
+.rich-content li { margin: 2px 0; }
+.rich-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.rich-content td, .rich-content th { border: 1px solid #cbd5e1; padding: 6px 8px; }
+.rich-content a { color: #4f8cff; text-decoration: underline; }
+.rich-content [contenteditable]:empty::before { content: ""; }
+
 /* ===== 1. 디자인 토큰 ===== */
 :root {
   --color-bg: #f5f8fc;
@@ -110,41 +169,171 @@
     z-index: 5;
     overflow: visible;
   }
-  /* 무릎 꿇은 캐릭터: 왼쪽 고정 */
+  /* 무릎 꿇은 캐릭터: 엔드바 제일 왼쪽 아래 고정 */
   .walker-still {
     position: absolute;
     bottom: -1px;
-    left: 3%;
+    left: 0;
     height: 54px;
     width: auto;
     display: block;
+    pointer-events: auto;
+    cursor: pointer;
+    transform-origin: center bottom;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
   }
-  /* 개별 보행: 같은 주기·다른 지연 → 한 줄을 이루며 하나씩 유턴 */
+  /* 빨강 클릭 중에는 원본 숨김 (확대 오버레이로 대체) */
+  .walker-still.red-hidden { opacity: 0; }
+  /* 빨강이 있던 자리(좌하단 코너)에서 60배로 커지다 팡 */
+  .red-blast {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .red-blast-img {
+    position: absolute;
+    left: 0.5%;
+    bottom: 6px;
+    height: 54px;
+    width: auto;
+    transform-origin: left bottom;
+    animation: redBlast 1.1s cubic-bezier(0.34, 0.02, 0.5, 1) forwards;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+  }
+  @keyframes redBlast {
+    0%   { transform: scale(1); opacity: 1; filter: blur(0); }
+    15%  { transform: scale(1.4); opacity: 1; }
+    55%  { transform: scale(4) rotate(-1.5deg); opacity: 1; filter: blur(0); }
+    70%  { transform: scale(4.6) rotate(1.5deg); opacity: 0.96; }
+    80%  { transform: scale(4.8); opacity: 0.8; filter: blur(1.5px); }
+    100% { transform: scale(5.6); opacity: 0; filter: blur(7px); }
+  }
+  /* 무지갯빛 비눗방울 — 코너에서 위/바깥으로 떠오르며 팡 */
+  .red-blast .soap-bubble {
+    position: absolute;
+    left: 0.5%;
+    bottom: 10px;
+    border-radius: 50%;
+    opacity: 0;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.15) 32%, rgba(255, 255, 255, 0) 46%),
+      conic-gradient(from 200deg, rgba(255, 209, 240, 0.55), rgba(209, 240, 255, 0.55), rgba(209, 255, 224, 0.55), rgba(255, 240, 209, 0.55), rgba(214, 209, 255, 0.55), rgba(255, 209, 240, 0.55));
+    box-shadow: inset 0 0 14px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    animation: soapFloat 1.3s ease-out forwards;
+  }
+  @keyframes soapFloat {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.2); }
+    18%  { opacity: 0.9; }
+    78%  { opacity: 0.85; }
+    92%  { opacity: 0.7; transform: translate(var(--bx), var(--by)) scale(1.04); }
+    100% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(1.25); filter: blur(1px); }
+  }
+  /* 글리터 입자 (코너에서 위쪽으로 퍼짐) */
+  .red-blast .glit {
+    position: absolute;
+    left: 0.5%;
+    bottom: 10px;
+    border-radius: 2px;
+    clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    opacity: 0;
+    animation: glitFly 1.05s ease-out forwards;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
+  }
+  @keyframes glitFly {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.2) rotate(0deg); }
+    18%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1.3) rotate(240deg); }
+  }
+  /* 개별 보행: 왼쪽 끝~오른쪽 끝 이동(left). 좌우 뒤집기는 안쪽 face가 담당(말풍선은 뒤집히지 않게) */
   .walker {
     position: absolute;
     bottom: -1px;
-    transform-origin: center bottom;
-    will-change: left, transform;
-    animation-name: ridgeWalk;
+    will-change: left;
+    animation-name: ridgeMove;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
-  .walker img {
+  .walker-face {
+    height: 100%;
+    transform-origin: center bottom;
+    will-change: transform;
+    animation-name: walkFace;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .walker-face img {
     height: 100%;
     width: auto;
     display: block;
+    pointer-events: auto;
+    cursor: pointer;
     transform-origin: bottom center;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
     animation: walkBob 0.55s ease-in-out infinite;
   }
-  /* 빨강(left 3%) 앞 좌측 16%에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
-  @keyframes ridgeWalk {
-    0%   { left: 16%; transform: scaleX(-1); }
-    49%  { left: 96%; transform: scaleX(-1); }
-    50%  { left: 96%; transform: scaleX(1); }
-    99%  { left: 16%; transform: scaleX(1); }
-    100% { left: 16%; transform: scaleX(-1); }
+  /* 클릭 시 1회 점프 (이동하면서 점프) */
+  .walker-face img.jump {
+    animation: walkerJump 0.65s ease;
+  }
+  /* 클릭 시 관련 가상학과 말풍선 */
+  .walker-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: #fff;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
+    pointer-events: none;
+    z-index: 6;
+    animation: bubblePop 0.25s ease-out both;
+  }
+  .walker-bubble::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #fff;
+    filter: drop-shadow(0 1px 0 rgba(99, 102, 241, 0.2));
+  }
+  @keyframes bubblePop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.7); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+  @keyframes walkerJump {
+    0%   { transform: translateY(0) scale(1); }
+    30%  { transform: translateY(-30px) scale(1.08, 0.96); }
+    55%  { transform: translateY(-34px) scale(1.04, 0.98); }
+    80%  { transform: translateY(-6px) scale(0.98, 1.04); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  /* 왼쪽 끝(1%)부터 오른쪽 끝(96%)까지 왕복 */
+  @keyframes ridgeMove {
+    0%   { left: 1%; }
+    49%  { left: 96%; }
+    50%  { left: 96%; }
+    99%  { left: 1%; }
+    100% { left: 1%; }
+  }
+  /* 진행방향을 바라보도록 좌우 뒤집기 (이동과 동기) */
+  @keyframes walkFace {
+    0%   { transform: scaleX(-1); }
+    49%  { transform: scaleX(-1); }
+    50%  { transform: scaleX(1); }
+    99%  { transform: scaleX(1); }
+    100% { transform: scaleX(-1); }
   }
   @keyframes walkBob {
     0%, 100% { transform: translateY(0) rotate(-1.5deg); }

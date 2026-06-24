@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, Upload, Trash2, Plus, GraduationCap, Save, Eye, EyeOff } from "lucide-react";
+import { Search, Upload, Trash2, Plus, GraduationCap, Save, Lock } from "lucide-react";
 import * as XLSX from "xlsx";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { ApplicationType } from "@/types";
@@ -13,7 +13,6 @@ interface VStudent {
 
 const ALL_TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate", "labor", "activity"];
 
-const maskName = (n?: string) => !n ? "-" : n.length <= 1 ? n : n[0] + "○".repeat(n.length - 1);
 const matchTerms = (s: VStudent, q: string) => {
   const terms = q.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);
   if (terms.length === 0) return true;
@@ -39,6 +38,19 @@ function rowToStudent(r: Record<string, any>): VStudent | null {
 }
 
 export default function VirtualStudentsPage() {
+  // 진입 시마다 비밀번호 확인 (세션 미저장)
+  const [unlocked, setUnlocked] = useState(false);
+  const [gatePw, setGatePw] = useState("");
+  const [gateErr, setGateErr] = useState("");
+  const tryUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGateErr("");
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
+    const j = await res.json().catch(() => ({ success: false }));
+    if (j.success) { setUnlocked(true); setGatePw(""); }
+    else setGateErr("비밀번호가 올바르지 않습니다.");
+  };
+
   const [list, setList] = useState<VStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,26 +59,16 @@ export default function VirtualStudentsPage() {
   const [cfgSaved, setCfgSaved] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newStu, setNewStu] = useState<VStudent>({ student_id: "", name: "", vdept: "", department: "" });
-  const [revealed, setRevealed] = useState(false);
-
-  const toggleReveal = async () => {
-    if (revealed) { setRevealed(false); return; }
-    const pw = window.prompt("개인정보 전체를 보려면 관리자 비밀번호를 입력하세요.");
-    if (pw == null) return;
-    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
-    const j = await res.json().catch(() => ({ success: false }));
-    if (j.success) setRevealed(true);
-    else alert("비밀번호가 올바르지 않습니다.");
-  };
 
   const load = () => {
     setLoading(true);
     fetch("/api/admin/virtual-students").then((r) => r.json()).then((d) => { setList(Array.isArray(d) ? d : []); setLoading(false); });
   };
   useEffect(() => {
+    if (!unlocked) return;
     load();
     fetch("/api/vdept-config").then((r) => r.json()).then((d) => setRequiredTypes(d.requiredTypes || []));
-  }, []);
+  }, [unlocked]);
 
   const filtered = useMemo(() => list.filter((s) => matchTerms(s, search)), [list, search]);
 
@@ -123,6 +125,21 @@ export default function VirtualStudentsPage() {
     if (j.ok) { setCfgSaved(true); setTimeout(() => setCfgSaved(false), 2500); } else alert("저장 실패: " + (j.error || ""));
   };
 
+  if (!unlocked) return (
+    <AdminLayout>
+      <div className="max-w-sm mx-auto mt-16 card text-center">
+        <div className="glass-pill w-14 h-14 flex items-center justify-center mx-auto mb-3"><Lock className="w-7 h-7 text-indigo-600" /></div>
+        <h1 className="text-lg font-bold text-gray-800 mb-1">가상학과 학생 접근 확인</h1>
+        <p className="text-sm text-gray-500 mb-4">개인정보 보호를 위해 메뉴 진입 시마다 관리자 비밀번호를 입력해주세요.</p>
+        <form onSubmit={tryUnlock} className="space-y-3">
+          <input type="password" className="input-field" value={gatePw} onChange={(e) => setGatePw(e.target.value)} placeholder="관리자 비밀번호" autoFocus />
+          {gateErr && <p className="text-red-500 text-sm">{gateErr}</p>}
+          <button type="submit" disabled={!gatePw} className="btn-primary w-full">확인</button>
+        </form>
+      </div>
+    </AdminLayout>
+  );
+
   return (
     <AdminLayout>
       <h1 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2"><GraduationCap className="w-6 h-6 text-indigo-500" /> 미래융합가상학과 학생</h1>
@@ -153,9 +170,6 @@ export default function VirtualStudentsPage() {
           <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleUpload} disabled={uploading} />
         </label>
         <button onClick={() => setAdding((v) => !v)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 학생 추가</button>
-        <button onClick={toggleReveal} className="btn-secondary text-sm flex items-center gap-1.5">
-          {revealed ? <><EyeOff className="w-4 h-4" /> 가리기</> : <><Eye className="w-4 h-4" /> 전체 정보 보기</>}
-        </button>
         <div className="relative ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표)" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -197,7 +211,7 @@ export default function VirtualStudentsPage() {
                 ) : filtered.map((s) => (
                   <tr key={s.student_id}>
                     <td className="font-mono text-xs">{s.student_id}</td>
-                    <td className="font-medium whitespace-nowrap">{revealed ? (s.name || "-") : maskName(s.name)}</td>
+                    <td className="font-medium whitespace-nowrap">{s.name || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{s.vdept || "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{s.department || "-"}</td>
                     <td className="text-gray-600">{s.grade || "-"}</td>

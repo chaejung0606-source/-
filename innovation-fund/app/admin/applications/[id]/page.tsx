@@ -5,13 +5,9 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
-import {
-  REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER, PAYMENT_STATUS_ORDER,
-} from "@/config/status";
 import AdminLayout from "@/components/admin/AdminLayout";
-
-const REVIEW_STATUSES = REVIEW_STATUS_ORDER;
-const PAYMENT_STATUSES = PAYMENT_STATUS_ORDER;
+import DraggableWindow from "@/components/admin/DraggableWindow";
+import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -26,6 +22,27 @@ export default function ApplicationDetailPage() {
   const [syncing, setSyncing] = useState(false);
   // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
   const [vAccount, setVAccount] = useState<{ bankName: string; accountNumber: string; accountHolder: string; residentNumber: string }>({ bankName: "", accountNumber: "", accountHolder: "", residentNumber: "" });
+  // 검토/지급 상태 옵션 설정 (수정·추가·삭제 가능)
+  const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
+  const [statusEdit, setStatusEdit] = useState(false);
+  const [cfgSaving, setCfgSaving] = useState(false);
+  useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
+  const setOpts = (kind: "review" | "payment", opts: StatusOpt[]) => setStatusCfg((c) => ({ ...c, [kind]: opts }));
+  const addOpt = (kind: "review" | "payment") => setOpts(kind, [...statusCfg[kind], { key: newStatusKey(), label: "새 상태", badge: BADGE_PRESETS[0].badge }]);
+  const updOpt = (kind: "review" | "payment", i: number, patch: Partial<StatusOpt>) => setOpts(kind, statusCfg[kind].map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
+  const removeOpt = (kind: "review" | "payment", i: number) => { if (statusCfg[kind].length <= 1) return; setOpts(kind, statusCfg[kind].filter((_, idx) => idx !== i)); };
+  const saveStatusCfg = async () => {
+    setCfgSaving(true);
+    try {
+      const res = await fetch("/api/admin/status-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(statusCfg) });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (j.ok) { setStatusEdit(false); alert("상태 옵션이 저장되었습니다."); }
+      else alert("저장 실패: " + (j.error || res.status));
+    } finally { setCfgSaving(false); }
+  };
+
+  // 첨부파일 미리보기 — 이동 가능한 임시 팝업창
+  const [fileWin, setFileWin] = useState<{ name: string; url?: string } | null>(null);
 
   // 인쇄양식(첨부 삽입 포함) 미리보기 — 크기 조정·이동 가능한 작은 새 창
   const openPreview = (doc: string) => {
@@ -84,6 +101,7 @@ export default function ApplicationDetailPage() {
       }),
     });
     setSaving(false);
+    setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) } : a));
     alert("저장되었습니다.");
   };
 
@@ -259,23 +277,27 @@ export default function ApplicationDetailPage() {
           <h1 className="text-xl font-bold text-gray-800">{app.name} 신청 상세</h1>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => openPreview("form")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 신청서
-          </button>
-          <button onClick={() => openPreview("evidence")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 증빙서류
+          <button onClick={() => openPreview("payment")} className="btn-secondary text-sm flex items-center gap-1.5">
+            <FileText className="w-4 h-4" /> 지출자료
           </button>
           <button onClick={() => openPreview("review")} className="btn-secondary text-sm flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> 심의요청서
-          </button>
-          <button onClick={() => openPreview("payment")} className="btn-secondary text-sm flex items-center gap-1.5">
-            <FileText className="w-4 h-4" /> 지출자료
           </button>
           <button onClick={driveSync} disabled={syncing} className="btn-secondary text-sm flex items-center gap-1.5">
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "동기화 중..." : "Drive 재동기화"}
           </button>
         </div>
       </div>
+
+      {app.canceled && (
+        <div className="card mb-6" style={{ background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.3)" }}>
+          <h2 className="section-title" style={{ color: "#be123c" }}>신청자 취소 정보</h2>
+          <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-[80px]">취소 일시</dt><dd className="font-medium">{app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}</dd></div>
+            <div className="flex gap-2"><dt className="text-gray-500 min-w-[80px]">취소 IP</dt><dd className="font-mono font-medium">{app.canceledIp || "-"}</dd></div>
+          </dl>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
@@ -324,19 +346,6 @@ export default function ApplicationDetailPage() {
                 </div>
               );
             })()}
-
-            {/* 관리자 확인 입력 — 화면에서는 마스킹, 인쇄/내보내기에만 전체 표시 */}
-            <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)" }}>
-              <p className="text-xs font-semibold text-emerald-700 mb-1">관리자 확인 입력 (계좌·주민번호)</p>
-              <p className="text-[11px] text-gray-400 mb-2">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
-              <div className="grid sm:grid-cols-3 gap-2">
-                <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
-                <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
-                <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
-                <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">※ 저장하려면 아래 &lsquo;상태 관리&rsquo;의 저장 버튼을 누르세요.</p>
-            </div>
           </div>
 
           <div className="card">
@@ -377,7 +386,8 @@ export default function ApplicationDetailPage() {
                   const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
                   const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
                   return (
-                    <div key={f.id} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+                    <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
+                      className="rounded-2xl overflow-hidden text-left hover:ring-2 hover:ring-indigo-300 transition" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
                       <div className="flex items-center gap-2 px-3 py-2 text-xs">
                         <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                         <span className="font-medium truncate flex-1">{f.name}</span>
@@ -387,35 +397,92 @@ export default function ApplicationDetailPage() {
                         {f.url && isImage ? (
                           <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
                         ) : f.url && isPdf ? (
-                          <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">PDF 새 창에서 보기</a>
+                          <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
                         ) : (
-                          <span className="text-gray-400 text-xs">{f.url ? "미리보기 불가" : "미리보기 없음"}</span>
+                          <span className="text-gray-400 text-xs">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {/* 관리자 확인 입력 — 첨부파일 아래. 미입력 시 빨강, 저장 후 초록 */}
+          {(() => {
+            const confirmed = !!(app.verifiedAccount?.accountNumber || app.verifiedAccount?.residentNumber);
+            const theme = confirmed
+              ? { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.35)", title: "#047857" }
+              : { bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.4)", title: "#b91c1c" };
+            return (
+              <div className="card" style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="section-title mb-0" style={{ color: theme.title }}>관리자 확인 입력 (계좌·주민번호)</h2>
+                  <span className="badge" style={{ background: confirmed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: theme.title }}>
+                    {confirmed ? "입력 완료" : "미입력"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mb-3">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
+                  <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
+                  <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
+                  <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
+                </div>
+                <p className="text-[11px] mt-2" style={{ color: confirmed ? "#047857" : "#b91c1c" }}>
+                  {confirmed ? "✓ 확인 정보가 저장되었습니다. 수정 후에는 ‘상태 관리’의 저장 버튼을 다시 누르세요." : "※ 아직 저장되지 않았습니다. 입력 후 ‘상태 관리’의 저장 버튼을 누르세요."}
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="space-y-4">
           <div className="card">
-            <h2 className="section-title">상태 관리</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="section-title mb-0">상태 관리</h2>
+              <button onClick={() => setStatusEdit((v) => !v)} className="text-xs text-indigo-600 hover:underline">{statusEdit ? "옵션 편집 닫기" : "옵션 편집"}</button>
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="label">검토 상태</label>
                 <select className="input-field" value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value as ReviewStatus)}>
-                  {REVIEW_STATUSES.map((s) => <option key={s} value={s}>{REVIEW_STATUS_META[s].label}</option>)}
+                  {statusCfg.review.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="label">지급 상태</label>
                 <select className="input-field" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}>
-                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{PAYMENT_STATUS_META[s].label}</option>)}
+                  {statusCfg.payment.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
                 </select>
               </div>
+
+              {/* 상태 옵션 편집 (수정·추가·삭제) */}
+              {statusEdit && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-3">
+                  <p className="text-[11px] text-gray-500">드롭다운에 표시될 상태 옵션을 수정·추가·삭제합니다. 저장하면 모든 신청서에 공통 적용됩니다.</p>
+                  {(["review", "payment"] as const).map((kind) => (
+                    <div key={kind}>
+                      <p className="text-xs font-semibold text-gray-600 mb-1.5">{kind === "review" ? "검토 상태" : "지급 상태"} 옵션</p>
+                      <div className="space-y-1.5">
+                        {statusCfg[kind].map((o, i) => (
+                          <div key={o.key} className="flex items-center gap-1.5">
+                            <input className="input-field !py-1 text-xs flex-1" value={o.label} onChange={(e) => updOpt(kind, i, { label: e.target.value })} placeholder="상태명" />
+                            <select className="input-field !py-1 !w-auto text-xs" value={o.badge} onChange={(e) => updOpt(kind, i, { badge: e.target.value })}>
+                              {BADGE_PRESETS.map((b) => <option key={b.badge} value={b.badge}>{b.name}</option>)}
+                            </select>
+                            <span className={`badge ${o.badge}`}>{o.label || "예시"}</span>
+                            <button onClick={() => removeOpt(kind, i)} disabled={statusCfg[kind].length <= 1} className="text-gray-400 hover:text-red-500 disabled:opacity-30 text-lg leading-none px-1">×</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addOpt(kind)} className="text-xs text-indigo-600 hover:underline">＋ 옵션 추가</button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={saveStatusCfg} disabled={cfgSaving} className="btn-secondary text-xs w-full">{cfgSaving ? "저장 중..." : "상태 옵션 저장"}</button>
+                </div>
+              )}
               <div>
                 <label className="label">최종 승인 금액 (원)</label>
                 <input
@@ -450,6 +517,21 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
       </div>
+
+      {fileWin && (
+        <DraggableWindow title={fileWin.name} onClose={() => setFileWin(null)}>
+          {fileWin.url ? (
+            (fileWin.url.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(fileWin.name)) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fileWin.url} alt={fileWin.name} className="max-w-full max-h-full object-contain" />
+            ) : (
+              <iframe src={fileWin.url} title={fileWin.name} className="w-full h-full bg-white" style={{ border: "none" }} />
+            )
+          ) : (
+            <span className="text-gray-400 text-sm">미리보기를 불러올 수 없습니다.</span>
+          )}
+        </DraggableWindow>
+      )}
     </AdminLayout>
   );
 }

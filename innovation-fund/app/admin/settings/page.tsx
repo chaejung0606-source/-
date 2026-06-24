@@ -6,7 +6,7 @@ import { APPLICATION_TYPE_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import {
   type ExportSetting, type ExportSettings,
-  DEFAULT_FILENAME, getExportSettings, saveExportSettings,
+  DEFAULT_FILENAME, EXPORT_KINDS, getExportSettings, saveExportSettings,
 } from "@/lib/export-settings";
 
 const TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate"];
@@ -21,6 +21,10 @@ export default function SettingsPage() {
 
   const update = (type: ApplicationType, field: keyof ExportSetting, value: string) => {
     setSettings((prev) => ({ ...prev, [type]: { ...(prev[type] || { filename: DEFAULT_FILENAME, path: "" }), [field]: value } }));
+    setSaved(false);
+  };
+  const updateKind = (key: string, field: keyof ExportSetting, value: string, def: string) => {
+    setSettings((prev) => ({ ...prev, [key]: { ...(prev[key] || { filename: def, path: "" }), [field]: value } }));
     setSaved(false);
   };
 
@@ -43,6 +47,30 @@ export default function SettingsPage() {
           <p className="mt-1 text-blue-600">※ 브라우저 보안상 폴더에 자동 저장은 불가합니다. 경로는 관리자용 보관 안내(메모)로 사용되며, 저장 시 파일명이 자동으로 채워집니다.</p>
         </div>
       </div>
+
+      {/* 엑셀 다운로드 종류별 설정 */}
+      <h2 className="font-bold text-gray-800 mb-2">엑셀 다운로드</h2>
+      <p className="text-gray-500 text-sm mb-3">목록 다운로드(전체·선택)의 파일명·경로를 설정합니다. ※ 지출자료·심의요청서 PDF는 각 신청 건의 <strong>유형에 맞춰 파일명이 자동</strong> 설정됩니다.</p>
+      <div className="space-y-3 mb-8">
+        {EXPORT_KINDS.map((k) => (
+          <div key={k.key} className="card">
+            <h3 className="font-bold text-gray-800">{k.label}</h3>
+            <p className="text-xs text-gray-400 mb-3">{k.desc}</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">파일명 형식</label>
+                <input className="input-field" value={settings[k.key]?.filename ?? k.defaultName} onChange={(e) => updateKind(k.key, "filename", e.target.value, k.defaultName)} placeholder={k.defaultName} />
+              </div>
+              <div>
+                <label className="label">보관 경로 (메모)</label>
+                <input className="input-field" value={settings[k.key]?.path ?? ""} onChange={(e) => updateKind(k.key, "path", e.target.value, k.defaultName)} placeholder="예: 2026 지출자료" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="font-bold text-gray-800 mb-2">지급신청서 (유형별)</h2>
 
       <div className="space-y-3">
         {TYPES.map((type) => (

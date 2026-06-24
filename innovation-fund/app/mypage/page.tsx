@@ -11,7 +11,7 @@ import TimetableEditor from "@/components/mypage/TimetableEditor";
 import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
-import { REVIEW_STATUS_META, PAYMENT_STATUS_META, REVIEW_STATUS_ORDER } from "@/config/status";
+import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 
 const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학교", "연세대학교(미래)", "상지대학교", "가톨릭관동대학교", "경동대학교"];
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
@@ -27,6 +27,8 @@ export default function MyPage() {
   const [name, setName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [apps, setApps] = useState<Application[]>([]);
+  const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
+  useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>({ name: "", campus: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
@@ -144,9 +146,10 @@ export default function MyPage() {
     }
   };
 
-  const cancelApp = async (app: Application) => {
-    if (app.canceled) return;
-    if (!confirm(`이 신청(${app.receiptNumber || "-"})을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`)) return;
+  // 삭제(취소) 확인 모달
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null);
+
+  const doCancel = async (app: Application) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch("/api/applications/cancel", {
       method: "POST",
@@ -155,7 +158,18 @@ export default function MyPage() {
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) load();
-    else alert("취소 실패: " + (j.error || "알 수 없는 오류"));
+    else alert("실패: " + (j.error || "알 수 없는 오류"));
+  };
+  const requestDelete = (app: Application, isDraft: boolean) => {
+    if (app.canceled) return;
+    setConfirmState({
+      title: isDraft ? "임시저장 삭제" : "신청 취소",
+      message: isDraft
+        ? "이 임시저장 내용을 삭제하시겠습니까?\n삭제 후에는 되돌릴 수 없습니다."
+        : `이 신청(${app.receiptNumber || "-"})을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`,
+      confirmLabel: isDraft ? "삭제" : "신청 취소",
+      onConfirm: () => doCancel(app),
+    });
   };
 
   const setP = (key: keyof Profile, val: string) => setProfile((p) => ({ ...p, [key]: val }));
@@ -212,7 +226,7 @@ export default function MyPage() {
         <div className="card">
           <button
             type="button"
-            onClick={() => setProfileOpen((o) => !o)}
+            onClick={() => { if (profileOpen) setProfileOpen(false); else requirePassword(() => setProfileOpen(true)); }}
             className="w-full flex items-center justify-between gap-2 text-left"
           >
             <div className="flex items-center gap-2">
@@ -299,7 +313,7 @@ export default function MyPage() {
                 <button type="button" onClick={() => setProfileOpen(false)} className="btn-secondary text-sm">취소</button>
                 <button
                   type="button"
-                  onClick={() => requirePassword(saveProfile)}
+                  onClick={saveProfile}
                   disabled={profileSaving || !profile.name}
                   className="btn-primary text-sm disabled:opacity-60"
                 >
@@ -314,7 +328,7 @@ export default function MyPage() {
         <div className="card">
           <button
             type="button"
-            onClick={() => setTtOpen((o) => !o)}
+            onClick={() => { if (ttOpen) setTtOpen(false); else requirePassword(() => setTtOpen(true)); }}
             className="w-full flex items-center justify-between gap-2 text-left"
           >
             <div className="flex items-center gap-2">
@@ -332,7 +346,7 @@ export default function MyPage() {
               </div>
               <TimetableEditor value={timetable} onChange={setTimetable} />
               <div className="flex justify-end">
-                <button type="button" onClick={() => requirePassword(saveTimetable)} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
+                <button type="button" onClick={saveTimetable} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
                   {ttSaving ? "저장 중..." : "시간표 저장"}
                 </button>
               </div>
@@ -355,7 +369,7 @@ export default function MyPage() {
                   <div className="text-xs text-gray-500 mt-1">마지막 저장 {fmtDate(d.updatedAt || d.createdAt)}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => cancelApp(d)} className="text-xs text-gray-400 hover:text-rose-500">삭제</button>
+                  <button onClick={() => requestDelete(d, true)} className="text-xs text-gray-400 hover:text-rose-500">삭제</button>
                   <Link href={`/apply?draft=${d.id}&mode=${d.applicationPhase || "fund"}`} className="btn-primary text-sm flex items-center gap-1.5">
                     이어서 신청 <ChevronRight className="w-4 h-4" />
                   </Link>
@@ -378,10 +392,10 @@ export default function MyPage() {
         ) : (
           <div className="space-y-4">
             {submitted.map((app) => {
-              const rm = REVIEW_STATUS_META[app.reviewStatus];
-              const pm = PAYMENT_STATUS_META[app.paymentStatus];
-              const stepIdx = REVIEW_STATUS_ORDER.indexOf(app.reviewStatus);
-              const totalSteps = REVIEW_STATUS_ORDER.length;
+              const rm = statusMeta(statusCfg, "review", app.reviewStatus);
+              const pm = statusMeta(statusCfg, "payment", app.paymentStatus);
+              const stepIdx = statusCfg.review.findIndex((o) => o.key === app.reviewStatus);
+              const totalSteps = statusCfg.review.length;
               return (
                 <div key={app.id} className={`card ${app.canceled ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -394,7 +408,7 @@ export default function MyPage() {
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         신청일 {fmtDate(app.createdAt)}
-                        {app.canceled && app.canceledAt && ` · 취소일 ${fmtDate(app.canceledAt)}`}
+                        {app.canceled && app.canceledAt && ` · 취소 일시 ${new Date(app.canceledAt).toLocaleString("ko-KR")}`}
                       </div>
                     </div>
                     {!app.canceled && (
@@ -409,9 +423,9 @@ export default function MyPage() {
                   {!app.canceled && (
                   <div className="mt-4">
                     <div className="flex gap-1">
-                      {REVIEW_STATUS_ORDER.map((s, i) => (
+                      {statusCfg.review.map((o, i) => (
                         <div
-                          key={s}
+                          key={o.key}
                           className="flex-1 h-1.5 rounded-full"
                           style={{ background: app.reviewStatus === "rejected" ? "#fca5a5" : i <= stepIdx ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(0,0,0,0.08)" }}
                         />
@@ -439,14 +453,30 @@ export default function MyPage() {
                   </div>
                   )}
 
-                  {/* 지원신청 → 지원금 신청 연계 */}
+                  {/* 지원신청 → 지원금 신청 연계 (관리자 승인 시에만 가능) */}
                   {!app.canceled && app.applicationPhase === "pre" && (
-                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <span className="text-xs text-gray-600">활동을 마치셨다면 이 내역으로 지원금을 신청하세요. 중복 항목이 자동 입력됩니다.</span>
-                      <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
-                        지원금 신청 <ChevronRight className="w-4 h-4" />
-                      </Link>
-                    </div>
+                    app.reviewStatus === "approved" ? (
+                      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                        <span className="text-xs text-gray-600">✅ 지원신청이 <strong>승인</strong>되었습니다. 활동을 마치셨다면 이 내역으로 지원금을 신청하세요. (중복 항목 자동 입력)</span>
+                        <Link href={`/apply?from=${app.id}`} className="btn-primary text-sm flex items-center gap-1.5 shrink-0">
+                          지원금 신청하기 <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    ) : app.reviewStatus === "rejected" ? (
+                      <div className="mt-4 flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2.5" style={{ background: "rgba(244,63,94,0.07)", border: "1px solid rgba(244,63,94,0.25)" }}>
+                        <span className="text-xs text-rose-700">⛔ 지원신청이 <strong>반려</strong>되어 지원금 신청을 진행할 수 없습니다.</span>
+                        <button
+                          onClick={() => alert(`지원금 신청 불가\n\n사유: ${app.adminMemo || "지원신청이 반려되었습니다. 자세한 사항은 사업단에 문의해주세요."}`)}
+                          className="btn-secondary text-sm shrink-0"
+                        >
+                          사유 보기
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-xl px-3 py-2.5 text-xs text-gray-500" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
+                        ⏳ 관리자 <strong>승인</strong> 후 지원금 신청이 가능합니다. (현재 검토 상태: {statusMeta(statusCfg, "review", app.reviewStatus).label})
+                      </div>
+                    )
                   )}
 
                   {app.adminMemo && (
@@ -458,7 +488,7 @@ export default function MyPage() {
                   {/* 신청 취소 */}
                   {!app.canceled && (
                     <div className="mt-3 flex justify-end">
-                      <button onClick={() => cancelApp(app)} className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
+                      <button onClick={() => requestDelete(app, false)} className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
                         <XCircle className="w-3.5 h-3.5" /> 신청 취소
                       </button>
                     </div>
@@ -473,6 +503,27 @@ export default function MyPage() {
           ※ 신청 내역과 진행 상황은 본인 계정에서만 조회됩니다. 처리 상태는 사업단 검토에 따라 갱신됩니다.
         </p>
       </main>
+
+      {/* 삭제/취소 확인 모달 */}
+      {confirmState && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setConfirmState(null)} />
+          <div className="modal relative w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">{confirmState.title}</h2>
+            <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">{confirmState.message}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmState(null)} className="btn-secondary flex-1">돌아가기</button>
+              <button
+                onClick={() => { const fn = confirmState.onConfirm; setConfirmState(null); fn(); }}
+                className="btn-primary flex-1"
+                style={{ background: "linear-gradient(90deg,#f43f5e,#e11d48)" }}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 비밀번호 확인 모달 */}
       {pwOpen && (

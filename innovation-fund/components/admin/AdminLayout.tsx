@@ -2,15 +2,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap } from "lucide-react";
+import { Shield, LayoutDashboard, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award } from "lucide-react";
 
 const NAV = [
-  { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/admin/applications", label: "신청 목록", icon: FileText },
   { href: "/admin/applicants", label: "신청자 정보", icon: Users },
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap },
   { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange },
   { href: "/admin/content", label: "지원금 유형 안내", icon: ListChecks },
+  { href: "/admin/certificates", label: "자격증 목록", icon: Award },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal },
   { href: "/admin/settings", label: "파일 저장 경로", icon: Settings },
 ];
@@ -25,7 +25,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const doLogout = async () => {
     try { await fetch("/api/admin/logout", { method: "POST" }); } catch { /* ignore */ }
-    router.push("/admin/login");
+    // 로그아웃 후에는 비밀번호 입력 화면이 아닌 메인 사이트로 이동 (바로 로그아웃)
+    router.push("/");
   };
 
   const SidebarContent = () => (

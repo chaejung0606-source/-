@@ -69,12 +69,16 @@ export interface Program {
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
   reportFields?: ReportField[];    // 지원금 신청(fund) 신청자 입력 항목
   preReportFields?: ReportField[]; // 지원신청(pre) 신청자 입력 항목
+  // 전체 신청 폼 빌더 스키마 (단계·항목·필수여부). 있으면 신청자 폼을 이 스키마로 구성.
+  preFormSchema?: import("./form-schema").FormSchema;  // 지원신청(pre)
+  fundFormSchema?: import("./form-schema").FormSchema; // 지원금 신청(fund)
   preApply?: boolean;       // 지원신청(활동 전) 가능 여부 (구버전 호환)
   preApplyStart?: string;   // 지원신청 시작 YYYY-MM-DD
   preApplyEnd?: string;     // 지원신청 마감 YYYY-MM-DD
   applyStart: string;       // 지원금 신청 시작 YYYY-MM-DD
   applyEnd: string;         // 지원금 신청 마감 YYYY-MM-DD
   note: string;             // 비고
+  enabled?: boolean;        // 활성/비활성 (false면 신청·세부내용에서 숨김). 기본 활성
 }
 
 // 프로그램의 역할 목록 (roles 우선, 없으면 단일 role 폴백)
@@ -113,6 +117,7 @@ function rowToProgram(r: any): Program {
     preApplyStart: r.pre_apply_start || undefined,
     preApplyEnd: r.pre_apply_end || undefined,
     applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "",
+    enabled: r.enabled !== false,
   };
 }
 export function programToRow(p: Program): Record<string, any> {
@@ -127,6 +132,7 @@ export function programToRow(p: Program): Record<string, any> {
     pre_apply_start: p.preApplyStart || null,
     pre_apply_end: p.preApplyEnd || null,
     apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "",
+    enabled: p.enabled !== false,
   };
 }
 
@@ -148,8 +154,9 @@ export function applyWindow(p: Program, phase: ApplyPhase = "fund"): { start: st
   return { start: p.applyStart, end: p.applyEnd };
 }
 
-// 지정 날짜에 신청 가능 여부 (기본: 오늘)
+// 지정 날짜에 신청 가능 여부 (기본: 오늘). 비활성(enabled=false) 프로그램은 항상 false
 export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "fund"): boolean {
+  if (p.enabled === false) return false;
   const d = date || new Date().toISOString().split("T")[0];
   const { start, end } = applyWindow(p, phase);
   return !!start && !!end && start <= d && d <= end;
