@@ -199,7 +199,7 @@ export default function Home() {
         {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
         <section className="space-y-6">
           {/* 1행: 지원신청 (활동 전) */}
-          <div className="max-w-3xl mx-auto">
+          <div>
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">📝</span> 지원신청 <span className="text-sm font-normal text-gray-500">— 활동 시작 전 참여 신청</span>
             </h2>
@@ -221,7 +221,7 @@ export default function Home() {
           </div>
 
           {/* 2행: 지원금 신청 (활동 후) */}
-          <div className="max-w-3xl mx-auto">
+          <div>
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">💸</span> 지원금 신청 <span className="text-sm font-normal text-gray-500">— 활동 종료 후 지원금 신청</span>
             </h2>
