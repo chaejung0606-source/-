@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
   const del = await admin.from("programs").delete().neq("id", "___never___");
   if (del.error) return NextResponse.json({ error: del.error.message }, { status: 500 });
   if (programs.length) {
-    const ins = await admin.from("programs").insert((programs as Program[]).map(programToRow));
+    const rows = (programs as Program[]).map(programToRow);
+    let ins = await admin.from("programs").insert(rows);
+    // enabled 컬럼이 없으면(마이그레이션 전) 해당 필드 제외하고 재시도
+    if (ins.error) ins = await admin.from("programs").insert(rows.map(({ enabled, ...r }) => r));
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
   }
   return NextResponse.json({ ok: true });

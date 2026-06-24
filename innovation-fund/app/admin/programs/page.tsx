@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, isProgramActive, effectiveReportFields, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, cloneSchema } from "@/lib/form-schema";
 
@@ -167,31 +167,44 @@ export default function ProgramsAdminPage() {
           <div className="flex flex-wrap gap-1.5">
             {list.filter((p) => p.category === selectedCat).length === 0 ? (
               <p className="text-xs text-gray-400">등록된 프로그램이 없습니다. &lsquo;프로그램 추가&rsquo;로 생성하세요.</p>
-            ) : list.filter((p) => p.category === selectedCat).map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedId(p.id)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${selectedId === p.id ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
-              >
-                {p.name || "(이름 없음)"}
-              </button>
-            ))}
+            ) : [...list.filter((p) => p.category === selectedCat)]
+                .sort((a, b) => (a.enabled === false ? 1 : 0) - (b.enabled === false ? 1 : 0))
+                .map((p) => {
+                  const off = p.enabled === false;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedId(p.id)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+                        selectedId === p.id
+                          ? "bg-indigo-500 text-white border-indigo-500"
+                          : off
+                            ? "bg-gray-200 border-gray-200 text-gray-400 hover:text-gray-500"
+                            : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"
+                      }`}
+                    >
+                      {p.name || "(이름 없음)"}{off ? " (비활성)" : ""}
+                    </button>
+                  );
+                })}
           </div>
         </div>
       )}
 
       {/* 3단계: 선택한 프로그램 수정 */}
       {selectedCat && list.filter((p) => p.category === selectedCat && p.id === selectedId).map((p) => {
-        const active = isProgramActive(p, undefined, "fund");
-        const preActive = isProgramActive(p, undefined, "pre");
         const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
+        const off = p.enabled === false;
         return (
           <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
             <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`badge ${preActive ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>지원신청 {preActive ? "가능" : "기간 아님"}</span>
-                <span className={`badge ${active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>지원금 신청 {active ? "가능" : "기간 아님"}</span>
-              </div>
+              <button
+                onClick={() => update(p.id, { enabled: off })}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${off ? "bg-gray-200 text-gray-500 border-gray-300" : "bg-emerald-500 text-white border-emerald-500"}`}
+                title="클릭하여 활성/비활성 전환"
+              >
+                {off ? "● 비활성 (신청·세부내용에서 숨김)" : "● 활성"}
+              </button>
               <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
             {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 */}
