@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS student_profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 지원신청(pre) 없이도 지원금 신청을 허용할 학생(관리자 지정)
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre BOOLEAN DEFAULT FALSE;
+
 ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 
 -- 본인 프로필만 조회/수정/생성

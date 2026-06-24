@@ -12,7 +12,11 @@ export type FormFieldType =
   | "agreement"     // 서약(동의)
   | "signature"     // 서명
   | "applicantInfo" // 표준 블록: 기본정보(이름·학번·학과 등)
-  | "account";      // 표준 블록: 계좌 정보
+  | "account"       // 표준 블록: 계좌 정보
+  | "workLog"       // 표준 블록: 근무상황부(날짜·시간·근무시간)
+  | "transport"     // 표준 블록: 교통비(다중 행)
+  | "registration"  // 표준 블록: 등록비(+증빙)
+  | "lodging";      // 표준 블록: 숙박비(개인/단체 한도)
 
 export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   shortText: "한 줄 입력",
@@ -25,10 +29,14 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   signature: "서명",
   applicantInfo: "기본정보(표준)",
   account: "계좌정보(표준)",
+  workLog: "근무상황부(표준)",
+  transport: "교통비(표준)",
+  registration: "등록비(표준)",
+  lodging: "숙박비(표준)",
 };
 
 // 표준 블록(여러 칸이 묶여있는) 타입 — 라벨/필수만 의미가 있고 옵션 없음
-export const STANDARD_TYPES: FormFieldType[] = ["applicantInfo", "account"];
+export const STANDARD_TYPES: FormFieldType[] = ["applicantInfo", "account", "workLog", "transport", "registration", "lodging"];
 
 export interface FormField {
   id: string;

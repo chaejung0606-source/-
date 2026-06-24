@@ -73,6 +73,68 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 h-24 flex items-center justify-center text-gray-400 text-sm">여기에 서명</div>
         </div>
       );
+    case "workLog":
+      return (
+        <div>
+          <label className="label">{f.label || "근무상황부"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div><span className="text-[11px] text-gray-500">근무일자</span><input type="date" className="input-field bg-white" disabled /></div>
+              <div><span className="text-[11px] text-gray-500">시작</span><input type="time" className="input-field bg-white" disabled /></div>
+              <div><span className="text-[11px] text-gray-500">종료</span><input type="time" className="input-field bg-white" disabled /></div>
+              <div className="flex items-end"><button className="btn-secondary text-xs w-full" disabled>＋ 등록</button></div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs bg-white rounded-lg px-2.5 py-1.5 border border-gray-100 text-gray-400">
+              <span className="font-medium">YYYY-MM-DD (월)</span><span>09:00 ~ 18:00</span><span className="text-primary-600 font-semibold">8시간</span>
+              <input className="flex-1 min-w-[100px] border-b border-gray-200 bg-transparent" placeholder="상세내역" disabled />
+            </div>
+            <p className="text-[11px] text-gray-400">날짜·시간을 등록하면 근무시간이 자동 합산됩니다. (여러 날짜 일괄 등록 가능)</p>
+          </div>
+        </div>
+      );
+    case "transport":
+      return (
+        <div>
+          <label className="label">{f.label || "교통비"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div><span className="text-[11px] text-gray-500">사용일자</span><input type="date" className="input-field bg-white" disabled /></div>
+              <div><span className="text-[11px] text-gray-500">교통수단</span><select className="input-field bg-white" disabled><option>버스/기차/택시…</option></select></div>
+              <div><span className="text-[11px] text-gray-500">금액(원)</span><input className="input-field bg-white" placeholder="0" disabled /></div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <div><span className="text-[11px] text-gray-500">출발지</span><input className="input-field bg-white" placeholder="예: 춘천" disabled /></div>
+              <div><span className="text-[11px] text-gray-500">도착지</span><input className="input-field bg-white" placeholder="예: 서울" disabled /></div>
+            </div>
+            <button className="w-full rounded-lg border border-dashed border-gray-300 py-1.5 text-xs text-gray-400" disabled>＋ 교통비 항목 추가 (행별 증빙 첨부)</button>
+          </div>
+        </div>
+      );
+    case "registration":
+      return (
+        <div>
+          <label className="label">{f.label || "등록비"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 grid sm:grid-cols-2 gap-2 items-end">
+            <div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field bg-white" placeholder="0" disabled /></div>
+            <div className="upload-card p-3 text-center text-gray-400 text-xs bg-white flex items-center justify-center gap-1"><Upload className="w-4 h-4 opacity-60" /> 증빙(참가확인서 등) 업로드</div>
+          </div>
+        </div>
+      );
+    case "lodging":
+      return (
+        <div>
+          <label className="label">{f.label || "숙박비"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1 text-xs" disabled>개인사용</button>
+              <button className="btn-secondary flex-1 text-xs" disabled>단체사용</button>
+            </div>
+            <div><span className="text-[11px] text-gray-500">숙소 결제금액(원)</span><input className="input-field bg-white" placeholder="0" disabled /></div>
+            <p className="text-[11px] text-gray-400">※ 숙박비는 1인 70,000원 한도까지 지원됩니다. (단체사용 시 개인 부담금액 입력)</p>
+            <div className="upload-card p-3 text-center text-gray-400 text-xs bg-white flex items-center justify-center gap-1"><Upload className="w-4 h-4 opacity-60" /> 숙박 영수증·숙박확인증 업로드</div>
+          </div>
+        </div>
+      );
     default:
       return null;
   }

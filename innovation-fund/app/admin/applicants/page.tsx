@@ -8,6 +8,7 @@ import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 interface Applicant {
   id: string; student_id: string; name: string;
   department?: string; phone?: string; email?: string; university?: string;
+  skip_pre?: boolean;
 }
 
 const progNameOf = (a: Application): string =>
@@ -55,6 +56,17 @@ export default function ApplicantsPage() {
       .forEach((a) => { (m[progNameOf(a)] ||= []).push(a); });
     return Object.entries(m).sort((x, y) => x[0].localeCompare(y[0], "ko"));
   }, [apps]);
+
+  const toggleSkipPre = async (a: Applicant) => {
+    const allow = !a.skip_pre;
+    if (allow && !window.confirm(`${a.name}(${a.student_id})님이 '지원신청' 없이도 바로 지원금 신청을 할 수 있도록 허용할까요?`)) return;
+    setList((l) => l.map((x) => x.id === a.id ? { ...x, skip_pre: allow } : x));
+    const res = await fetch("/api/admin/applicants/skip-pre", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, allow }),
+    });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (!j.ok) { setList((l) => l.map((x) => x.id === a.id ? { ...x, skip_pre: !allow } : x)); alert("변경 실패: " + (j.error || res.status)); }
+  };
 
   const resetPw = async (a: Applicant) => {
     const pw = window.prompt(`${a.name}(${a.student_id})님의 새 비밀번호를 입력하세요. (6자 이상)`);
@@ -116,12 +128,13 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
                   <th className="whitespace-nowrap">비밀번호</th>
+                  <th className="text-center whitespace-nowrap">지원신청 면제</th>
                   <th className="text-center whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
                 ) : filtered.map((a) => (
                   <tr key={a.id}>
                     <td className="font-mono text-xs">{a.student_id}</td>
@@ -130,6 +143,15 @@ export default function ApplicantsPage() {
                     <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
                     <td className="text-gray-400">•••••• (비공개)</td>
+                    <td className="text-center">
+                      <button
+                        onClick={() => toggleSkipPre(a)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${a.skip_pre ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 text-gray-500 border-gray-200 hover:border-emerald-300"}`}
+                        title="지원신청 없이 지원금 신청 허용 여부"
+                      >
+                        {a.skip_pre ? "허용됨" : "허용"}
+                      </button>
+                    </td>
                     <td className="text-center">
                       <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
                         <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
