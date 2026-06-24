@@ -319,13 +319,13 @@
     80%  { transform: translateY(-6px) scale(0.98, 1.04); }
     100% { transform: translateY(0) scale(1); }
   }
-  /* 왼쪽 끝(1%)부터 오른쪽 끝(96%)까지 왕복 */
+  /* 왼쪽 빨강(고정) 캐릭터와 겹치지 않도록 70px 지점에서 유턴, 오른쪽 끝(96%)까지 왕복 */
   @keyframes ridgeMove {
-    0%   { left: 1%; }
+    0%   { left: 70px; }
     49%  { left: 96%; }
     50%  { left: 96%; }
-    99%  { left: 1%; }
-    100% { left: 1%; }
+    99%  { left: 70px; }
+    100% { left: 70px; }
   }
   /* 진행방향을 바라보도록 좌우 뒤집기 (이동과 동기) */
   @keyframes walkFace {

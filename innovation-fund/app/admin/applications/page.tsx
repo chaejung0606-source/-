@@ -140,19 +140,19 @@ export default function ApplicationsPage() {
         </div>
         <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
           <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          <div className="flex flex-wrap gap-2">
             {statusCfg.review.map((o) => (
-              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+              <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
                 <div className="text-lg font-bold leading-none">{statCount("reviewStatus", o.key)}</div>
               </div>
             ))}
           </div>
           <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          <div className="flex flex-wrap gap-2">
             {statusCfg.payment.map((o) => (
-              <div key={o.key} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5">{o.label}</div>
+              <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
                 <div className="text-lg font-bold leading-none">{statCount("paymentStatus", o.key)}</div>
               </div>
             ))}

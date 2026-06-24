@@ -1,43 +1,72 @@
-// 자격증 목록 — 관리자 편집(행=자격증, 열=구분), 열별 학생 공개여부. app_config 'cert_list' 보관.
+// 자격증 목록 — 여러 시트(지원 가능/심의대상/지원 불가 등), 행=자격증, 열=구분, 열별 학생 공개여부.
+// app_config 'cert_list' 보관.
 
-export interface CertColumn { id: string; name: string; pub: boolean; } // pub = 학생에게 공개
+export interface CertColumn { id: string; name: string; pub: boolean; } // pub = 학생 공개
 export interface CertRow { id: string; cells: Record<string, string>; }
-export interface CertList { columns: CertColumn[]; rows: CertRow[]; }
+export interface CertSheet { id: string; name: string; columns: CertColumn[]; rows: CertRow[]; }
+export interface CertList { sheets: CertSheet[]; }
 
 export function newCertId(p = "c"): string { return p + "-" + Math.random().toString(36).slice(2, 9); }
 
-export const DEFAULT_CERT_LIST: CertList = {
-  columns: [
-    { id: "col-name", name: "자격증명", pub: true },
-    { id: "col-org", name: "발급기관", pub: true },
-    { id: "col-level", name: "난이도", pub: true },
-    { id: "col-amount", name: "지원 금액", pub: true },
-    { id: "col-field", name: "분야", pub: true },
-  ],
-  rows: [],
-};
+function defaultColumns(): CertColumn[] {
+  return [
+    { id: newCertId("col"), name: "자격증명", pub: true },
+    { id: newCertId("col"), name: "발급기관", pub: true },
+    { id: newCertId("col"), name: "난이도", pub: true },
+    { id: newCertId("col"), name: "지원 금액", pub: true },
+    { id: newCertId("col"), name: "분야", pub: true },
+  ];
+}
 
-export function normalizeCertList(value: unknown): CertList {
-  const v = (value || {}) as Partial<CertList>;
-  if (!Array.isArray(v.columns) || v.columns.length === 0) return DEFAULT_CERT_LIST;
-  const columns: CertColumn[] = (v.columns as unknown[]).map((c, i) => {
+export const DEFAULT_SHEET_NAMES = ["지원 가능 자격증", "심의대상 자격증", "지원 불가 자격증"];
+
+export function defaultCertList(): CertList {
+  return { sheets: DEFAULT_SHEET_NAMES.map((name) => ({ id: newCertId("sheet"), name, columns: defaultColumns(), rows: [] })) };
+}
+
+function normColumns(arr: unknown): CertColumn[] {
+  if (!Array.isArray(arr) || arr.length === 0) return defaultColumns();
+  return (arr as unknown[]).map((c, i) => {
     const o = (c || {}) as Record<string, unknown>;
     return { id: String(o.id || `col-${i}`), name: String(o.name || `구분 ${i + 1}`), pub: o.pub !== false };
   });
-  const rows: CertRow[] = Array.isArray(v.rows) ? (v.rows as unknown[]).map((r, i) => {
+}
+function normRows(arr: unknown): CertRow[] {
+  if (!Array.isArray(arr)) return [];
+  return (arr as unknown[]).map((r, i) => {
     const o = (r || {}) as Record<string, unknown>;
     const cells = (o.cells && typeof o.cells === "object") ? o.cells as Record<string, string> : {};
     return { id: String(o.id || `row-${i}`), cells: Object.fromEntries(Object.entries(cells).map(([k, val]) => [k, String(val ?? "")])) };
-  }) : [];
-  return { columns, rows };
+  });
 }
 
-// 공개 열만 남긴 버전 (학생 노출용)
+export function normalizeCertList(value: unknown): CertList {
+  const v = (value || {}) as Record<string, unknown>;
+  // 신버전: { sheets: [...] }
+  if (Array.isArray(v.sheets) && v.sheets.length) {
+    return {
+      sheets: (v.sheets as unknown[]).map((s, i) => {
+        const o = (s || {}) as Record<string, unknown>;
+        return { id: String(o.id || `sheet-${i}`), name: String(o.name || `시트 ${i + 1}`), columns: normColumns(o.columns), rows: normRows(o.rows) };
+      }),
+    };
+  }
+  // 구버전: { columns, rows } → 한 시트로 이관
+  if (Array.isArray(v.columns)) {
+    return { sheets: [{ id: newCertId("sheet"), name: "자격증 목록", columns: normColumns(v.columns), rows: normRows(v.rows) }] };
+  }
+  return defaultCertList();
+}
+
+// 공개 열만 남긴 버전 (학생 노출용) — 시트는 유지
 export function publicCertList(list: CertList): CertList {
-  const cols = list.columns.filter((c) => c.pub);
-  const ids = new Set(cols.map((c) => c.id));
-  const rows = list.rows.map((r) => ({ id: r.id, cells: Object.fromEntries(Object.entries(r.cells).filter(([k]) => ids.has(k))) }));
-  return { columns: cols, rows };
+  return {
+    sheets: list.sheets.map((sh) => {
+      const cols = sh.columns.filter((c) => c.pub);
+      const ids = new Set(cols.map((c) => c.id));
+      return { id: sh.id, name: sh.name, columns: cols, rows: sh.rows.map((r) => ({ id: r.id, cells: Object.fromEntries(Object.entries(r.cells).filter(([k]) => ids.has(k))) })) };
+    }),
+  };
 }
 
 // CSV 파싱 (따옴표·줄바꿈 처리)
@@ -61,11 +90,11 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ""));
 }
 
-// 표(행렬) → CertList (첫 행 = 열 제목)
-export function gridToCertList(grid: string[][]): CertList {
-  if (grid.length === 0) return { columns: [], rows: [] };
+// 표(행렬) → 한 시트의 columns/rows (첫 행 = 열 제목)
+export function gridToSheetData(grid: string[][]): { columns: CertColumn[]; rows: CertRow[] } {
+  if (grid.length === 0) return { columns: defaultColumns(), rows: [] };
   const header = grid[0];
-  const columns: CertColumn[] = header.map((h, i) => ({ id: `col-${i}-${Math.random().toString(36).slice(2, 6)}`, name: h.trim() || `구분 ${i + 1}`, pub: true }));
+  const columns: CertColumn[] = header.map((h, i) => ({ id: newCertId("col"), name: h.trim() || `구분 ${i + 1}`, pub: true }));
   const rows: CertRow[] = grid.slice(1).map((r) => ({
     id: newCertId("row"),
     cells: Object.fromEntries(columns.map((c, i) => [c.id, (r[i] ?? "").trim()])),

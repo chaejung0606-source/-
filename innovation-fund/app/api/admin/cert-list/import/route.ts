@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseCsv, gridToCertList } from "@/lib/cert-list";
+import { parseCsv, gridToSheetData } from "@/lib/cert-list";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,6 @@ export async function POST(req: NextRequest) {
   const grid = looksTsv
     ? csv.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((l) => l.trim() !== "").map((l) => l.split("\t"))
     : parseCsv(csv);
-  const list = gridToCertList(grid);
-  return NextResponse.json({ ok: true, list });
+  const data = gridToSheetData(grid);
+  return NextResponse.json({ ok: true, data });
 }
