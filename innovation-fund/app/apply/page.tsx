@@ -164,10 +164,10 @@ function ApplyInner() {
     if (CATEGORY_TYPES[category].length === 1) {
       const only = CATEGORY_TYPES[category][0];
       // 지원신청 승인이 필요한 유형인데 승인 내역이 없으면 차단(면제 학생 제외)
-      if (requiresPre(only) && preApps.length === 0 && !skipPreAllowed) { setBlocked(true); return; }
+      if (requiresPre(only) && preApps.length === 0 && !skipPreAllowed && !isAdmin) { setBlocked(true); return; }
       setSelectedType(only);
     }
-  }, [category, mode, preChecked, preApps.length, skipPre, skipPreAllowed]);
+  }, [category, mode, preChecked, preApps.length, skipPre, skipPreAllowed, isAdmin]);
 
   // ?type= 로 바로 진입한 경우 카테고리 유추(지원신청 승인 확인용)
   useEffect(() => { if (selectedType && !category) setCategory(categoryOfType(selectedType)); }, [selectedType, category]);
@@ -175,9 +175,9 @@ function ApplyInner() {
   // 일반 가드: 지원금 신청 + 승인 필요 유형 + 승인 내역 없음 → 차단(모든 진입 경로 공통)
   useEffect(() => {
     if (mode !== "fund" || !selectedType || prefill || draftApp || !preChecked) return;
-    if (requiresPre(selectedType) && preApps.length === 0 && !skipPreAllowed) { setSelectedType(null); setBlocked(true); }
+    if (requiresPre(selectedType) && preApps.length === 0 && !skipPreAllowed && !isAdmin) { setSelectedType(null); setBlocked(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, skipPreAllowed]);
+  }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, skipPreAllowed, isAdmin]);
 
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "");
   const choosePre = (app: Application) => { setPrefill(app); setSelectedType(app.applicationType); };
@@ -229,6 +229,7 @@ function ApplyInner() {
         ) : selectedType && activeSchema && schemaProgram ? (
           <SchemaApplyForm
             schema={activeSchema}
+            isAdmin={isAdmin}
             type={selectedType}
             mode={mode}
             programId={schemaProgram.id}
@@ -328,7 +329,7 @@ function ApplyInner() {
                   key={type}
                   onClick={() => {
                     // 지원신청 승인이 필요한 유형인데 승인 내역이 없으면 차단(알림)
-                    if (mode === "fund" && requiresPre(type) && preApps.length === 0 && !skipPreAllowed) { setBlocked(true); return; }
+                    if (mode === "fund" && requiresPre(type) && preApps.length === 0 && !skipPreAllowed && !isAdmin) { setBlocked(true); return; }
                     setSelectedType(type);
                   }}
                   className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"

@@ -17,7 +17,7 @@ interface Props {
 // 항목 추가 시 기본 라벨 / 기본 필수 여부
 const FIELD_DEFAULT_LABEL: Partial<Record<FormFieldType, string>> = {
   applicantInfo: "신청자 기본정보", account: "입금 계좌 정보", privacyConsent: "개인정보 수집·이용 및 신청 동의",
-  signature: "신청인 서명", workLog: "근무상황부", transport: "교통비", registration: "등록비", lodging: "숙박비", file: "증빙 서류",
+  signature: "신청인 서명", workLog: "근무상황부", transport: "교통비", registration: "등록비", lodging: "숙박비", file: "증빙 서류", eventLocation: "활동 장소",
 };
 const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
   applicantInfo: true, account: true, privacyConsent: true, signature: true,
@@ -26,7 +26,7 @@ const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
 const ADD_GROUPS: { title: string; types: FormFieldType[] }[] = [
   { title: "필수·표준 항목", types: ["applicantInfo", "privacyConsent", "account", "signature"] },
   { title: "입력 항목", types: ["shortText", "longText", "number", "date", "select", "file", "agreement"] },
-  { title: "비용·근무 항목", types: ["workLog", "transport", "registration", "lodging"] },
+  { title: "활동·비용·근무 항목", types: ["eventLocation", "workLog", "transport", "registration", "lodging"] },
 ];
 
 function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
@@ -207,6 +207,23 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
             <div><span className="text-[11px] text-gray-500">숙소 결제금액(원)</span><input className="input-field bg-white" placeholder="0" disabled /></div>
             <p className="text-[11px] text-gray-400">※ 숙박비는 1인 70,000원 한도까지 지원됩니다. (단체사용 시 개인 부담금액 입력)</p>
             <div className="upload-card p-3 text-center text-gray-400 text-xs bg-white flex items-center justify-center gap-1"><Upload className="w-4 h-4 opacity-60" /> 숙박 영수증·숙박확인증 업로드</div>
+          </div>
+        </div>
+      );
+    case "eventLocation":
+      return (
+        <div>
+          <label className="label">{f.label || "활동 장소"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1 text-xs" disabled>국내</button>
+              <button className="btn-secondary flex-1 text-xs" disabled>국외</button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <input className="input-field bg-white" placeholder="도/시 (예: 강원특별자치도)" disabled />
+              <input className="input-field bg-white" placeholder="시/군/구 또는 도시명" disabled />
+            </div>
+            <p className="text-[11px] text-gray-400">국내/국외를 선택하고 활동(참여) 장소를 입력합니다.</p>
           </div>
         </div>
       );

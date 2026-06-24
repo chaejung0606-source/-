@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check } from "lucide-react";
-import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail } from "@/types";
+import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail, EventLocation } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import type { FormSchema, FormField } from "@/lib/form-schema";
 import { workLogGroupOfGrade } from "@/lib/form-schema";
@@ -14,6 +14,7 @@ import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
 import ConsentChecklist from "./ConsentChecklist";
 import ConsentSection from "./ConsentSection";
+import EventLocationSection from "./EventLocationSection";
 
 interface Props {
   schema: FormSchema;
@@ -21,6 +22,7 @@ interface Props {
   mode: ApplicationPhase;
   programId: string;
   programName: string;
+  isAdmin?: boolean;   // 관리자 확인용(제약·제출 없이 신청자 화면 그대로 보기)
   onBack: () => void;
 }
 
@@ -129,7 +131,7 @@ function FileField({ label, files, onChange }: { label: string; files: UploadedF
   );
 }
 
-export default function SchemaApplyForm({ schema, type, mode, programId, programName, onBack }: Props) {
+export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";
   const [submitting, setSubmitting] = useState(false);
@@ -145,6 +147,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   const [filesByField, setFilesByField] = useState<Record<string, UploadedFile[]>>({});
   const [workLogByField, setWorkLogByField] = useState<Record<string, WorkLogEntry[]>>({});
   const [cost, setCost] = useState<CostDetail>({ registrationFee: 0, transports: [] });
+  const [eventLocByField, setEventLocByField] = useState<Record<string, EventLocation>>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -209,9 +212,10 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     return e;
   };
 
-  const next = () => { const errs = validateStep(step); if (errs.length) { alert("아래 항목을 확인해주세요.\n\n" + errs.join("\n")); return; } setStep((s) => Math.min(steps.length - 1, s + 1)); };
+  const next = () => { if (!isAdmin) { const errs = validateStep(step); if (errs.length) { alert("아래 항목을 확인해주세요.\n\n" + errs.join("\n")); return; } } setStep((s) => Math.min(steps.length - 1, s + 1)); };
 
   const submit = async () => {
+    if (isAdmin) { alert("관리자 확인용 화면입니다. 실제 제출은 신청자 계정으로 진행해주세요."); return; }
     for (let i = 0; i < steps.length; i++) { const errs = validateStep(i); if (errs.length) { setStep(i); alert(`'${steps[i].title}' 단계를 확인해주세요.\n\n` + errs.join("\n")); return; } }
     setSubmitting(true);
     try {
@@ -231,7 +235,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
         applicationPhase: mode, applicationType: type,
         // programDetail(JSONB)에도 답변을 함께 저장 → form_answers 컬럼 미마이그레이션 환경에서도 보존
-        programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, formAnswers },
+        programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers },
         files,
         privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
         signature,
@@ -296,6 +300,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "signature": return <ConsentSection key={f.id} signature={signature} onSignatureChange={setSignature} isPre={isPre} summary={summary} />;
       case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
       case "workLog": return <div key={f.id}>{label}<WorkLogField field={f} entries={workLogByField[f.id] || []} onChange={(en) => setWorkLogByField((m) => ({ ...m, [f.id]: en }))} group={group} isPre={isPre} /></div>;
+      case "eventLocation": return <div key={f.id}><EventLocationSection title={f.label || "활동 장소"} values={eventLocByField[f.id] || { scope: "domestic" }} onChange={(v) => setEventLocByField((m) => ({ ...m, [f.id]: v }))} /></div>;
       case "registration": return <div key={f.id}>{label}<div className="grid sm:grid-cols-2 gap-2 items-end"><div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field" inputMode="numeric" value={cost.registrationFee || ""} onChange={(e) => setCost((c) => ({ ...c, registrationFee: Number(e.target.value.replace(/[^\d]/g, "")) || 0 }))} placeholder="0" /></div></div></div>;
       case "transport": case "lodging": return null; // 비용은 등록비 항목에서 통합 처리(간이) — 필요 시 확장
       case "shortText": return <div key={f.id}>{label}<input className="input-field" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} /></div>;
@@ -331,6 +336,12 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           <h1 className="text-xl font-bold text-gray-800">{programName || "신청서 작성"}</h1>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="rounded-xl px-4 py-2.5 text-sm font-medium text-indigo-800 bg-indigo-50 border border-indigo-200">
+          관리자 확인용 — 신청자가 보는 폼 그대로입니다. 입력·제약 없이 모든 단계를 확인할 수 있으며, 실제 제출은 되지 않습니다.
+        </div>
+      )}
 
       {/* 단계 진행 표시 */}
       <div className="flex gap-1.5 flex-wrap">
