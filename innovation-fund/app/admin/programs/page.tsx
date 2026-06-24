@@ -240,13 +240,60 @@ export default function ProgramsAdminPage() {
         const stepOn = selectedStep === "pre" ? preOn : fundOn;
         const stepLabel = selectedStep === "pre" ? "지원신청" : "지원금 신청";
         return (
-          <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
+          <div key={p.id} id={`prog-${p.id}`} className="space-y-4 scroll-mt-20">
+            {/* ③ 전체 신청 폼 빌더 — 폼 형식(템플릿) 저장/불러오기 (독립 박스) */}
+            <div className="card">
+              <p className="text-xs font-semibold text-gray-500 mb-1">③ 전체 신청 폼 빌더 (폼 형식 템플릿)</p>
+              <p className="text-[11px] text-gray-400 mb-2.5">아래 ‘④ 수정할 단계 선택’에서 만든 <strong>{stepLabel}</strong> 단계 폼을 템플릿으로 저장하거나, 저장된 템플릿을 불러올 수 있습니다.</p>
+              <div className="p-3 rounded-xl bg-white/70 border border-gray-100 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-gray-500">폼 형식(템플릿)</span>
+                  <select
+                    className="input-field !w-auto text-xs"
+                    value=""
+                    onChange={(e) => { if (e.target.value) applyTemplate(p, e.target.value); e.target.selectedIndex = 0; }}
+                  >
+                    <option value="">템플릿에서 불러오기…</option>
+                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    className="input-field !w-auto text-xs flex-1 min-w-[160px]"
+                    value={tplName}
+                    onChange={(e) => setTplName(e.target.value)}
+                    placeholder="현재 폼을 저장할 템플릿 이름"
+                  />
+                  <button onClick={() => saveTemplate(p)} className="btn-secondary text-xs flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 템플릿으로 저장</button>
+                </div>
+                {templates.length > 0 && (
+                  <div className="pt-1 border-t border-gray-100 space-y-1">
+                    <p className="text-[11px] font-semibold text-gray-400">저장된 템플릿</p>
+                    {templates.map((t) => (
+                      <div key={t.id} className="flex items-center gap-2">
+                        <input
+                          className="input-field !w-auto text-xs flex-1 min-w-[140px] !py-1"
+                          value={t.name}
+                          onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))}
+                          onBlur={(e) => renameTemplate(t.id, e.target.value.trim() || t.name)}
+                        />
+                        <button onClick={() => applyTemplate(p, t.id)} className="text-xs text-indigo-600 hover:underline">불러오기</button>
+                        <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500" title="삭제"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ④ 수정할 단계 선택 + 폼 편집 (독립 박스) */}
+            <div className="card">
             <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
               <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
             {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 (단계별로 활성/비활성 표시) */}
             <div className="mt-1">
-              <p className="text-xs font-semibold text-gray-500 mb-2">③ 수정할 단계 선택</p>
+              <p className="text-xs font-semibold text-gray-500 mb-2">④ 수정할 단계 선택</p>
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setSelectedStep("pre")}
@@ -330,56 +377,16 @@ export default function ProgramsAdminPage() {
                 </>
               )}
 
-              {/* 전체 신청 폼 빌더 — 신청자 화면과 동일한 화면에서 바로 편집 */}
+              {/* 신청 폼 편집 — 신청자 화면과 동일한 화면에서 바로 편집 */}
               <div className="mt-3 pt-3 border-t" style={{ borderColor: `${stepAccent}33` }}>
-                <p className="text-sm font-bold mb-1" style={{ color: stepAccent }}>전체 신청 폼 빌더 (신청자 화면 = 편집 화면)</p>
-                <p className="text-[11px] text-gray-400 mb-3">아래는 신청자가 보는 폼과 동일합니다. 단계·항목·필수여부를 바로 편집하고, 상단 ‘저장’을 누르면 반영됩니다. (현재 설정된 항목이 자동으로 들어와 있습니다)</p>
-
-                {/* 폼 형식(템플릿) — 이름 지정 저장 / 불러오기 / 삭제 */}
-                <div className="mb-3 p-3 rounded-xl bg-white/70 border border-gray-100 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-gray-500">폼 형식(템플릿)</span>
-                    <select
-                      className="input-field !w-auto text-xs"
-                      value=""
-                      onChange={(e) => { if (e.target.value) applyTemplate(p, e.target.value); e.target.selectedIndex = 0; }}
-                    >
-                      <option value="">템플릿에서 불러오기…</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <input
-                      className="input-field !w-auto text-xs flex-1 min-w-[160px]"
-                      value={tplName}
-                      onChange={(e) => setTplName(e.target.value)}
-                      placeholder="현재 폼을 저장할 템플릿 이름"
-                    />
-                    <button onClick={() => saveTemplate(p)} className="btn-secondary text-xs flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 템플릿으로 저장</button>
-                  </div>
-                  {templates.length > 0 && (
-                    <div className="pt-1 border-t border-gray-100 space-y-1">
-                      <p className="text-[11px] font-semibold text-gray-400">저장된 템플릿</p>
-                      {templates.map((t) => (
-                        <div key={t.id} className="flex items-center gap-2">
-                          <input
-                            className="input-field !w-auto text-xs flex-1 min-w-[140px] !py-1"
-                            value={t.name}
-                            onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))}
-                            onBlur={(e) => renameTemplate(t.id, e.target.value.trim() || t.name)}
-                          />
-                          <button onClick={() => applyTemplate(p, t.id)} className="text-xs text-indigo-600 hover:underline">불러오기</button>
-                          <button onClick={() => deleteTemplate(t.id)} className="text-gray-300 hover:text-red-500" title="삭제"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <p className="text-sm font-bold mb-1" style={{ color: stepAccent }}>신청 폼 편집 (신청자 화면 = 편집 화면)</p>
+                <p className="text-[11px] text-gray-400 mb-3">아래는 신청자가 보는 폼과 동일합니다. 단계·항목·필수여부를 바로 편집하세요. 만든 폼의 <strong>템플릿 저장·불러오기</strong>는 위 ‘③ 전체 신청 폼 빌더’ 박스에서 할 수 있습니다.</p>
 
                 {schemaOf(p)
                   ? <SchemaForm editable schema={schemaOf(p)!} accent={stepAccent} onChange={(s) => setSchema(p, s)} />
                   : <p className="text-xs text-gray-400">불러오는 중...</p>}
               </div>
+            </div>
             </div>
           </div>
         );
