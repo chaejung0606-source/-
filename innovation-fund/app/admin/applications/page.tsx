@@ -138,23 +138,25 @@ export default function ApplicationsPage() {
           <span className="text-sm text-gray-500">건</span>
           <span className="text-[11px] text-gray-400">(검토 상태 ‘{REVIEW_STATUS_META.received.label}’)</span>
         </div>
-        <p className="text-center text-xs font-semibold text-gray-500 mb-2">검토 상태</p>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 mb-4">
-          {REVIEW_STATUS_ORDER.map((s) => (
-            <div key={s} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${REVIEW_STATUS_META[s].badge}`}>
-              <div className="text-[11px] font-semibold mb-0.5">{REVIEW_STATUS_META[s].label}</div>
-              <div className="text-xl font-bold">{statCount("reviewStatus", s)}</div>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-xs font-semibold text-gray-500 mb-2">지급 상태</p>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
-          {PAYMENT_STATUS_ORDER.map((s) => (
-            <div key={s} className={`rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${PAYMENT_STATUS_META[s].badge}`}>
-              <div className="text-[11px] font-semibold mb-0.5">{PAYMENT_STATUS_META[s].label}</div>
-              <div className="text-xl font-bold">{statCount("paymentStatus", s)}</div>
-            </div>
-          ))}
+        <div className="grid grid-cols-[64px_1fr] gap-x-3 gap-y-4 items-start">
+          <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
+          <div className="flex flex-wrap gap-2">
+            {REVIEW_STATUS_ORDER.map((s) => (
+              <div key={s} className={`w-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${REVIEW_STATUS_META[s].badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{REVIEW_STATUS_META[s].label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("reviewStatus", s)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
+          <div className="flex flex-wrap gap-2">
+            {PAYMENT_STATUS_ORDER.map((s) => (
+              <div key={s} className={`w-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${PAYMENT_STATUS_META[s].badge}`}>
+                <div className="text-[10px] font-semibold leading-tight mb-0.5">{PAYMENT_STATUS_META[s].label}</div>
+                <div className="text-lg font-bold leading-none">{statCount("paymentStatus", s)}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
