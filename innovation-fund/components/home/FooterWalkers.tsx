@@ -5,12 +5,14 @@ import { useState } from "react";
 // 클릭: 걷는 캐릭터=관련 가상학과 말풍선 + 점프 / 빨강=그 자리에서 적당히 커지다 비눗방울+글리터 팡.
 const DUR = 34;
 const LINE = [
-  { src: "/characters/char-purple.png", h: 50, delay: 0, dept: "블록체인융합학과" },
-  { src: "/characters/char-green.png", h: 48, delay: -2.4, dept: "블록체인융합학과" },
-  { src: "/characters/char-pink.png", h: 48, delay: -4.8, dept: "클라우드융합학과" },
-  { src: "/characters/char-yellow.png", h: 44, delay: -7.2, dept: "클라우드융합학과" },
-  { src: "/characters/char-blue.png", h: 44, delay: -9.6, dept: "클라우드융합학과" },
+  { src: "/characters/char-purple.png", h: 50, delay: 0 },
+  { src: "/characters/char-green.png", h: 48, delay: -2.4 },
+  { src: "/characters/char-pink.png", h: 48, delay: -4.8 },
+  { src: "/characters/char-yellow.png", h: 44, delay: -7.2 },
+  { src: "/characters/char-blue.png", h: 44, delay: -9.6 },
 ];
+// 클릭 시 말풍선에 랜덤으로 표시되는 가상학과
+const DEPTS = ["블록체인융합학과", "클라우드융합학과", "사이버보안융합학과"];
 
 const GLIT_COLORS = ["#ff5ca8", "#ffd24c", "#7ee7ff", "#a78bfa", "#7ef2c7", "#ffffff"];
 interface Glit { tx: number; ty: number; color: string; size: number; delay: number; }
@@ -18,17 +20,15 @@ interface Bubble { bx: number; by: number; size: number; delay: number; dur: num
 
 export default function FooterWalkers() {
   const [jumpSet, setJumpSet] = useState<Set<number>>(new Set());
-  const [bubbleSet, setBubbleSet] = useState<Set<number>>(new Set());
+  const [bubbles, setBubbles] = useState<Record<number, string>>({});
   const [blast, setBlast] = useState<{ glits: Glit[]; bubbles: Bubble[] } | null>(null);
 
-  const del = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, i: number) =>
-    setter((s) => { const n = new Set(s); n.delete(i); return n; });
-
   const clickWalker = (i: number) => {
+    const dept = DEPTS[Math.floor(Math.random() * DEPTS.length)];
     setJumpSet((s) => new Set(s).add(i));
-    setBubbleSet((s) => new Set(s).add(i));
-    window.setTimeout(() => del(setJumpSet, i), 680);
-    window.setTimeout(() => del(setBubbleSet, i), 2600);
+    setBubbles((b) => ({ ...b, [i]: dept }));
+    window.setTimeout(() => setJumpSet((s) => { const n = new Set(s); n.delete(i); return n; }), 680);
+    window.setTimeout(() => setBubbles((b) => { const n = { ...b }; delete n[i]; return n; }), 2600);
   };
 
   const popRed = () => {
@@ -64,7 +64,7 @@ export default function FooterWalkers() {
               onClick={() => clickWalker(i)}
             />
           </div>
-          {bubbleSet.has(i) && <span className="walker-bubble">{c.dept}</span>}
+          {bubbles[i] && <span className="walker-bubble">{bubbles[i]}</span>}
         </div>
       ))}
 
