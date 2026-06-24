@@ -135,10 +135,8 @@ export function defaultInnovationSchema(programName: string, phase: "pre" | "fun
       f("개인정보 수집·이용 및 신청 동의", "privacyConsent", { required: true }),
     ] },
     { id: newSchemaId(), title: "프로그램 정보", fields: [
-      f("프로그램명", "shortText", { required: true, placeholder: programName || "참여 프로그램명" }),
       f("역할/직무", "shortText", {}),
       f("활동 기간", "date", { required: true, range: true }),
-      f("활동 내용", "longText", { required: true, placeholder: "참여한 활동 내용을 작성하세요." }),
       f("활동 실적/성과", "longText", {}),
     ] },
   ];

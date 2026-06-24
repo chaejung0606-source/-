@@ -239,16 +239,18 @@ function ApplyInner() {
           <>
             <button onClick={() => { setSelectedType(null); if (CATEGORY_TYPES[category!]?.length <= 1) { setCategory(null); } }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 이전</button>
             <div className="mb-6">
-              <h1 className="text-2xl font-extrabold holo-text mb-1">{APPLICATION_TYPE_LABELS[selectedType]} — 신청할 프로그램 선택</h1>
-              <p className="text-gray-600">신청할 프로그램을 선택하면 관리자가 설정한 신청서 양식으로 작성합니다.</p>
+              <h1 className="text-2xl font-extrabold holo-text mb-1">{APPLICATION_TYPE_LABELS[selectedType]} — 신청 정보</h1>
+              <p className="text-gray-600">신청할 프로그램을 선택하면 관리자가 설정한 해당 프로그램의 신청서 양식으로 작성합니다.</p>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {schemaPrograms.map((p) => (
-                <button key={p.id} onClick={() => setSchemaProgramId(p.id)} className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer">
-                  <h3 className="font-bold text-gray-800 mb-1">{p.name || "(이름 없음)"}</h3>
-                  <p className="text-sm text-gray-500">{p.note || (mode === "pre" ? "지원신청" : "지원금 신청")} · {(mode === "pre" ? (p.preApplyStart || p.applyStart) : p.applyStart)} ~ {(mode === "pre" ? (p.preApplyEnd || p.applyEnd) : p.applyEnd)}</p>
-                </button>
-              ))}
+            <div className="card max-w-lg">
+              <label className="label">프로그램명 <span className="text-red-500">*</span></label>
+              <select className="input-field" value={schemaProgramId || ""} onChange={(e) => setSchemaProgramId(e.target.value || null)}>
+                <option value="">프로그램을 선택하세요</option>
+                {schemaPrograms.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name || "(이름 없음)"}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-2">선택한 프로그램의 신청서 양식이 아래에 표시됩니다.</p>
             </div>
           </>
         ) : selectedType ? (
