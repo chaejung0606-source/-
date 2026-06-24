@@ -144,6 +144,7 @@ export default function ApplicantsPage() {
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 지원신청이 <strong>승인</strong>된 학생만 해당 프로그램의 지원금 신청이 가능합니다. (프로그램별 목록)</p>
+          <p className="text-[11px] text-gray-400">진단: 불러온 신청 {apps.length}건 · 지원신청(pre) {apps.filter((a) => a.applicationPhase === "pre" && !a.canceled).length}건 · 그중 승인 {apps.filter((a) => a.applicationPhase === "pre" && a.reviewStatus === "approved" && !a.canceled).length}건 · (검토상태 분포: {Array.from(new Set(apps.filter((a) => a.applicationPhase === "pre").map((a) => a.reviewStatus))).join(", ") || "없음"})</p>
           {eligibleByProgram.length === 0 ? (
             <div className="card text-center py-12 text-gray-400">승인된 지원신청이 없습니다.</div>
           ) : eligibleByProgram.map(([prog, students]) => (
