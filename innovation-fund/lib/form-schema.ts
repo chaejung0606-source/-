@@ -40,10 +40,14 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
 // 표준 블록(여러 칸이 묶여있는) 타입 — 라벨/필수만 의미가 있고 옵션 없음
 export const STANDARD_TYPES: FormFieldType[] = ["applicantInfo", "account", "privacyConsent", "workLog", "transport", "registration", "lodging"];
 
-// 근무상황부 학년별 단가용 학년 목록 (기본정보 학년과 동일)
-export const WORKLOG_GRADES: { key: string; label: string }[] = [
-  { key: "1", label: "1학년" }, { key: "2", label: "2학년" }, { key: "3", label: "3학년" }, { key: "4", label: "4학년" }, { key: "대학원", label: "대학원" },
+// 근무상황부 구분별 단가/시간 — 재학생(1~4학년 통합) / 대학원생
+export const WORKLOG_GROUPS: { key: string; label: string }[] = [
+  { key: "재학생", label: "재학생(1~4학년)" }, { key: "대학원생", label: "대학원생" },
 ];
+// 기본정보 학년 → 구분 매핑 (1~4 → 재학생, 대학원 → 대학원생)
+export function workLogGroupOfGrade(grade: string): string {
+  return grade === "대학원" ? "대학원생" : "재학생";
+}
 
 export interface FormField {
   id: string;
@@ -55,9 +59,10 @@ export interface FormField {
   placeholder?: string;
   range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
   unitPrice?: number;      // workLog: 시간당 단가(원, 고정) — 근무시간 합계 × 단가 = 합계 자동 계산
-  unitPriceMode?: "flat" | "byGrade"; // workLog: 단가 방식(고정 / 학년별)
-  unitPriceByGrade?: Record<string, number>; // workLog: 학년별 시간당 단가 (키: 1/2/3/4/대학원)
-  maxHours?: number;       // workLog: 입력 가능한 최대 근무시간(합계 상한)
+  unitPriceMode?: "flat" | "byGrade"; // workLog: 단가 방식(고정 / 구분별)
+  unitPriceByGrade?: Record<string, number>; // workLog: 구분별 시간당 단가 (키: 재학생/대학원생)
+  maxHours?: number;       // workLog: 입력 가능한 최대 근무시간(합계 상한, 고정)
+  maxHoursByGrade?: Record<string, number>; // workLog: 구분별 최대 입력 시간
 }
 
 export interface FormStep {
