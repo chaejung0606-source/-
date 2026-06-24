@@ -4,7 +4,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, effectiveReportFields, isPhaseEnabled, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, cloneSchema } from "@/lib/form-schema";
 
@@ -76,6 +76,9 @@ export default function ProgramsAdminPage() {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     setSaved(false);
   };
+
+  // 두 단계(지원신청·지원금 신청) 모두 비활성인지
+  const fullyOff = (p: Program) => !isPhaseEnabled(p, "pre") && !isPhaseEnabled(p, "fund");
 
   // 단계 진입 시 폼 스키마가 없으면 현재 설정 항목으로 자동 생성 (모든 항목이 빌더에 들어오도록)
   useEffect(() => {
@@ -168,9 +171,11 @@ export default function ProgramsAdminPage() {
             {list.filter((p) => p.category === selectedCat).length === 0 ? (
               <p className="text-xs text-gray-400">등록된 프로그램이 없습니다. &lsquo;프로그램 추가&rsquo;로 생성하세요.</p>
             ) : [...list.filter((p) => p.category === selectedCat)]
-                .sort((a, b) => (a.enabled === false ? 1 : 0) - (b.enabled === false ? 1 : 0))
+                .sort((a, b) => (fullyOff(a) ? 1 : 0) - (fullyOff(b) ? 1 : 0))
                 .map((p) => {
-                  const off = p.enabled === false;
+                  const off = fullyOff(p);
+                  const partial = !off && !(isPhaseEnabled(p, "pre") && isPhaseEnabled(p, "fund"));
+                  const tag = off ? " (비활성)" : partial ? (isPhaseEnabled(p, "pre") ? " (지원신청만)" : " (지원금만)") : "";
                   return (
                     <button
                       key={p.id}
@@ -183,7 +188,7 @@ export default function ProgramsAdminPage() {
                             : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"
                       }`}
                     >
-                      {p.name || "(이름 없음)"}{off ? " (비활성)" : ""}
+                      {p.name || "(이름 없음)"}{tag}
                     </button>
                   );
                 })}
@@ -194,32 +199,40 @@ export default function ProgramsAdminPage() {
       {/* 3단계: 선택한 프로그램 수정 */}
       {selectedCat && list.filter((p) => p.category === selectedCat && p.id === selectedId).map((p) => {
         const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
-        const off = p.enabled === false;
+        const preOn = isPhaseEnabled(p, "pre");
+        const fundOn = isPhaseEnabled(p, "fund");
+        const stepOn = selectedStep === "pre" ? preOn : fundOn;
+        const stepLabel = selectedStep === "pre" ? "지원신청" : "지원금 신청";
         return (
           <div key={p.id} id={`prog-${p.id}`} className="card scroll-mt-20">
-            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-              <button
-                onClick={() => update(p.id, { enabled: off })}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${off ? "bg-gray-200 text-gray-500 border-gray-300" : "bg-emerald-500 text-white border-emerald-500"}`}
-                title="클릭하여 활성/비활성 전환"
-              >
-                {off ? "● 비활성 (신청·세부내용에서 숨김)" : "● 활성"}
-              </button>
+            <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
               <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
-            {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 */}
+            {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 (단계별로 활성/비활성 표시) */}
             <div className="mt-1">
               <p className="text-xs font-semibold text-gray-500 mb-2">③ 수정할 단계 선택</p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setSelectedStep("pre")}
-                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "pre" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"}`}
-                >지원신청 (활동 전)</button>
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "pre" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"} ${!preOn ? "opacity-60" : ""}`}
+                >지원신청 (활동 전){!preOn ? " · 비활성" : ""}</button>
                 <button
                   onClick={() => setSelectedStep("fund")}
-                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"}`}
-                >지원금 신청 (활동 후)</button>
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"} ${!fundOn ? "opacity-60" : ""}`}
+                >지원금 신청 (활동 후){!fundOn ? " · 비활성" : ""}</button>
               </div>
+            </div>
+
+            {/* 선택한 단계의 활성/비활성 토글 (단계별 설정) */}
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-500">‘{stepLabel}’ 단계 노출:</span>
+              <button
+                onClick={() => update(p.id, selectedStep === "pre" ? { enabledPre: !stepOn } : { enabledFund: !stepOn })}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${stepOn ? "bg-emerald-500 text-white border-emerald-500" : "bg-gray-200 text-gray-500 border-gray-300"}`}
+                title="이 단계의 신청·세부내용 노출 여부를 전환합니다"
+              >
+                {stepOn ? "● 활성" : "● 비활성 (이 단계 숨김)"}
+              </button>
             </div>
 
             {/* 선택한 단계: 프로그램명·역할·기간·신청 항목 모두 편집 */}

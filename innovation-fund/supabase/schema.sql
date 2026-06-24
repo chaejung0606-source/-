@@ -164,6 +164,9 @@ CREATE TABLE IF NOT EXISTS programs (
 );
 -- 기존 테이블 마이그레이션(이미 존재 시 컬럼 추가)
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+-- programs: 단계별 활성 여부 (지원신청 / 지원금 신청)
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled_pre BOOLEAN DEFAULT TRUE;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled_fund BOOLEAN DEFAULT TRUE;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS roles JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS report_fields JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_report_fields JSONB DEFAULT '[]'::jsonb;

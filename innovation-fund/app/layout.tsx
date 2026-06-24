@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nanum_Pen_Script } from "next/font/google";
+import { Nanum_Pen_Script, Jua } from "next/font/google";
 import "./globals.css";
 import CursorGlitter from "@/components/common/CursorGlitter";
 
@@ -7,6 +7,14 @@ const handwriting = Nanum_Pen_Script({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-handwriting",
+  display: "swap",
+});
+
+// 동글동글한 버블 느낌의 한글 글씨체
+const bubble = Jua({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-bubble",
   display: "swap",
 });
 
@@ -23,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={handwriting.variable}>
+    <html lang="ko" className={`${handwriting.variable} ${bubble.variable}`}>
       <body>
         {/* 영롱한 글리터 오버레이 (클릭 비차단, 콘텐츠 뒤) */}
         <div className="glitter-overlay" aria-hidden="true" />

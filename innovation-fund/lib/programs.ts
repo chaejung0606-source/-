@@ -78,7 +78,15 @@ export interface Program {
   applyStart: string;       // 지원금 신청 시작 YYYY-MM-DD
   applyEnd: string;         // 지원금 신청 마감 YYYY-MM-DD
   note: string;             // 비고
-  enabled?: boolean;        // 활성/비활성 (false면 신청·세부내용에서 숨김). 기본 활성
+  enabled?: boolean;        // (구버전 호환) 전체 활성/비활성. 기본 활성
+  enabledPre?: boolean;     // 지원신청(활동 전) 단계 활성 여부. 기본 활성
+  enabledFund?: boolean;    // 지원금 신청(활동 후) 단계 활성 여부. 기본 활성
+}
+
+// 단계별 활성 여부 (단계 플래그 우선, 없으면 구버전 enabled로 폴백, 그래도 없으면 활성)
+export function isPhaseEnabled(p: { enabled?: boolean; enabledPre?: boolean; enabledFund?: boolean }, phase: ApplyPhase): boolean {
+  const flag = phase === "pre" ? p.enabledPre : p.enabledFund;
+  return (flag ?? p.enabled) !== false;
 }
 
 // 프로그램의 역할 목록 (roles 우선, 없으면 단일 role 폴백)
@@ -118,6 +126,8 @@ function rowToProgram(r: any): Program {
     preApplyEnd: r.pre_apply_end || undefined,
     applyStart: r.apply_start, applyEnd: r.apply_end, note: r.note || "",
     enabled: r.enabled !== false,
+    enabledPre: r.enabled_pre == null ? (r.enabled !== false) : r.enabled_pre !== false,
+    enabledFund: r.enabled_fund == null ? (r.enabled !== false) : r.enabled_fund !== false,
   };
 }
 export function programToRow(p: Program): Record<string, any> {
@@ -132,7 +142,10 @@ export function programToRow(p: Program): Record<string, any> {
     pre_apply_start: p.preApplyStart || null,
     pre_apply_end: p.preApplyEnd || null,
     apply_start: p.applyStart, apply_end: p.applyEnd, note: p.note || "",
-    enabled: p.enabled !== false,
+    // 구버전 enabled: 두 단계 모두 비활성일 때만 false (옛 코드 폴백 호환)
+    enabled: (p.enabledPre !== false) || (p.enabledFund !== false),
+    enabled_pre: p.enabledPre !== false,
+    enabled_fund: p.enabledFund !== false,
   };
 }
 
@@ -156,7 +169,7 @@ export function applyWindow(p: Program, phase: ApplyPhase = "fund"): { start: st
 
 // 지정 날짜에 신청 가능 여부 (기본: 오늘). 비활성(enabled=false) 프로그램은 항상 false
 export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "fund"): boolean {
-  if (p.enabled === false) return false;
+  if (!isPhaseEnabled(p, phase)) return false;
   const d = date || new Date().toISOString().split("T")[0];
   const { start, end } = applyWindow(p, phase);
   return !!start && !!end && start <= d && d <= end;

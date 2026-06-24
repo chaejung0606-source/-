@@ -187,7 +187,7 @@ export default function Home() {
       <section className="py-20 px-4 relative overflow-hidden">
         <HeroClouds />
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl sm:text-6xl font-extrabold mb-5 holo-text leading-tight">학생 지원금 신청 플랫폼</h1>
+          <h1 className="bubble-text text-5xl sm:text-7xl lg:text-8xl mb-5 holo-text leading-tight tracking-tight">학생 지원금 신청 플랫폼</h1>
           <p className="text-gray-600 text-lg mb-2">
             강원대학교 데이터보안·활용 혁신융합대학사업단이 우수 학생의 성장을 지원합니다.
           </p>
