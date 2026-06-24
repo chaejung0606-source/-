@@ -29,9 +29,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "이미 지급 완료된 신청은 취소할 수 없습니다. 사업단에 문의해주세요." }, { status: 400 });
   }
 
-  // 취소자 IP (프록시 환경 고려)
-  const ip = (req.headers.get("x-forwarded-for")?.split(",")[0]?.trim())
-    || req.headers.get("x-real-ip")
+  // 취소자 IP (프록시/배포 환경의 여러 헤더 고려)
+  const h = req.headers;
+  const ip = (h.get("x-forwarded-for")?.split(",")[0]?.trim())
+    || h.get("x-vercel-forwarded-for")
+    || h.get("cf-connecting-ip")
+    || h.get("true-client-ip")
+    || h.get("x-real-ip")
     || "unknown";
 
   const base = { canceled: true, canceled_at: new Date().toISOString() };
