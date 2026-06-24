@@ -127,7 +127,18 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
               <span className="font-medium">YYYY-MM-DD (월)</span><span>09:00 ~ 18:00</span><span className="text-primary-600 font-semibold">8시간</span>
               <input className="flex-1 min-w-[100px] border-b border-gray-200 bg-transparent" placeholder="상세내역" disabled />
             </div>
-            <p className="text-[11px] text-gray-400">날짜·시간을 등록하면 근무시간이 자동 합산됩니다. (여러 날짜 일괄 등록 가능)</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100 text-xs">
+              <span className="text-gray-500">
+                합계 근무시간 <strong className="text-gray-700">8시간</strong>
+                {f.maxHours ? <span className="text-amber-600"> · 최대 {f.maxHours}시간</span> : null}
+              </span>
+              {f.unitPrice ? (
+                <span className="text-gray-700 font-semibold">단가 {f.unitPrice.toLocaleString()}원/시간 × 8시간 = <span className="text-primary-700">{(f.unitPrice * 8).toLocaleString()}원</span></span>
+              ) : (
+                <span className="text-gray-400">단가 미설정</span>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400">날짜·시간을 등록하면 근무시간이 자동 합산되며{f.unitPrice ? ", 단가를 곱해 지급 합계가 자동 계산됩니다" : ""}{f.maxHours ? ` (최대 ${f.maxHours}시간까지 입력)` : ""}.</p>
           </div>
         </div>
       );
@@ -255,6 +266,16 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                 <label className="flex items-center gap-1.5 text-xs text-gray-600 mt-2">
                   <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} /> 기간 선택(시작일~종료일)
                 </label>
+              )}
+              {f.type === "workLog" && (
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  <label className="text-xs text-gray-600 flex items-center gap-1">시간당 단가(원)
+                    <input type="number" inputMode="numeric" className="input-field !w-28 text-xs !py-1" value={f.unitPrice ?? ""} onChange={(e) => updField(cur.id, f.id, { unitPrice: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="예: 9860" />
+                  </label>
+                  <label className="text-xs text-gray-600 flex items-center gap-1">최대 입력 시간
+                    <input type="number" inputMode="numeric" className="input-field !w-24 text-xs !py-1" value={f.maxHours ?? ""} onChange={(e) => updField(cur.id, f.id, { maxHours: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="제한 없음" />
+                  </label>
+                </div>
               )}
               {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file", "date"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />

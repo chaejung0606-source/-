@@ -49,6 +49,8 @@ export interface FormField {
   text?: string;           // agreement 본문
   placeholder?: string;
   range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
+  unitPrice?: number;      // workLog: 시간당 단가(원) — 근무시간 합계 × 단가 = 합계 자동 계산
+  maxHours?: number;       // workLog: 입력 가능한 최대 근무시간(합계 상한)
 }
 
 export interface FormStep {
