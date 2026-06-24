@@ -144,9 +144,10 @@ export default function MyPage() {
     }
   };
 
-  const cancelApp = async (app: Application) => {
-    if (app.canceled) return;
-    if (!confirm(`이 신청(${app.receiptNumber || "-"})을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`)) return;
+  // 삭제(취소) 확인 모달
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; onConfirm: () => void } | null>(null);
+
+  const doCancel = async (app: Application) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch("/api/applications/cancel", {
       method: "POST",
@@ -155,7 +156,18 @@ export default function MyPage() {
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) load();
-    else alert("취소 실패: " + (j.error || "알 수 없는 오류"));
+    else alert("실패: " + (j.error || "알 수 없는 오류"));
+  };
+  const requestDelete = (app: Application, isDraft: boolean) => {
+    if (app.canceled) return;
+    setConfirmState({
+      title: isDraft ? "임시저장 삭제" : "신청 취소",
+      message: isDraft
+        ? "이 임시저장 내용을 삭제하시겠습니까?\n삭제 후에는 되돌릴 수 없습니다."
+        : `이 신청(${app.receiptNumber || "-"})을 취소하시겠습니까?\n취소 후에는 되돌릴 수 없습니다.`,
+      confirmLabel: isDraft ? "삭제" : "신청 취소",
+      onConfirm: () => doCancel(app),
+    });
   };
 
   const setP = (key: keyof Profile, val: string) => setProfile((p) => ({ ...p, [key]: val }));
@@ -212,7 +224,7 @@ export default function MyPage() {
         <div className="card">
           <button
             type="button"
-            onClick={() => setProfileOpen((o) => !o)}
+            onClick={() => { if (profileOpen) setProfileOpen(false); else requirePassword(() => setProfileOpen(true)); }}
             className="w-full flex items-center justify-between gap-2 text-left"
           >
             <div className="flex items-center gap-2">
@@ -299,7 +311,7 @@ export default function MyPage() {
                 <button type="button" onClick={() => setProfileOpen(false)} className="btn-secondary text-sm">취소</button>
                 <button
                   type="button"
-                  onClick={() => requirePassword(saveProfile)}
+                  onClick={saveProfile}
                   disabled={profileSaving || !profile.name}
                   className="btn-primary text-sm disabled:opacity-60"
                 >
@@ -314,7 +326,7 @@ export default function MyPage() {
         <div className="card">
           <button
             type="button"
-            onClick={() => setTtOpen((o) => !o)}
+            onClick={() => { if (ttOpen) setTtOpen(false); else requirePassword(() => setTtOpen(true)); }}
             className="w-full flex items-center justify-between gap-2 text-left"
           >
             <div className="flex items-center gap-2">
@@ -332,7 +344,7 @@ export default function MyPage() {
               </div>
               <TimetableEditor value={timetable} onChange={setTimetable} />
               <div className="flex justify-end">
-                <button type="button" onClick={() => requirePassword(saveTimetable)} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
+                <button type="button" onClick={saveTimetable} disabled={ttSaving} className="btn-primary text-sm disabled:opacity-60">
                   {ttSaving ? "저장 중..." : "시간표 저장"}
                 </button>
               </div>
@@ -355,7 +367,7 @@ export default function MyPage() {
                   <div className="text-xs text-gray-500 mt-1">마지막 저장 {fmtDate(d.updatedAt || d.createdAt)}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => cancelApp(d)} className="text-xs text-gray-400 hover:text-rose-500">삭제</button>
+                  <button onClick={() => requestDelete(d, true)} className="text-xs text-gray-400 hover:text-rose-500">삭제</button>
                   <Link href={`/apply?draft=${d.id}&mode=${d.applicationPhase || "fund"}`} className="btn-primary text-sm flex items-center gap-1.5">
                     이어서 신청 <ChevronRight className="w-4 h-4" />
                   </Link>
@@ -458,7 +470,7 @@ export default function MyPage() {
                   {/* 신청 취소 */}
                   {!app.canceled && (
                     <div className="mt-3 flex justify-end">
-                      <button onClick={() => cancelApp(app)} className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
+                      <button onClick={() => requestDelete(app, false)} className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
                         <XCircle className="w-3.5 h-3.5" /> 신청 취소
                       </button>
                     </div>
@@ -473,6 +485,27 @@ export default function MyPage() {
           ※ 신청 내역과 진행 상황은 본인 계정에서만 조회됩니다. 처리 상태는 사업단 검토에 따라 갱신됩니다.
         </p>
       </main>
+
+      {/* 삭제/취소 확인 모달 */}
+      {confirmState && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setConfirmState(null)} />
+          <div className="modal relative w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">{confirmState.title}</h2>
+            <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">{confirmState.message}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmState(null)} className="btn-secondary flex-1">돌아가기</button>
+              <button
+                onClick={() => { const fn = confirmState.onConfirm; setConfirmState(null); fn(); }}
+                className="btn-primary flex-1"
+                style={{ background: "linear-gradient(90deg,#f43f5e,#e11d48)" }}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 비밀번호 확인 모달 */}
       {pwOpen && (

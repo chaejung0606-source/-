@@ -5,11 +5,11 @@ import { useState } from "react";
 // 클릭: 걷는 캐릭터=관련 가상학과 말풍선 + 점프 / 빨강=그 자리에서 적당히 커지다 비눗방울+글리터 팡.
 const DUR = 34;
 const LINE = [
-  { src: "/characters/char-purple.png", h: 50, delay: 0, dept: "정보보안 가상학과" },
-  { src: "/characters/char-green.png", h: 48, delay: -2.4, dept: "블록체인 가상학과" },
-  { src: "/characters/char-pink.png", h: 48, delay: -4.8, dept: "개인정보보호 가상학과" },
-  { src: "/characters/char-yellow.png", h: 44, delay: -7.2, dept: "데이터사이언스 가상학과" },
-  { src: "/characters/char-blue.png", h: 44, delay: -9.6, dept: "클라우드보안 가상학과" },
+  { src: "/characters/char-purple.png", h: 50, delay: 0, dept: "블록체인융합학과" },
+  { src: "/characters/char-green.png", h: 48, delay: -2.4, dept: "블록체인융합학과" },
+  { src: "/characters/char-pink.png", h: 48, delay: -4.8, dept: "클라우드융합학과" },
+  { src: "/characters/char-yellow.png", h: 44, delay: -7.2, dept: "클라우드융합학과" },
+  { src: "/characters/char-blue.png", h: 44, delay: -9.6, dept: "클라우드융합학과" },
 ];
 
 const GLIT_COLORS = ["#ff5ca8", "#ffd24c", "#7ee7ff", "#a78bfa", "#7ef2c7", "#ffffff"];

@@ -422,7 +422,7 @@ export interface Application {
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  received: "접수완료",
+  received: "신청완료",
   reviewing: "검토중",
   supplement: "보완요청",
   committee: "심의필요",
