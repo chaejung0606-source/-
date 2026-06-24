@@ -118,7 +118,54 @@
     height: 54px;
     width: auto;
     display: block;
+    pointer-events: auto;
+    cursor: pointer;
+    transform-origin: center bottom;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
+  }
+  /* 빨강 클릭: 점점 커지다 팡 터짐 */
+  .walker-still.red-pop {
+    animation: redGrowPop 0.85s cubic-bezier(0.5, 0, 0.7, 1) forwards;
+  }
+  @keyframes redGrowPop {
+    0%   { transform: scale(1); opacity: 1; }
+    55%  { transform: scale(1.55) rotate(-2deg); opacity: 1; }
+    70%  { transform: scale(1.9) rotate(2deg); opacity: 1; }
+    78%  { transform: scale(2.05); opacity: 1; }
+    100% { transform: scale(0.15); opacity: 0; }
+  }
+  /* 팡 효과 (확산 링 + 입자) */
+  .pop-burst {
+    position: absolute;
+    bottom: 26px;
+    left: calc(3% + 22px);
+    width: 26px;
+    height: 26px;
+    margin-left: -13px;
+    margin-bottom: -13px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 92, 92, 0.55), rgba(255, 92, 92, 0) 70%);
+    opacity: 0;
+    pointer-events: none;
+    animation: popBurst 0.5s ease-out 0.5s forwards;
+  }
+  .pop-burst::before, .pop-burst::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 92, 92, 0.6);
+    opacity: 0;
+    animation: popRing 0.55s ease-out 0.5s forwards;
+  }
+  .pop-burst::after { animation-delay: 0.62s; border-color: rgba(255, 160, 92, 0.6); }
+  @keyframes popBurst {
+    0%   { transform: scale(0.3); opacity: 0.9; }
+    100% { transform: scale(3.4); opacity: 0; }
+  }
+  @keyframes popRing {
+    0%   { transform: scale(0.4); opacity: 0.8; }
+    100% { transform: scale(2.6); opacity: 0; }
   }
   /* 개별 보행: 같은 주기·다른 지연 → 한 줄을 이루며 하나씩 유턴 */
   .walker {
@@ -134,9 +181,22 @@
     height: 100%;
     width: auto;
     display: block;
+    pointer-events: auto;
+    cursor: pointer;
     transform-origin: bottom center;
     filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.12));
     animation: walkBob 0.55s ease-in-out infinite;
+  }
+  /* 클릭 시 1회 점프 (이동하면서 점프) */
+  .walker img.jump {
+    animation: walkerJump 0.65s ease;
+  }
+  @keyframes walkerJump {
+    0%   { transform: translateY(0) scale(1); }
+    30%  { transform: translateY(-30px) scale(1.08, 0.96); }
+    55%  { transform: translateY(-34px) scale(1.04, 0.98); }
+    80%  { transform: translateY(-6px) scale(0.98, 1.04); }
+    100% { transform: translateY(0) scale(1); }
   }
   /* 빨강(left 3%) 바로 앞(좌측 8%)에서 유턴, 오른쪽 끝(96%)까지. 진행방향을 바라봄 */
   @keyframes ridgeWalk {

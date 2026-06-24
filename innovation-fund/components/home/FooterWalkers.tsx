@@ -1,7 +1,8 @@
 "use client";
+import { useState } from "react";
 
-// 무릎 꿇은 빨강은 왼쪽 고정. 나머지는 줄지어 걷되, 끝(오른쪽 끝/빨강 앞)에서 하나씩 유턴.
-// 같은 주기·서로 다른 지연으로 한 줄을 이루며 순차적으로 방향을 바꾼다(겹쳐도 됨).
+// 무릎 꿇은 빨강은 왼쪽 고정. 나머지는 줄지어 걷되, 빨강 바로 앞/오른쪽 끝에서 하나씩 유턴.
+// 클릭 상호작용: 걷는 캐릭터=점프(1회), 빨강=점점 커지다 팡 터짐(잠시 후 재등장).
 const DUR = 34;
 const LINE = [
   { src: "/characters/char-purple.png", h: 50, delay: 0 },
@@ -12,14 +13,39 @@ const LINE = [
 ];
 
 export default function FooterWalkers() {
+  const [jumping, setJumping] = useState<number | null>(null);
+  const [redPop, setRedPop] = useState(false);
+
+  const jump = (i: number) => {
+    setJumping(i);
+    window.setTimeout(() => setJumping((j) => (j === i ? null : j)), 650);
+  };
+  const popRed = () => {
+    if (redPop) return;
+    setRedPop(true);
+    window.setTimeout(() => setRedPop(false), 1500); // 팡 터진 뒤 재등장
+  };
+
   return (
     <div className="footer-walkers" aria-hidden="true">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="walker-still" src="/characters/char-red.png" alt="" />
+      <img
+        className={`walker-still ${redPop ? "red-pop" : ""}`}
+        src="/characters/char-red.png"
+        alt=""
+        onClick={popRed}
+      />
+      {redPop && <span className="pop-burst" />}
       {LINE.map((c, i) => (
         <div key={i} className="walker" style={{ height: c.h, animationDuration: `${DUR}s`, animationDelay: `${c.delay}s` }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={c.src} alt="" style={{ animationDelay: `${-(i % 3) * 0.18}s` }} />
+          <img
+            src={c.src}
+            alt=""
+            className={jumping === i ? "jump" : ""}
+            style={{ animationDelay: jumping === i ? "0s" : `${-(i % 3) * 0.18}s` }}
+            onClick={() => jump(i)}
+          />
         </div>
       ))}
     </div>
