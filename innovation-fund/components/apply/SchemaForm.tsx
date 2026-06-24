@@ -42,7 +42,20 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
     case "number":
       return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><input className="input-field bg-gray-50" placeholder={f.placeholder || "0"} inputMode="numeric" disabled={disabled} /></div>);
     case "date":
-      return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><input type="date" className="input-field bg-gray-50" disabled={disabled} /></div>);
+      return (
+        <div>
+          <label className="label">{f.label || "(제목 없음)"}{req}</label>
+          {f.range ? (
+            <div className="flex items-center gap-2">
+              <input type="date" className="input-field bg-gray-50" disabled={disabled} />
+              <span className="text-gray-400">~</span>
+              <input type="date" className="input-field bg-gray-50" disabled={disabled} />
+            </div>
+          ) : (
+            <input type="date" className="input-field bg-gray-50" disabled={disabled} />
+          )}
+        </div>
+      );
     case "longText":
       return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><textarea className="input-field h-20 resize-none bg-gray-50" placeholder={f.placeholder || ""} disabled={disabled} /></div>);
     case "select":
@@ -238,7 +251,12 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               {f.type === "agreement" && (
                 <textarea className="input-field text-xs mt-2 h-16 resize-none" value={f.text || ""} onChange={(e) => updField(cur.id, f.id, { text: e.target.value })} placeholder="서약 본문" />
               )}
-              {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file"].includes(f.type) && (
+              {f.type === "date" && (
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 mt-2">
+                  <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} /> 기간 선택(시작일~종료일)
+                </label>
+              )}
+              {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file", "date"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
               )}
               <div className="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-gray-100">

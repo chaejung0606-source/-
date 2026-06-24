@@ -48,6 +48,7 @@ export interface FormField {
   options?: string[];      // select
   text?: string;           // agreement 본문
   placeholder?: string;
+  range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
 }
 
 export interface FormStep {
