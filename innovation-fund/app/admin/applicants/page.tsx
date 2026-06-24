@@ -48,6 +48,7 @@ export default function ApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [eligSearch, setEligSearch] = useState("");
+  const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible">("students");
   const [skipModal, setSkipModal] = useState<Applicant | null>(null);
 
@@ -82,13 +83,22 @@ export default function ApplicantsPage() {
     return rows;
   }, [apps, list, progNameById]);
 
+  // 프로그램 선택 옵션 = 현재 프로그램 목록(프로그램 신청 내용에서 추가/삭제 반영) + 신청 데이터에 등장한 프로그램
+  const programOptions = useMemo(() => {
+    const names = new Set<string>();
+    programs.forEach((p) => p.name && names.add(p.name));
+    eligibleRows.forEach((r) => r.program && names.add(r.program));
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [programs, eligibleRows]);
+
   const eligibleByProgram = useMemo(() => {
     const terms = eligSearch.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);
-    const match = (r: EligRow) => terms.length === 0 || terms.some((t) => r.studentId.includes(t) || r.name.includes(t));
+    const match = (r: EligRow) => (terms.length === 0 || terms.some((t) => r.studentId.includes(t) || r.name.includes(t)))
+      && (eligProgram === "all" || r.program === eligProgram);
     const m: Record<string, EligRow[]> = {};
     eligibleRows.filter(match).forEach((r) => { (m[r.program] ||= []).push(r); });
     return Object.entries(m).sort((x, y) => x[0].localeCompare(y[0], "ko"));
-  }, [eligibleRows, eligSearch]);
+  }, [eligibleRows, eligSearch, eligProgram]);
 
   const downloadEligibleExcel = async () => {
     const XLSX = await import("xlsx");
@@ -215,6 +225,10 @@ export default function ApplicantsPage() {
         <div className="space-y-4">
           <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 검토 <strong>승인</strong> 신청 + 관리자가 <strong>지원신청 면제</strong>한 학생을 프로그램별로 모았습니다.</p>
           <div className="card flex items-center gap-2 flex-wrap">
+            <select className="input-field !w-auto text-sm" value={eligProgram} onChange={(e) => setEligProgram(e.target.value)}>
+              <option value="all">전체 프로그램</option>
+              {programOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표)" value={eligSearch} onChange={(e) => setEligSearch(e.target.value)} />

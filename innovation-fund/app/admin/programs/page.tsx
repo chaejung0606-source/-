@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2 } from "lucide-react";
+import { Save, Plus, Trash2, Search } from "lucide-react";
 import type { FundCategory } from "@/types";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -19,6 +19,7 @@ export default function ProgramsAdminPage() {
   const [selectedCat, setSelectedCat] = useState<FundCategory | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
+  const [progSearch, setProgSearch] = useState("");
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [tplName, setTplName] = useState("");
 
@@ -139,6 +140,41 @@ export default function ProgramsAdminPage() {
         <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
       </div>
       <p className="text-gray-500 text-sm mb-4">프로그램의 신청 시작·마감일을 설정하면, 학생 신청 화면에는 신청기간 내 프로그램만 표시되고 마감된 프로그램은 자동으로 사라집니다.</p>
+
+      {/* 프로그램 검색 — 기간이 지난(마감) 프로그램도 종류와 무관하게 찾아 수정·폼 복사 */}
+      <div className="card mb-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            className="input-field pl-9"
+            placeholder="프로그램 검색 (마감·기간 지난 프로그램 포함, 모든 종류에서)"
+            value={progSearch}
+            onChange={(e) => setProgSearch(e.target.value)}
+          />
+        </div>
+        {progSearch.trim() && (() => {
+          const terms = progSearch.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+          const hits = list.filter((p) => terms.every((t) => (p.name || "").toLowerCase().includes(t)));
+          return (
+            <div className="mt-2.5">
+              <p className="text-[11px] text-gray-400 mb-1.5">{hits.length}개 검색됨 — 클릭하면 종류와 관계없이 바로 수정할 수 있습니다.</p>
+              <div className="flex flex-wrap gap-1.5">
+                {hits.length === 0 ? (
+                  <p className="text-xs text-gray-400">검색 결과가 없습니다.</p>
+                ) : hits.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setSelectedCat(p.category); setSelectedId(p.id); }}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${selectedId === p.id ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
+                  >
+                    <span className="opacity-70">[{FUND_CATEGORY_LABELS[p.category]}]</span> {p.name || "(이름 없음)"}{fullyOff(p) ? " (비활성)" : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
@@ -352,6 +388,15 @@ export default function ProgramsAdminPage() {
       {selectedCat && selectedId === null && (
         <p className="text-sm text-gray-400">위에서 하위 프로그램을 선택하면 해당 프로그램의 단계별 입력 항목을 수정할 수 있습니다.</p>
       )}
+
+      {/* 스크롤을 내려도 따라오는 저장 버튼 */}
+      <button
+        onClick={save}
+        className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2"
+        title="변경 내용 저장"
+      >
+        <Save className="w-4 h-4" /> 저장{saved ? "됨 ✓" : ""}
+      </button>
     </AdminLayout>
   );
 }
