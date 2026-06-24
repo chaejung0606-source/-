@@ -33,10 +33,12 @@ export default function ApplicantsPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
+  const [myId, setMyId] = useState("");
+  useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => { if (d?.admin) setMyId(d.id || ""); }).catch(() => {}); }, []);
   const tryUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setGateErr("");
-    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: gatePw }) });
+    const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginId: myId, password: gatePw }) });
     const j = await res.json().catch(() => ({ success: false }));
     if (j.success) { setUnlocked(true); setGatePw(""); }
     else setGateErr("비밀번호가 올바르지 않습니다.");

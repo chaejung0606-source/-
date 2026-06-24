@@ -10,7 +10,8 @@ export interface AdminAccount {
   name: string;
   programIds: string[]; // 관리하는 프로그램 id 목록
 }
-export interface AdminAccountsConfig { accounts: AdminAccount[]; }
+export interface ExpenseAdmin { loginId: string; password: string; }
+export interface AdminAccountsConfig { expense: ExpenseAdmin; accounts: AdminAccount[]; }
 
 export const EXPENSE_ADMIN_ID = process.env.EXPENSE_ADMIN_ID || "20182135";
 export const EXPENSE_ADMIN_PW = process.env.EXPENSE_ADMIN_PW || "000606";
@@ -27,5 +28,10 @@ export function normalizeAdminAccounts(value: unknown): AdminAccountsConfig {
       programIds: Array.isArray(o.programIds) ? (o.programIds as unknown[]).map((x) => String(x)) : [],
     };
   }).filter((a) => a.loginId);
-  return { accounts };
+  const e = (v.expense || {}) as Record<string, unknown>;
+  const expense: ExpenseAdmin = {
+    loginId: String(e.loginId || "").trim() || EXPENSE_ADMIN_ID,
+    password: String(e.password || "") || EXPENSE_ADMIN_PW,
+  };
+  return { expense, accounts };
 }

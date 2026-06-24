@@ -4,10 +4,11 @@ import { UserCog, Plus, Trash2, Save } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, type Program } from "@/lib/programs";
 import { FUND_CATEGORY_LABELS } from "@/types";
-import type { AdminAccount } from "@/lib/admin-accounts";
+import type { AdminAccount, ExpenseAdmin } from "@/lib/admin-accounts";
 
 export default function AdminsPage() {
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [expense, setExpense] = useState<ExpenseAdmin>({ loginId: "", password: "" });
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -16,7 +17,11 @@ export default function AdminsPage() {
   useEffect(() => {
     fetch("/api/admin/status").then((r) => r.json()).then((d) => {
       if (!d?.admin || d.role !== "expense") { setDenied(true); setLoading(false); return; }
-      fetch("/api/admin/admins").then((r) => r.json()).then((j) => { setAccounts(Array.isArray(j?.accounts) ? j.accounts : []); setLoading(false); });
+      fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
+        setAccounts(Array.isArray(j?.accounts) ? j.accounts : []);
+        if (j?.expense) setExpense({ loginId: j.expense.loginId || "", password: j.expense.password || "" });
+        setLoading(false);
+      });
     });
     fetchPrograms().then(setPrograms).catch(() => {});
   }, []);
@@ -31,12 +36,13 @@ export default function AdminsPage() {
   };
 
   const save = async () => {
+    if (!expense.loginId.trim() || !expense.password.trim()) { alert("지출관리자 아이디와 비밀번호를 입력해주세요."); return; }
     for (const a of accounts) {
       if (!a.loginId.trim() || !a.password.trim()) { alert("모든 관리자의 아이디와 비밀번호를 입력해주세요."); return; }
     }
-    const ids = accounts.map((a) => a.loginId.trim());
-    if (new Set(ids).size !== ids.length) { alert("아이디가 중복됩니다."); return; }
-    const res = await fetch("/api/admin/admins", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accounts }) });
+    const ids = [expense.loginId.trim(), ...accounts.map((a) => a.loginId.trim())];
+    if (new Set(ids).size !== ids.length) { alert("아이디가 중복됩니다. (지출관리자 포함)"); return; }
+    const res = await fetch("/api/admin/admins", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expense, accounts }) });
     const j = await res.json().catch(() => ({}));
     if (j.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); } else alert("저장 실패: " + (j.error || res.status));
   };
@@ -59,6 +65,23 @@ export default function AdminsPage() {
       <p className="text-gray-500 text-sm mb-4">프로그램별 관리자 계정(아이디·비밀번호)과 담당 프로그램을 설정합니다. 프로그램별 관리자는 담당 프로그램의 신청 목록만 확인하고, 검토 완료 후 지출관리자에게 넘길 수 있습니다. (지출관리자: 전체 권한)</p>
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}
 
+      {/* 지출관리자 로그인 설정 */}
+      <div className="card mb-4">
+        <p className="text-xs font-semibold text-gray-500 mb-2">지출관리자 로그인 (전체 권한)</p>
+        <div className="flex items-end gap-2 flex-wrap">
+          <div>
+            <label className="label text-xs mb-0.5">아이디</label>
+            <input className="input-field" value={expense.loginId} onChange={(e) => { setExpense((x) => ({ ...x, loginId: e.target.value })); setSaved(false); }} placeholder="지출관리자 아이디" />
+          </div>
+          <div>
+            <label className="label text-xs mb-0.5">비밀번호</label>
+            <input className="input-field" value={expense.password} onChange={(e) => { setExpense((x) => ({ ...x, password: e.target.value })); setSaved(false); }} placeholder="지출관리자 비밀번호" />
+          </div>
+        </div>
+        <p className="text-[11px] text-amber-600 mt-2">※ 여기서 설정한 아이디·비밀번호로 지출관리자 로그인 및 모든 비밀번호 확인이 동작합니다. 변경 후 분실에 주의하세요.</p>
+      </div>
+
+      <p className="text-xs font-semibold text-gray-500 mb-2">프로그램별 관리자</p>
       {accounts.length === 0 ? (
         <div className="card text-center py-12 text-gray-400">등록된 프로그램별 관리자가 없습니다. ‘관리자 추가’로 생성하세요.</div>
       ) : (

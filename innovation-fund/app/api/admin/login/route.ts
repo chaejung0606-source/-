@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { normalizeAdminAccounts, EXPENSE_ADMIN_ID, EXPENSE_ADMIN_PW } from "@/lib/admin-accounts";
+import { normalizeAdminAccounts } from "@/lib/admin-accounts";
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -21,13 +21,15 @@ export async function POST(req: NextRequest) {
   // 구버전 단일 비밀번호 호환(아이디 없이 비번만) → 지출관리자로 처리
   const legacyPw = process.env.ADMIN_PASSWORD;
 
+  // 관리자 설정(app_config)에서 지출관리자 계정·프로그램 관리자 계정 조회
+  const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", "admin_accounts").maybeSingle();
+  const { expense, accounts } = normalizeAdminAccounts(data?.value);
+
   let role: "expense" | "program" | null = null;
   let id = "";
-  if ((loginId === EXPENSE_ADMIN_ID && password === EXPENSE_ADMIN_PW) || (!loginId && legacyPw && password === legacyPw)) {
-    role = "expense"; id = EXPENSE_ADMIN_ID;
+  if ((loginId === expense.loginId && password === expense.password) || (!loginId && legacyPw && password === legacyPw)) {
+    role = "expense"; id = expense.loginId;
   } else if (loginId) {
-    const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", "admin_accounts").maybeSingle();
-    const { accounts } = normalizeAdminAccounts(data?.value);
     const match = accounts.find((a) => a.loginId === loginId && a.password === password);
     if (match) { role = "program"; id = match.loginId; }
   }
