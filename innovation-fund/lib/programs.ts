@@ -175,7 +175,20 @@ export function programToRow(p: Program): Record<string, any> {
 export async function fetchPrograms(): Promise<Program[]> {
   const { data, error } = await supabase.from("programs").select("*");
   if (error || !data) return [];
-  return (data as any[]).map(rowToProgram);
+  const progs = (data as any[]).map(rowToProgram);
+  // 단계별 신청대상은 컬럼이 없을 수 있어 app_config에도 저장됨 — 있으면 우선 적용(컬럼 유무와 무관하게 보존)
+  try {
+    const map = await fetch("/api/program-audience", { cache: "no-store" }).then((r) => r.json()).then((j) => j?.map || {});
+    for (const p of progs) {
+      const a = map[p.id];
+      if (a && typeof a === "object") {
+        p.audiencePre = normAudience(a.pre);
+        p.audienceFund = normAudience(a.fund);
+        p.audience = normAudience(a.fund);
+      }
+    }
+  } catch { /* 네트워크/서버 사이드 호출 등은 컬럼 값으로 폴백 */ }
+  return progs;
 }
 
 export type ApplyPhase = "pre" | "fund";

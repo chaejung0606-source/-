@@ -37,5 +37,15 @@ export async function POST(req: NextRequest) {
     const del = await admin.from("programs").delete().in("id", toDelete);
     if (del.error) return NextResponse.json({ error: del.error.message }, { status: 500 });
   }
+
+  // 단계별 신청대상(audiencePre/Fund)은 배포 DB에 컬럼이 없을 수 있어 app_config에도 저장 → 컬럼 유무와 무관하게 영구 보존
+  const norm = (v: unknown) => (v === "virtual" ? "virtual" : v === "designated" ? "designated" : "anyone");
+  const audienceMap: Record<string, { pre: string; fund: string }> = {};
+  for (const p of programs as Program[]) {
+    if (!p.id) continue;
+    audienceMap[p.id] = { pre: norm(p.audiencePre ?? p.audience), fund: norm(p.audienceFund ?? p.audience) };
+  }
+  await admin.from("app_config").upsert({ key: "program_audience", value: audienceMap }, { onConflict: "key" });
+
   return NextResponse.json({ ok: true });
 }
