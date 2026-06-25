@@ -245,7 +245,11 @@ export default function Home() {
                   <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
                   <div className="mb-5 flex-1 space-y-2">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {typeMeta[t].note || typeMeta[t].desc}</p>
+                    {(t === "labor" || t === "program" || t === "staff") ? (
+                      <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "fund")}</p>
+                    ) : (
+                      <p className="text-sm text-gray-600">{typeMeta[t].note || typeMeta[t].desc}</p>
+                    )}
                     {/* 성과형(성적·경진대회·자격증) 학기별 신청기한 — 관리자 설정값 실시간 반영 */}
                     {(PERIOD_TYPES as readonly string[]).includes(t) && (
                       periodLabel(typePeriods[t]) ? (

@@ -219,6 +219,25 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     })();
   }, [adminApplicantId, adminUser]);
 
+  // 미래융합가상학과 학생 자격 검사 — 프로그램 신청은 가상학과 재학생만 가능(명단에 없으면 차단)
+  const [vdeptBlocked, setVdeptBlocked] = useState<boolean | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (isAdmin || (adminApplicantId && adminUser)) { setVdeptBlocked(false); return; } // 관리자 확인·대리신청은 제외
+        const cfg = await fetch("/api/vdept-config").then((r) => r.json());
+        // 프로그램 참여지원비(program)·진행요원비(staff)는 가상학과 학생 전용이므로 항상 검사한다.
+        const required: string[] = [...(cfg.requiredTypes || []), "program", "staff"];
+        if (!required.includes(type)) { setVdeptBlocked(false); return; }
+        const u = await currentUser();
+        const res = await fetch("/api/virtual-check", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "" }),
+        }).then((r) => r.json());
+        setVdeptBlocked(!res.isVirtual);
+      } catch { setVdeptBlocked(false); }
+    })();
+  }, [type, isAdmin, adminApplicantId, adminUser]);
+
   // 임시저장/보완요청 이어서 작성 — 저장된 필드별 상태를 무손실 복원
   useEffect(() => {
     if (!draft) return;
@@ -521,6 +540,24 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
 
   const cur = steps[step];
   const isLast = step === steps.length - 1;
+
+  // 가상학과 전용 프로그램인데 재학생 명단에 없는 경우 신청 차단
+  if (vdeptBlocked === true) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="text-xl font-bold text-gray-800">{programName || APPLICATION_TYPE_LABELS[type]}</h1>
+        </div>
+        <div className="card text-center py-14">
+          <div className="text-4xl mb-3">🔒</div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">미래융합가상학과 학생만 신청할 수 있습니다</h2>
+          <p className="text-sm text-gray-500">이 프로그램 지원금은 미래융합가상학과 재학생 명단에 등록된 학생만 신청 가능합니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
+          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
