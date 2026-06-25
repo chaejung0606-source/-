@@ -19,6 +19,10 @@ const today = () => new Date().toISOString().split("T")[0];
 const ALWAYS_START = "2000-01-01";
 const ALWAYS_END = "2099-12-31";
 const isAlways = (s?: string, e?: string) => s === ALWAYS_START && e === ALWAYS_END;
+// 신청 마감: 과거로 고정된 센티넬 기간 → 항상 신청 불가
+const CLOSED_START = "1900-01-01";
+const CLOSED_END = "1900-01-01";
+const isClosed = (s?: string, e?: string) => s === CLOSED_START && e === CLOSED_END;
 type SchemaKey = "preFormSchema" | "fundFormSchema";
 interface FormTemplate { id: string; name: string; schema: FormSchema; }
 
@@ -355,18 +359,27 @@ export default function ProgramsAdminPage() {
 
               {selectedStep === "pre" ? (
                 <>
-                  {(() => { const always = isAlways(p.preApplyStart, p.preApplyEnd); return (
+                  {(() => { const always = isAlways(p.preApplyStart, p.preApplyEnd); const closed = isClosed(p.preApplyStart, p.preApplyEnd); return (
                   <>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                     <p className="text-sm font-bold text-indigo-700">지원신청 (활동 전)</p>
-                    <button
-                      type="button"
-                      onClick={() => always ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: ALWAYS_START, preApplyEnd: ALWAYS_END })}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"}`}
-                    >{always ? "● 상시 신청 중" : "상시 신청"}</button>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => always ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: ALWAYS_START, preApplyEnd: ALWAYS_END })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"}`}
+                      >{always ? "● 상시 신청 중" : "상시 신청"}</button>
+                      <button
+                        type="button"
+                        onClick={() => closed ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: CLOSED_START, preApplyEnd: CLOSED_END })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${closed ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-600 border-gray-200 hover:border-red-300"}`}
+                      >{closed ? "● 신청 마감됨" : "신청마감"}</button>
+                    </div>
                   </div>
                   {always ? (
                     <p className="text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                  ) : closed ? (
+                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -385,18 +398,27 @@ export default function ProgramsAdminPage() {
                 </>
               ) : (
                 <>
-                  {(() => { const always = isAlways(p.applyStart, p.applyEnd); return (
+                  {(() => { const always = isAlways(p.applyStart, p.applyEnd); const closed = isClosed(p.applyStart, p.applyEnd); return (
                   <>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                     <p className="text-sm font-bold text-emerald-700">지원금 신청 (활동 후)</p>
-                    <button
-                      type="button"
-                      onClick={() => always ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: ALWAYS_START, applyEnd: ALWAYS_END })}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
-                    >{always ? "● 상시 신청 중" : "상시 신청"}</button>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => always ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: ALWAYS_START, applyEnd: ALWAYS_END })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
+                      >{always ? "● 상시 신청 중" : "상시 신청"}</button>
+                      <button
+                        type="button"
+                        onClick={() => closed ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: CLOSED_START, applyEnd: CLOSED_END })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${closed ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-600 border-gray-200 hover:border-red-300"}`}
+                      >{closed ? "● 신청 마감됨" : "신청마감"}</button>
+                    </div>
                   </div>
                   {always ? (
                     <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                  ) : closed ? (
+                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       <div>
