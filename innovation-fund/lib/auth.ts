@@ -24,6 +24,7 @@ export interface StudentUser {
 export interface RegisterInput {
   studentId: string; password: string; name: string;
   campus?: string; department: string; phone: string; email: string; university?: string;
+  studentType?: string; gradSchool?: string; college?: string; major?: string;
   bankName?: string; accountNumber?: string; accountHolder?: string;
 }
 
@@ -40,6 +41,8 @@ export async function register(input: RegisterInput): Promise<{ ok: boolean; err
       studentId, password: input.password, name: input.name.trim(),
       campus: input.campus || "", department: input.department.trim(), phone: input.phone.trim(),
       email: input.email.trim(), university: input.university || "강원대학교",
+      studentType: input.studentType || "", gradSchool: input.gradSchool || "",
+      college: (input.college || "").trim(), major: (input.major || "").trim(),
       bankName: input.bankName || "", accountNumber: input.accountNumber || "", accountHolder: input.accountHolder || "",
     }),
   });

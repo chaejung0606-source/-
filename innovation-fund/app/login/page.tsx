@@ -5,7 +5,10 @@ import Link from "next/link";
 import { Shield, ArrowLeft, User, Lock } from "lucide-react";
 import { login, register } from "@/lib/auth";
 import { formatPhone } from "@/lib/validation";
-import CampusDeptSelect from "@/components/common/CampusDeptSelect";
+import SearchSelect from "@/components/common/SearchSelect";
+import { CAMPUSES, collegesFor, deptsFor } from "@/lib/departments";
+
+const GRAD_SCHOOLS = ["일반대학원", "전문대학원"];
 
 function LoginInner() {
   const router = useRouter();
@@ -19,8 +22,17 @@ function LoginInner() {
   const [loginPw, setLoginPw] = useState("");
 
   // 회원가입
-  const [reg, setReg] = useState({ studentId: "", password: "", password2: "", name: "", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" });
+  const [reg, setReg] = useState({
+    studentId: "", password: "", password2: "", name: "",
+    studentType: "", campus: "", gradSchool: "", college: "", department: "", major: "",
+    phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "",
+  });
   const setR = (k: keyof typeof reg, v: string) => setReg((p) => ({ ...p, [k]: v }));
+  // 학적유형 변경 → 소속 선택 초기화
+  const setStudentType = (t: string) => setReg((p) => ({ ...p, studentType: t, campus: "", gradSchool: "", college: "", department: "", major: "" }));
+  const setCampus = (v: string) => setReg((p) => ({ ...p, campus: v, college: "", department: "" }));
+  const setCollege = (v: string) => setReg((p) => ({ ...p, college: v, department: "" }));
+  const isGrad = reg.studentType === "대학원생";
   const [agree, setAgree] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -37,6 +49,25 @@ function LoginInner() {
   const doRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    // 모든 항목 필수 검증
+    const miss: string[] = [];
+    if (!reg.studentId.trim()) miss.push("학번");
+    if (!reg.name.trim()) miss.push("이름");
+    if (!reg.password) miss.push("비밀번호");
+    if (!reg.password2) miss.push("비밀번호 확인");
+    if (!reg.studentType) miss.push("학적 유형(대학생/대학원생)");
+    if (!reg.campus) miss.push("캠퍼스");
+    if (isGrad && !reg.gradSchool) miss.push("대학원 종류");
+    if (!reg.college.trim()) miss.push("단과대학");
+    if (!reg.department.trim()) miss.push("학과");
+    if (isGrad && !reg.major.trim()) miss.push("전공");
+    if (!reg.phone.trim()) miss.push("연락처");
+    if (!reg.email.trim()) miss.push("이메일");
+    if (!reg.bankName) miss.push("은행");
+    if (!reg.accountHolder.trim()) miss.push("예금주");
+    if (!reg.accountNumber.trim()) miss.push("계좌번호");
+    if (miss.length) { setError(`다음 항목을 모두 입력해주세요: ${miss.join(", ")}`); return; }
+    if (reg.password.length < 8) { setError("비밀번호는 8자 이상이어야 합니다."); return; }
     if (reg.password !== reg.password2) { setError("비밀번호가 일치하지 않습니다."); return; }
     if (!agree) { setError("개인정보 수집·이용에 동의해야 회원가입이 가능합니다."); return; }
     setLoading(true);
@@ -96,23 +127,71 @@ function LoginInner() {
                 <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password} onChange={(e) => setR("password", e.target.value)} placeholder="8자 이상" /></div>
                 <div><label className="label">비밀번호 확인 <span className="text-red-500">*</span></label><input type="password" className="input-field" value={reg.password2} onChange={(e) => setR("password2", e.target.value)} /></div>
               </div>
+              {/* 학적 유형 — 캠퍼스보다 먼저 선택 */}
               <div>
-                <label className="label">캠퍼스 · 단과대학 · 학과</label>
-                <CampusDeptSelect
-                  campus={reg.campus}
-                  department={reg.department}
-                  onCampusChange={(v) => setR("campus", v)}
-                  onDepartmentChange={(v) => setR("department", v)}
-                />
+                <label className="label">학적 유형 <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["대학생", "대학원생"].map((t) => (
+                    <button key={t} type="button" onClick={() => setStudentType(t)}
+                      className={`rounded-xl py-2.5 text-sm font-semibold transition ${reg.studentType === t ? "bg-indigo-500 text-white" : "bg-white/70 text-gray-600 border border-gray-200"}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {reg.studentType && (
+                <div>
+                  <label className="label">캠퍼스 <span className="text-red-500">*</span></label>
+                  <SearchSelect value={reg.campus} onChange={setCampus} options={[...CAMPUSES]} placeholder="캠퍼스 선택" />
+                </div>
+              )}
+
+              {/* 대학생: CSV 기반 단과대학·학과 (검색/직접입력) */}
+              {reg.studentType === "대학생" && reg.campus && (
+                <>
+                  <div>
+                    <label className="label">단과대학 <span className="text-red-500">*</span></label>
+                    <SearchSelect value={reg.college} onChange={setCollege} options={collegesFor(reg.campus)} placeholder="단과대학 선택 (검색·직접입력 가능)" allowDirect />
+                  </div>
+                  <div>
+                    <label className="label">학과 <span className="text-red-500">*</span></label>
+                    <SearchSelect value={reg.department} onChange={(v) => setR("department", v)} options={deptsFor(reg.campus, reg.college)} placeholder={reg.college ? "학과 선택 (검색·직접입력 가능)" : "단과대학을 먼저 선택"} disabled={!reg.college} allowDirect />
+                  </div>
+                </>
+              )}
+
+              {/* 대학원생: 대학원 종류 선택 후 단과대학·학과·전공 직접입력 */}
+              {isGrad && reg.campus && (
+                <>
+                  <div>
+                    <label className="label">대학원 종류 <span className="text-red-500">*</span></label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {GRAD_SCHOOLS.map((g) => (
+                        <button key={g} type="button" onClick={() => setR("gradSchool", g)}
+                          className={`rounded-xl py-2.5 text-sm font-semibold transition ${reg.gradSchool === g ? "bg-indigo-500 text-white" : "bg-white/70 text-gray-600 border border-gray-200"}`}>
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {reg.gradSchool && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <div><label className="label">단과대학 <span className="text-red-500">*</span></label><input className="input-field" value={reg.college} onChange={(e) => setR("college", e.target.value)} placeholder="단과대학 직접 입력" /></div>
+                      <div><label className="label">학과 <span className="text-red-500">*</span></label><input className="input-field" value={reg.department} onChange={(e) => setR("department", e.target.value)} placeholder="학과 직접 입력" /></div>
+                      <div><label className="label">전공 <span className="text-red-500">*</span></label><input className="input-field" value={reg.major} onChange={(e) => setR("major", e.target.value)} placeholder="전공 직접 입력" /></div>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">연락처</label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>
-                <div><label className="label">이메일</label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
+                <div><label className="label">연락처 <span className="text-red-500">*</span></label><input className="input-field" value={reg.phone} onChange={(e) => setR("phone", formatPhone(e.target.value))} placeholder="010-0000-0000" inputMode="numeric" /></div>
+                <div><label className="label">이메일 <span className="text-red-500">*</span></label><input className="input-field" value={reg.email} onChange={(e) => setR("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
               </div>
 
               {/* 계좌 정보 (지원금 입금 계좌) — 신청 시 자동입력 */}
               <div>
-                <label className="label">계좌 정보 (지원금 입금 계좌)</label>
+                <label className="label">계좌 정보 (지원금 입금 계좌) <span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-2 gap-3">
                   <select className="input-field" value={reg.bankName} onChange={(e) => setR("bankName", e.target.value)}>
                     <option value="">은행 선택</option>

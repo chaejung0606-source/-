@@ -28,6 +28,11 @@ export async function POST(req: NextRequest) {
     phone: String(b.phone || "").trim(),
     realEmail: String(b.email || "").trim(),
     university: String(b.university || "강원대학교").trim(),
+    studentType: String(b.studentType || "").trim(),
+    gradSchool: String(b.gradSchool || "").trim(),
+    college: String(b.college || "").trim(),
+    major: String(b.major || "").trim(),
+    academicStatus: String(b.studentType || "").trim() === "대학원생" ? "대학원생" : "재학생",
     bankName: String(b.bankName || "").trim(),
     accountNumber: String(b.accountNumber || "").trim(),
     accountHolder: String(b.accountHolder || "").trim(),
@@ -50,11 +55,18 @@ export async function POST(req: NextRequest) {
 
   const uid = data.user?.id;
   if (uid) {
-    await admin.from("student_profiles").upsert({
+    const profile: Record<string, unknown> = {
       id: uid, student_id: studentId, name: meta.name, department: meta.department,
       phone: meta.phone, email: meta.realEmail, university: meta.university,
       bank_name: meta.bankName, account_number: meta.accountNumber, account_holder: meta.accountHolder,
-    });
+      academic_status: meta.academicStatus,
+    };
+    let { error: pErr } = await admin.from("student_profiles").upsert(profile);
+    if (pErr && /academic_status/i.test(pErr.message)) {
+      // 구버전 DB에 컬럼이 없으면 해당 필드 제외하고 재시도
+      delete profile.academic_status;
+      ({ error: pErr } = await admin.from("student_profiles").upsert(profile));
+    }
   }
 
   return NextResponse.json({ ok: true });

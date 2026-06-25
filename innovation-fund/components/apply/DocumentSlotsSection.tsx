@@ -67,48 +67,48 @@ export default function DocumentSlotsSection({ files, onChange, slots, allowExtr
           아래 서류를 <strong>각 칸에 하나씩 따로</strong> 업로드해주세요. {UPLOAD_GUIDE}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-5">
           {slots.map((slot) => {
             const cur = fileOfType(slot.type);
             const loading = busy === slot.type;
             return (
-              <div
-                key={slot.type}
-                onDragOver={(e) => { e.preventDefault(); setDragKey(slot.type); }}
-                onDragLeave={() => setDragKey((k) => (k === slot.type ? "" : k))}
-                onDrop={(e) => dropToSlot(e, slot)}
-                className={`rounded-xl border p-3 transition-colors ${dragKey === slot.type ? "border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-200" : "border-gray-200"}`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    {cur ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <span className="w-4 h-4 rounded-full border border-gray-300 inline-block" />}
-                    <span className="text-sm font-semibold text-gray-800">{slot.label}</span>
-                    {slot.required && <span className="text-red-500 text-xs">*</span>}
-                  </div>
-                  <label className={`btn-secondary cursor-pointer flex items-center gap-1.5 text-xs ${loading ? "opacity-60 pointer-events-none" : ""}`}>
-                    <Upload className="w-3.5 h-3.5" /> {loading ? "업로드 중..." : cur ? "다시 업로드" : "파일 선택"}
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept={ACCEPT_DOC}
-                      disabled={loading}
-                      onClick={(e) => { if (slot.notice && !window.confirm(`[${slot.label}] 제출 전 확인\n\n${slot.notice}\n\n확인하셨으면 ‘확인’을 눌러 파일을 선택하세요.`)) e.preventDefault(); }}
-                      onChange={async (e) => { const f = e.target.files?.[0]; e.currentTarget.value = ""; if (f) await upload(f, slot.type, true); }}
-                    />
-                  </label>
+              <div key={slot.type}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-bold text-gray-800">{slot.label}</span>
+                  {slot.required && <span className="text-red-500">*</span>}
+                  {cur && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
                 </div>
                 {slot.notice && <p className="text-[11px] text-amber-600 mb-2">※ {slot.notice}</p>}
                 {cur ? (
-                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
                     <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{cur.name}</div>
                       <div className="text-xs text-gray-400">{(cur.size / 1024).toFixed(0)} KB</div>
                     </div>
+                    <label className={`text-xs text-indigo-500 hover:text-indigo-700 cursor-pointer flex items-center gap-1 ${loading ? "opacity-60 pointer-events-none" : ""}`}>
+                      <Upload className="w-3.5 h-3.5" /> 다시 업로드
+                      <input type="file" className="hidden" accept={ACCEPT_DOC} disabled={loading}
+                        onClick={(e) => { if (slot.notice && !window.confirm(`[${slot.label}] 제출 전 확인\n\n${slot.notice}\n\n확인하셨으면 ‘확인’을 눌러 파일을 선택하세요.`)) e.preventDefault(); }}
+                        onChange={async (e) => { const f = e.target.files?.[0]; e.currentTarget.value = ""; if (f) await upload(f, slot.type, true); }} />
+                    </label>
                     <button onClick={() => removeFile(cur.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400">{dragKey === slot.type ? "여기에 놓으면 첨부됩니다." : "파일을 선택하거나 이 칸으로 끌어다 놓으세요."}</p>
+                  <label
+                    onDragOver={(e) => { e.preventDefault(); setDragKey(slot.type); }}
+                    onDragLeave={() => setDragKey((k) => (k === slot.type ? "" : k))}
+                    onDrop={(e) => dropToSlot(e, slot)}
+                    className={`upload-card flex flex-col items-center justify-center gap-1 p-8 text-center cursor-pointer transition-colors ${dragKey === slot.type ? "bg-indigo-50 border-indigo-300 text-indigo-500" : "text-gray-400"}`}
+                    style={{ minHeight: 130 }}
+                  >
+                    <Upload className="w-7 h-7 opacity-60 text-[#4f8cff]" />
+                    <span className="text-sm">{loading ? "업로드 중..." : dragKey === slot.type ? "여기에 놓으면 첨부됩니다" : "파일을 끌어다 놓거나 클릭하여 업로드"}</span>
+                    <span className="text-[11px] text-gray-300">PDF · JPG · PNG · WEBP</span>
+                    <input type="file" className="hidden" accept={ACCEPT_DOC} disabled={loading}
+                      onClick={(e) => { if (slot.notice && !window.confirm(`[${slot.label}] 제출 전 확인\n\n${slot.notice}\n\n확인하셨으면 ‘확인’을 눌러 파일을 선택하세요.`)) e.preventDefault(); }}
+                      onChange={async (e) => { const f = e.target.files?.[0]; e.currentTarget.value = ""; if (f) await upload(f, slot.type, true); }} />
+                  </label>
                 )}
               </div>
             );
