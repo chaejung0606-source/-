@@ -4,6 +4,14 @@ import {
   TRANSPORT_MODE_LABELS, calcSupportTotal,
 } from "@/types";
 
+// 주민등록번호 마스킹 (뒷 6자리 가림): 880101-1******
+function maskRRN(v?: string): string {
+  if (!v) return "";
+  const digits = v.replace(/[^0-9]/g, "");
+  if (digits.length < 7) return v.replace(/.(?=.{0}$)/g, "*");
+  return `${digits.slice(0, 6)}-${digits[6]}******`;
+}
+
 export function subTypeName(app: Application): string {
   if (app.gradeDetail) {
     const m = { microdegree: "성적 우수 - 마이크로디그리(MD)", minor: "성적 우수 - 부전공", double: "성적 우수 - 복수전공" };
@@ -201,7 +209,7 @@ export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
           <table className="form"><tbody>
             <tr><th>은행명</th><td>{app.verifiedAccount?.bankName || app.bankInfo.bankName}</td><th>예금주</th><td>{app.verifiedAccount?.accountHolder || app.bankInfo.accountHolder}</td></tr>
             <tr><th>계좌번호</th><td colSpan={3}>{app.verifiedAccount?.accountNumber || app.bankInfo.accountNumber}</td></tr>
-            {app.verifiedAccount?.residentNumber && <tr><th>주민등록번호</th><td colSpan={3}>{app.verifiedAccount.residentNumber}</td></tr>}
+            {app.verifiedAccount?.residentNumber && <tr><th>주민등록번호</th><td colSpan={3}>{maskRRN(app.verifiedAccount.residentNumber)}</td></tr>}
           </tbody></table>
 
           <div className="sec">4. 신청 상세 내용</div>
