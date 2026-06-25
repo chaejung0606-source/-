@@ -10,14 +10,14 @@ import { fetchPrograms, type Program } from "@/lib/programs";
 interface Applicant {
   id: string; student_id: string; name: string;
   department?: string; phone?: string; email?: string; university?: string;
-  skip_pre?: boolean; skip_pre_programs?: string[];
+  designated_programs?: string[];
   academic_status?: string; previous_student_ids?: string[];
 }
 
-// 지원금 신청 가능 학생 목록의 한 행 (승인 신청 / 지원신청 면제)
+// 지원금 신청 가능 학생 목록의 한 행 (승인 신청 / 지정학생)
 interface EligRow {
   program: string; studentId: string; name: string; department: string;
-  source: "approved" | "exempt"; phase?: string; type?: string; date?: string;
+  source: "approved" | "designated"; phase?: string; type?: string; date?: string;
 }
 
 const progNameOf = (a: Application): string =>
@@ -54,7 +54,7 @@ export default function ApplicantsPage() {
   const [eligSearch, setEligSearch] = useState("");
   const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible">("students");
-  const [skipModal, setSkipModal] = useState<Applicant | null>(null);
+  const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
   // 신청자 등록(회원가입 처리)
   const [regOpen, setRegOpen] = useState(false);
   const [regBusy, setRegBusy] = useState(false);
@@ -71,7 +71,7 @@ export default function ApplicantsPage() {
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
   const progNameById = useMemo(() => Object.fromEntries(programs.map((p) => [p.id, p.name])), [programs]);
 
-  // 프로그램별 지원금 신청 가능 학생 = 승인 신청(미취소) + 지원신청 면제 학생
+  // 프로그램별 지원금 신청 가능 학생 = 승인 신청(미취소) + '지정학생만' 프로그램에 지정된 학생
   const eligibleRows = useMemo<EligRow[]>(() => {
     const rows: EligRow[] = [];
     apps.filter((a) => a.reviewStatus === "approved" && !a.canceled).forEach((a) => {
@@ -82,10 +82,10 @@ export default function ApplicantsPage() {
       });
     });
     list.forEach((s) => {
-      (s.skip_pre_programs || []).forEach((pid) => {
+      (s.designated_programs || []).forEach((pid) => {
         rows.push({
           program: progNameById[pid] || "(삭제된 프로그램)", studentId: s.student_id || "", name: s.name || "",
-          department: s.department || "", source: "exempt",
+          department: s.department || "", source: "designated",
         });
       });
     });
@@ -113,8 +113,8 @@ export default function ApplicantsPage() {
     const XLSX = await import("xlsx");
     const aoa: (string | undefined)[][] = [["프로그램", "학번", "이름", "학과", "구분", "단계/유형", "신청일"]];
     eligibleByProgram.forEach(([prog, rows]) => rows.forEach((r) => {
-      aoa.push([prog, r.studentId, r.name, r.department, r.source === "exempt" ? "지원신청 면제" : "승인",
-        r.source === "exempt" ? "" : `${r.phase || ""} ${r.type || ""}`.trim(), r.date || ""]);
+      aoa.push([prog, r.studentId, r.name, r.department, r.source === "designated" ? "지정학생" : "승인",
+        r.source === "designated" ? "" : `${r.phase || ""} ${r.type || ""}`.trim(), r.date || ""]);
     }));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
@@ -122,16 +122,16 @@ export default function ApplicantsPage() {
     XLSX.writeFile(wb, `지원금신청가능학생_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // 프로그램별 면제 저장 (모달에서 호출)
-  const saveSkipPrograms = async (a: Applicant, programIds: string[]) => {
-    const prev = a.skip_pre_programs || [];
-    setList((l) => l.map((x) => x.id === a.id ? { ...x, skip_pre_programs: programIds, skip_pre: programIds.length > 0 } : x));
-    setSkipModal(null);
-    const res = await fetch("/api/admin/applicants/skip-pre", {
+  // 프로그램별 지정학생 저장 (모달에서 호출)
+  const saveDesignatedPrograms = async (a: Applicant, programIds: string[]) => {
+    const prev = a.designated_programs || [];
+    setList((l) => l.map((x) => x.id === a.id ? { ...x, designated_programs: programIds } : x));
+    setDesignateModal(null);
+    const res = await fetch("/api/admin/applicants/designate", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, programIds }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
-    if (!j.ok) { setList((l) => l.map((x) => x.id === a.id ? { ...x, skip_pre_programs: prev, skip_pre: prev.length > 0 } : x)); alert("변경 실패: " + (j.error || res.status)); }
+    if (!j.ok) { setList((l) => l.map((x) => x.id === a.id ? { ...x, designated_programs: prev } : x)); alert("변경 실패: " + (j.error || res.status)); }
   };
 
   const resetPw = async (a: Applicant) => {
@@ -217,7 +217,7 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
                   <th className="whitespace-nowrap">비밀번호</th>
-                  <th className="text-center whitespace-nowrap">지원신청 면제</th>
+                  <th className="text-center whitespace-nowrap">지정 프로그램</th>
                   <th className="text-center whitespace-nowrap">대리 신청 (참여지원비)</th>
                   <th className="text-center whitespace-nowrap">관리</th>
                 </tr>
@@ -241,12 +241,12 @@ export default function ApplicantsPage() {
                     <td className="text-gray-400">•••••• (비공개)</td>
                     <td className="text-center">
                       <button
-                        onClick={() => setSkipModal(a)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition inline-flex items-center gap-1 ${(a.skip_pre_programs?.length || 0) > 0 ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 text-gray-500 border-gray-200 hover:border-emerald-300"}`}
-                        title="지원신청 없이 지원금 신청을 허용할 프로그램 선택"
+                        onClick={() => setDesignateModal(a)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition inline-flex items-center gap-1 ${(a.designated_programs?.length || 0) > 0 ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 text-gray-500 border-gray-200 hover:border-emerald-300"}`}
+                        title="'지정학생만' 프로그램에서 이 학생이 신청할 수 있도록 지정"
                       >
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        {(a.skip_pre_programs?.length || 0) > 0 ? `면제 ${a.skip_pre_programs!.length}개` : "면제 설정"}
+                        {(a.designated_programs?.length || 0) > 0 ? `지정 ${a.designated_programs!.length}개` : "지정"}
                       </button>
                     </td>
                     <td className="text-center whitespace-nowrap">
@@ -272,7 +272,7 @@ export default function ApplicantsPage() {
         </>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 검토 <strong>승인</strong> 신청 + 관리자가 <strong>지원신청 면제</strong>한 학생을 프로그램별로 모았습니다.</p>
+          <p className="text-sm text-gray-500 flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> 검토 <strong>승인</strong> 신청 + 관리자가 <strong>지정</strong>한 학생을 프로그램별로 모았습니다.</p>
           <div className="card flex items-center gap-2 flex-wrap">
             <select className="input-field !w-auto text-sm" value={eligProgram} onChange={(e) => setEligProgram(e.target.value)}>
               <option value="all">전체 프로그램</option>
@@ -310,11 +310,11 @@ export default function ApplicantsPage() {
                         <td className="font-medium whitespace-nowrap">{r.name || "-"}</td>
                         <td className="text-gray-600 max-w-[160px] truncate">{r.department || "-"}</td>
                         <td className="text-xs whitespace-nowrap">
-                          {r.source === "exempt"
-                            ? <span className="badge bg-amber-100 text-amber-700">지원신청 면제</span>
+                          {r.source === "designated"
+                            ? <span className="badge bg-amber-100 text-amber-700">지정학생</span>
                             : <span className="badge bg-emerald-100 text-emerald-700">승인</span>}
                         </td>
-                        <td className="text-xs whitespace-nowrap text-gray-600">{r.source === "exempt" ? "-" : `${r.phase || ""} · ${r.type || ""}`}</td>
+                        <td className="text-xs whitespace-nowrap text-gray-600">{r.source === "designated" ? "-" : `${r.phase || ""} · ${r.type || ""}`}</td>
                         <td className="text-gray-500 whitespace-nowrap">{r.date || "-"}</td>
                       </tr>
                     ))}
@@ -326,12 +326,12 @@ export default function ApplicantsPage() {
         </div>
       )}
 
-      {skipModal && (
-        <SkipPreModal
-          applicant={skipModal}
+      {designateModal && (
+        <DesignateModal
+          applicant={designateModal}
           programs={programs}
-          onClose={() => setSkipModal(null)}
-          onSave={(ids) => saveSkipPrograms(skipModal, ids)}
+          onClose={() => setDesignateModal(null)}
+          onSave={(ids) => saveDesignatedPrograms(designateModal, ids)}
         />
       )}
 
@@ -373,25 +373,27 @@ export default function ApplicantsPage() {
   );
 }
 
-// 지원신청 면제 프로그램 선택 모달
-function SkipPreModal({ applicant, programs, onClose, onSave }: { applicant: Applicant; programs: Program[]; onClose: () => void; onSave: (ids: string[]) => void; }) {
-  const [sel, setSel] = useState<string[]>(applicant.skip_pre_programs || []);
+// 지정학생 프로그램 선택 모달 — '지정학생만' 신청대상 프로그램만 표시
+function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: Applicant; programs: Program[]; onClose: () => void; onSave: (ids: string[]) => void; }) {
+  const [sel, setSel] = useState<string[]>(applicant.designated_programs || []);
   const toggle = (id: string) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
+  // '지정학생만'으로 설정된 프로그램만 대상 (그 외는 지정 의미 없음). 단, 이미 지정된 항목은 함께 노출.
+  const targetPrograms = useMemo(() => programs.filter((p) => p.audience === "designated" || sel.includes(p.id)), [programs, sel]);
   const byCat = useMemo(() => {
     const m: Record<string, Program[]> = {};
-    programs.forEach((p) => { (m[p.category] ||= []).push(p); });
+    targetPrograms.forEach((p) => { (m[p.category] ||= []).push(p); });
     return m;
-  }, [programs]);
+  }, [targetPrograms]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="modal-backdrop absolute inset-0" onClick={onClose} />
       <div className="modal relative w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">지원신청 면제 프로그램</h2>
-        <p className="text-sm text-gray-500 mb-4">{applicant.name}({applicant.student_id})님이 <strong>지원신청 없이</strong> 바로 지원금 신청할 수 있는 프로그램을 선택하세요.</p>
-        {programs.length === 0 ? (
-          <p className="text-sm text-gray-400">등록된 프로그램이 없습니다.</p>
+        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">지정 프로그램 선택</h2>
+        <p className="text-sm text-gray-500 mb-4">{applicant.name}({applicant.student_id})님이 신청할 수 있도록 <strong>지정</strong>할 프로그램을 선택하세요. (신청대상이 <strong>‘지정학생만’</strong>인 프로그램만 표시됩니다)</p>
+        {targetPrograms.length === 0 ? (
+          <p className="text-sm text-gray-400">신청대상이 ‘지정학생만’인 프로그램이 없습니다. 먼저 ‘프로그램 신청 내용’에서 프로그램 신청대상을 ‘지정학생만’으로 설정해주세요.</p>
         ) : (
           <div className="space-y-3">
             {Object.entries(byCat).map(([cat, ps]) => (

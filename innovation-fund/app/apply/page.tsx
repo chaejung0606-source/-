@@ -71,22 +71,6 @@ function ApplyInner() {
 
   // 지원금 신청 차단(지원신청 승인 필요) 안내
   const [blocked, setBlocked] = useState(false);
-  // 관리자가 '지원신청 면제'로 지정한 학생은 지원신청 없이도 지원금 신청 가능
-  const [skipPreAllowed, setSkipPreAllowed] = useState(false);
-  // 면제 여부 조회 완료 플래그 — 조회 전에 차단 판정이 먼저 일어나 잠기는 레이스 방지
-  const [skipPreChecked, setSkipPreChecked] = useState(false);
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase.from("student_profiles").select("*").eq("id", user.id).maybeSingle();
-        if (data && (data as { skip_pre?: boolean }).skip_pre) setSkipPreAllowed(true);
-      } finally {
-        setSkipPreChecked(true);
-      }
-    })();
-  }, []);
   const requiresPre = (t: ApplicationType) => (["labor", "program", "activity"] as ApplicationType[]).includes(t);
   const BLOCK_MSG = "지원금 신청 불가\n\n사유: 먼저 ‘지원신청’을 하고 관리자 승인을 받아야 이 지원금을 신청할 수 있습니다.\n승인된 지원신청 내역이 없습니다.";
   useEffect(() => { setBlocked(false); }, [category, mode]);
@@ -195,11 +179,11 @@ function ApplyInner() {
     if (preApps.length > 0 && !skipPre) return;
     if (CATEGORY_TYPES[category].length === 1) {
       const only = CATEGORY_TYPES[category][0];
-      // 면제 조회가 끝나기 전엔 차단하지 않음(레이스 방지). 면제·관리자·승인내역 있으면 통과
-      if (requiresPre(only) && preApps.length === 0 && skipPreChecked && !skipPreAllowed && !isAdmin) { setBlocked(true); return; }
+      // 승인 내역이 없고 관리자가 아니면 차단 (지원신청 승인 필요)
+      if (requiresPre(only) && preApps.length === 0 && !isAdmin) { setBlocked(true); return; }
       setSelectedType(only);
     }
-  }, [category, mode, selectedType, preChecked, preApps.length, skipPre, skipPreAllowed, skipPreChecked, isAdmin, draftApp, prefill]);
+  }, [category, mode, selectedType, preChecked, preApps.length, skipPre, isAdmin, draftApp, prefill]);
 
   // ?type= 로 바로 진입한 경우 카테고리 유추(지원신청 승인 확인용)
   useEffect(() => { if (selectedType && !category) setCategory(categoryOfType(selectedType)); }, [selectedType, category]);
@@ -207,8 +191,8 @@ function ApplyInner() {
   // 일반 가드: 지원금 신청 + 승인 필요 유형 + 승인 내역 없음 → 차단(모든 진입 경로 공통)
   useEffect(() => {
     if (mode !== "fund" || !selectedType || prefill || draftApp || !preChecked) return;
-    if (requiresPre(selectedType) && preApps.length === 0 && skipPreChecked && !skipPreAllowed && !isAdmin) { setSelectedType(null); setBlocked(true); }
-  }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, skipPreAllowed, skipPreChecked, isAdmin]);
+    if (requiresPre(selectedType) && preApps.length === 0 && !isAdmin) { setSelectedType(null); setBlocked(true); }
+  }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, isAdmin]);
 
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "");
   const choosePre = (app: Application) => { setPrefill(app); setSelectedType(app.applicationType); };
@@ -369,8 +353,8 @@ function ApplyInner() {
                 <button
                   key={type}
                   onClick={() => {
-                    // 지원신청 승인이 필요한 유형인데 승인 내역이 없으면 차단(알림). 면제 조회 완료 후에만 판정
-                    if (mode === "fund" && requiresPre(type) && preApps.length === 0 && skipPreChecked && !skipPreAllowed && !isAdmin) { setBlocked(true); return; }
+                    // 지원신청 승인이 필요한 유형인데 승인 내역이 없으면 차단(알림)
+                    if (mode === "fund" && requiresPre(type) && preApps.length === 0 && !isAdmin) { setBlocked(true); return; }
                     setSelectedType(type);
                   }}
                   className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"

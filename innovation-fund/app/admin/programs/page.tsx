@@ -338,15 +338,15 @@ export default function ProgramsAdminPage() {
               {/* 프로그램 신청대상 (가상학과 전용 / 누구나) */}
               <div className="mb-3">
                 <label className="label mb-1.5">프로그램 신청대상</label>
-                <div className="flex gap-2">
-                  {([["virtual", "미래융합가상학과 학생만"], ["anyone", "누구나"]] as const).map(([val, lbl]) => {
+                <div className="flex gap-2 flex-wrap">
+                  {([["virtual", "미래융합가상학과 학생만"], ["designated", "지정학생만"], ["anyone", "누구나"]] as const).map(([val, lbl]) => {
                     const active = (p.audience || "anyone") === val;
                     return (
                       <button
                         key={val}
                         type="button"
                         onClick={() => update(p.id, { audience: val })}
-                        className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-white" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                        className={`flex-1 min-w-[120px] rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-white" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
                         style={active ? { background: stepAccent, borderColor: stepAccent } : undefined}
                       >
                         {lbl}
@@ -354,7 +354,11 @@ export default function ProgramsAdminPage() {
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1.5">‘미래융합가상학과 학생만’을 선택하면 재학생 명단에 없는 학생은 이 프로그램을 신청할 수 없습니다.</p>
+                <p className="text-[11px] text-gray-500 mt-1.5">
+                  {p.audience === "designated"
+                    ? "‘지정학생만’: 신청자 정보 메뉴에서 이 프로그램을 신청할 수 있는 학생을 직접 지정합니다. 지정되지 않은 학생은 신청할 수 없습니다."
+                    : "‘미래융합가상학과 학생만’을 선택하면 재학생 명단에 없는 학생은 이 프로그램을 신청할 수 없습니다."}
+                </p>
               </div>
 
               {selectedStep === "pre" ? (

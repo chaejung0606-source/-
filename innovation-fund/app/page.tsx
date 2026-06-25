@@ -20,9 +20,9 @@ const FOOTER_ICONS: Record<string, typeof Globe> = { Mail, Phone, MapPin, Globe,
 
 // 유형 분석 카드 (클릭 시 세부내용 모달)
 const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: string }> = {
-  labor: { icon: "🛠️", desc: "사업단 프로그램 근로학생 참여 — 근무상황부 기준 지급", note: "학부 15,000원/시간 · 대학원 20,000원/시간 (월 40시간 이내)" },
+  labor: { icon: "🛠️", desc: "사업단 프로그램 근로학생 참여 — 근무상황부 기준 지급" },
   program: { icon: "📋", desc: "사업단 승인 교과·비교과, 현장실습, 인턴십, 학회 참석 등" },
-  staff: { icon: "👥", desc: "사업단 프로그램 진행 보조 업무 수행 학생", note: "대학생 15,000원/시간 · 대학원생 20,000원/시간" },
+  staff: { icon: "👥", desc: "사업단 프로그램 진행 보조 업무 수행 학생" },
   grade: { icon: "🎓", desc: "마이크로디그리(30만원) · 부전공(100만원) · 복수전공(150만원)", note: "평점 평균 3.0 이상" },
   contest: { icon: "🏆", desc: "사업단 분야 관련 경진대회 입상자", note: "A규모·B규모 / 개인·팀 별 차등 지급" },
   certificate: { icon: "📜", desc: "미래융합가상학과 학생 대상 자격증 취득 지원", note: "난이도 상(70만원) · 중(40만원) · 하(10만원)" },
