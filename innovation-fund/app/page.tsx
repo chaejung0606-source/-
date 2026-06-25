@@ -67,7 +67,7 @@ export default function Home() {
   const typeInfo = (type: ApplicationType, mode: ApplyPhase): string => {
     if (type === "labor" || type === "program" || type === "staff") {
       const names = filterActiveByType(programs, type, categoryOfType(type), undefined, mode).map((p) => p.name);
-      return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
+      return names.length ? names.join(" · ") : "현재 모집(신청 가능) 중인 프로그램이 없습니다 — 모집 시기는 공지를 확인하세요";
     }
     // 성과형: 신청기한 표시 (미설정이면 상시)
     if ((PERIOD_TYPES as readonly string[]).includes(type)) {
@@ -227,7 +227,7 @@ export default function Home() {
                     <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "pre")}</p>
                   </div>
                   <Link href={`/apply?type=${t}&mode=pre`} className="btn-secondary w-full justify-center">
-                    지원신청하기 <ChevronRight className="w-4 h-4" />
+                    지원하기 <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
               ))}

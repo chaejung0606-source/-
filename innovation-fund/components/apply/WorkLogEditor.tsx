@@ -115,10 +115,11 @@ export default function WorkLogEditor({ entries, onChange, withDetail, hint, cla
 
   return (
     <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="font-bold text-gray-800">근무상황부</h3>
         <span className="text-xs text-gray-500">총 {totalHours}시간 · {new Set(entries.map((e) => e.date)).size}일</span>
       </div>
+      <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5 mb-3">※ 입력 규칙: 1일 최대 8시간 · 같은 날 합계 8시간 이내 · <strong>수업시간과 겹치는 시간은 등록 불가</strong>(마이페이지에서 수강 시간표를 먼저 입력)</p>
       {hint && <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3">{hint}</div>}
 
       <div className="grid md:grid-cols-2 gap-3 mb-3">

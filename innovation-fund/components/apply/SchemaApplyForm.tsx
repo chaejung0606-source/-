@@ -18,6 +18,7 @@ import CostSection from "./CostSection";
 import SignaturePad from "./SignaturePad";
 import AiDraftButton from "./AiDraftButton";
 import TableField, { parseTableGrid } from "./TableField";
+import InquiryButtons from "./InquiryButtons";
 import { CheckCircle } from "lucide-react";
 
 interface Props {
@@ -71,6 +72,7 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
 
   return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+      <p className="text-[11px] text-gray-500">※ 입력 규칙: 1일 최대 {DAILY_MAX_HOURS}시간 · 같은 날 합계 {DAILY_MAX_HOURS}시간 이내</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div><span className="text-[11px] text-gray-500">근무일자</span><input type="date" className="input-field" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         <div><span className="text-[11px] text-gray-500">시작</span><input type="time" className="input-field" value={start} onChange={(e) => setStart(e.target.value)} /></div>
@@ -487,7 +489,8 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           <div key={f.id}>
             <label className="label">{f.label || "본인 명의 계좌 정보"}{req}</label>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-4">
-              ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.
+              ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.<br />
+              실제 지급은 <strong>연구통합관리시스템(학생용)</strong>에 등록된 본인 계좌로 처리되니, <a href="https://knu-icf.kangwon.ac.kr/issue_main2.act" target="_blank" rel="noopener noreferrer" className="underline font-semibold">본인계좌 등록</a>도 꼭 확인하세요.
             </div>
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
@@ -586,7 +589,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
               <p className="text-sm text-gray-500">이 프로그램은 미래융합가상학과 재학생 명단에 등록된 학생만 신청할 수 있습니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
             </>
           )}
-          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+          <InquiryButtons onBack={onBack} />
         </div>
       </div>
     );
@@ -645,7 +648,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       <div className="flex items-center justify-between gap-3 pt-2">
         <button onClick={() => step === 0 ? onBack() : setStep((s) => s - 1)} className="btn-secondary flex items-center gap-1.5"><ChevronLeft className="w-4 h-4" /> {step === 0 ? "이전" : "이전 단계"}</button>
         <div className="flex items-center gap-2">
-          {draftSavedAt && <span className="text-xs text-gray-400 hidden sm:inline">임시저장됨 {draftSavedAt}</span>}
+          {draftSavedAt && <span className="text-xs text-amber-600 font-medium hidden sm:inline">임시저장됨 {draftSavedAt} · 아직 접수 아님(제출까지 완료)</span>}
           <button onClick={saveDraft} disabled={savingDraft || isAdmin} className="btn-secondary flex items-center gap-1.5 disabled:opacity-50"><Save className="w-4 h-4" /> {savingDraft ? "저장 중..." : "임시저장"}</button>
           {isLast ? (
             <button onClick={submit} disabled={submitting} className="btn-primary flex items-center gap-1.5"><Check className="w-4 h-4" /> {submitting ? "제출 중..." : (schema.submitLabel || (isPre ? "지원신청 제출" : "신청 제출"))}</button>
