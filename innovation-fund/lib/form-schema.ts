@@ -8,6 +8,7 @@ export type FormFieldType =
   | "number"        // 숫자/금액
   | "date"          // 날짜
   | "select"        // 드롭다운
+  | "table"         // 표(관리자가 머리글·예시 작성, 신청자가 칸 입력)
   | "file"          // 파일 업로드
   | "agreement"     // 서약(동의)
   | "signature"     // 서명
@@ -26,6 +27,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   number: "숫자/금액",
   date: "날짜",
   select: "드롭다운",
+  table: "표",
   file: "파일 업로드",
   agreement: "서약(동의)",
   signature: "서명",
@@ -69,6 +71,12 @@ export interface FormField {
   unitPriceByGrade?: Record<string, number>; // workLog: 구분별 시간당 단가 (키: 재학생/대학원생)
   maxHours?: number;       // workLog: 입력 가능한 최대 근무시간(합계 상한, 고정)
   maxHoursByGrade?: Record<string, number>; // workLog: 구분별 최대 입력 시간
+  // table(표): 관리자가 작성한 칸 내용. 빈 칸("")은 신청자가 채우는 입력칸이 된다.
+  tableCells?: string[][]; // 행×열 그리드. 첫 행/열은 머리글로 사용 가능, 둘째 행/열에 예시 작성 가능
+  tableHeaderRow?: boolean; // 첫 행을 머리글로 강조 표시
+  tableHeaderCol?: boolean; // 첫 열을 머리글로 강조 표시
+  tableAddRows?: boolean;  // 신청자가 행을 추가할 수 있는지
+  tableAddCols?: boolean;  // 신청자가 열을 추가할 수 있는지
 }
 
 export interface FormStep {
@@ -169,6 +177,7 @@ function cloneField(f: FormField): FormField {
   if (f.options) c.options = [...f.options];
   if (f.unitPriceByGrade) c.unitPriceByGrade = { ...f.unitPriceByGrade };
   if (f.maxHoursByGrade) c.maxHoursByGrade = { ...f.maxHoursByGrade };
+  if (f.tableCells) c.tableCells = f.tableCells.map((row) => [...row]);
   if (f.branches) {
     c.branches = {};
     for (const [opt, subs] of Object.entries(f.branches)) c.branches[opt] = (subs || []).map(cloneField);

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2 } from "lucide-react";
 import type { FormSchema, FormField, FormStep, FormFieldType } from "@/lib/form-schema";
 import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GROUPS, newSchemaId } from "@/lib/form-schema";
+import TableField, { defaultTableCells } from "./TableField";
 
 // 스키마 기반 신청 폼.
 // editable=false(기본): 미리보기/실제 신청자 화면 (입력 비활성)
@@ -25,7 +26,7 @@ const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
 // 항목 추가 메뉴 구성 — 입력 항목 / 표준 블록(필수요소 포함)
 const ADD_GROUPS: { title: string; types: FormFieldType[] }[] = [
   { title: "필수·표준 항목", types: ["applicantInfo", "privacyConsent", "account", "signature"] },
-  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "select", "file", "agreement"] },
+  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "select", "table", "file", "agreement"] },
   { title: "활동·비용·근무 항목", types: ["eventLocation", "workLog", "transport", "registration", "lodging"] },
 ];
 
@@ -75,6 +76,16 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
       return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><textarea className="input-field h-20 resize-none bg-gray-50" placeholder={f.placeholder || ""} disabled={disabled} /></div>);
     case "select":
       return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><select className="input-field bg-gray-50" disabled={disabled}><option>선택하세요</option>{(f.options || []).map((o) => <option key={o}>{o}</option>)}</select></div>);
+    case "table":
+      return (
+        <div>
+          <label className="label">{f.label || "(제목 없음)"}{req}</label>
+          <TableField field={f} disabled />
+          {(f.tableAddRows || f.tableAddCols) && (
+            <p className="text-[11px] text-gray-400 mt-1">신청자가 {[f.tableAddRows ? "행" : "", f.tableAddCols ? "열" : ""].filter(Boolean).join("·")}을 추가할 수 있습니다.</p>
+          )}
+        </div>
+      );
     case "file":
       return (
         <div>
@@ -248,7 +259,8 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
   const removeStep = (sid: string) => { mutSteps((st) => st.filter((s) => s.id !== sid)); setStep((p) => Math.max(0, p - 1)); };
   const moveStep = (sid: string, dir: -1 | 1) => mutSteps((st) => { const a = [...st]; const i = a.findIndex((s) => s.id === sid); const j = i + dir; if (i < 0 || j < 0 || j >= a.length) return st; [a[i], a[j]] = [a[j], a[i]]; return a; });
   const addField = (sid: string, type: FormFieldType = "shortText") => {
-    mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: [...s.fields, { id: newSchemaId("f"), label: FIELD_DEFAULT_LABEL[type] || "", type, required: !!FIELD_DEFAULT_REQUIRED[type] }] } : s));
+    const extra: Partial<FormField> = type === "table" ? { tableCells: defaultTableCells(), tableHeaderRow: true } : {};
+    mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: [...s.fields, { id: newSchemaId("f"), label: FIELD_DEFAULT_LABEL[type] || "", type, required: !!FIELD_DEFAULT_REQUIRED[type], ...extra }] } : s));
     setAddOpen(null);
   };
   const updField = (sid: string, fid: string, patch: Partial<FormField>) => mutSteps((st) => st.map((s) => s.id === sid ? { ...s, fields: s.fields.map((f) => f.id === fid ? { ...f, ...patch } : f) } : s));
@@ -417,7 +429,54 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                   )}
                 </div>
               )}
-              {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file", "date"].includes(f.type) && (
+              {f.type === "table" && (() => {
+                const cells = (f.tableCells && f.tableCells.length ? f.tableCells : defaultTableCells());
+                const rows = cells.length; const cols = cells[0]?.length || 0;
+                const setCells = (g: string[][]) => updField(cur.id, f.id, { tableCells: g });
+                const setCell = (r: number, c: number, v: string) => { const g = cells.map((row) => [...row]); g[r][c] = v; setCells(g); };
+                const addRow = () => setCells([...cells.map((row) => [...row]), Array(cols).fill("")]);
+                const addCol = () => setCells(cells.map((row) => [...row, ""]));
+                const delRow = (r: number) => { if (rows <= 1) return; setCells(cells.filter((_, i) => i !== r)); };
+                const delCol = (c: number) => { if (cols <= 1) return; setCells(cells.map((row) => row.filter((_, i) => i !== c))); };
+                return (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[11px] text-gray-500">표를 직접 작성하세요. <strong>내용을 채운 칸</strong>은 신청자에게 그대로 보이고(머리글·예시), <strong>빈 칸</strong>은 신청자가 입력합니다.</p>
+                    <div className="overflow-x-auto">
+                      <table className="border-collapse text-xs">
+                        <tbody>
+                          {cells.map((row, r) => (
+                            <tr key={r}>
+                              {row.map((cell, c) => {
+                                const header = (f.tableHeaderRow && r === 0) || (f.tableHeaderCol && c === 0);
+                                return (
+                                  <td key={c} className={`border border-gray-300 p-0 ${header ? "bg-indigo-50" : "bg-white"}`}>
+                                    <input className="w-full px-1.5 py-1 outline-none bg-transparent" style={{ minWidth: 80 }} value={cell} onChange={(e) => setCell(r, c, e.target.value)} placeholder={r === 0 ? "머리글" : (r === 1 ? "예시/빈칸" : "빈칸=신청자")} />
+                                  </td>
+                                );
+                              })}
+                              <td className="border-0 pl-1"><button onClick={() => delRow(r)} className="text-gray-300 hover:text-red-500" title="행 삭제"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                            </tr>
+                          ))}
+                          <tr>{cells[0]?.map((_, c) => (
+                            <td key={c} className="border-0 text-center pt-0.5"><button onClick={() => delCol(c)} className="text-gray-300 hover:text-red-500" title="열 삭제"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                          ))}</tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={addRow} className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3 h-3" /> 행 추가</button>
+                      <button onClick={addCol} className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3 h-3" /> 열 추가</button>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-gray-600 pt-1 border-t border-gray-100">
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={!!f.tableHeaderRow} onChange={(e) => updField(cur.id, f.id, { tableHeaderRow: e.target.checked })} /> 첫 행을 머리글로</label>
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={!!f.tableHeaderCol} onChange={(e) => updField(cur.id, f.id, { tableHeaderCol: e.target.checked })} /> 첫 열을 머리글로</label>
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={!!f.tableAddRows} onChange={(e) => updField(cur.id, f.id, { tableAddRows: e.target.checked })} /> 신청자 행 추가 허용</label>
+                      <label className="flex items-center gap-1"><input type="checkbox" checked={!!f.tableAddCols} onChange={(e) => updField(cur.id, f.id, { tableAddCols: e.target.checked })} /> 신청자 열 추가 허용</label>
+                    </div>
+                  </div>
+                );
+              })()}
+              {!STANDARD_TYPES.includes(f.type) && !["select", "table", "agreement", "signature", "file", "date"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
               )}
               {f.type === "file" && (

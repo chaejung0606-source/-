@@ -17,6 +17,7 @@ import EventLocationSection from "./EventLocationSection";
 import CostSection from "./CostSection";
 import SignaturePad from "./SignaturePad";
 import AiDraftButton from "./AiDraftButton";
+import TableField, { parseTableGrid } from "./TableField";
 import { CheckCircle } from "lucide-react";
 
 interface Props {
@@ -312,6 +313,16 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         if ((workLogByField[f.id] || []).length === 0) e.push(`• [${f.label || "근무상황부"}] 근무 기록을 1건 이상 등록해주세요.`);
       } else if (f.type === "agreement") {
         if (answers[f.id] !== "동의") e.push(`• [${f.label || "서약"}] 항목에 동의해주세요.`);
+      } else if (f.type === "table") {
+        const tpl = f.tableCells || [];
+        const rows0 = tpl.length, cols0 = tpl[0]?.length || 0;
+        const grid = parseTableGrid(answers[f.id]) || tpl;
+        let hasInput = false, blank = false;
+        grid.forEach((row, r) => row.forEach((cell, c) => {
+          const fixed = r < rows0 && c < cols0 && (tpl[r]?.[c] || "").trim() !== "";
+          if (!fixed) { hasInput = true; if (!String(cell || "").trim()) blank = true; }
+        }));
+        if (!hasInput || blank) e.push(`• [${f.label || "표"}] 표의 빈 칸을 모두 채워주세요.`);
       } else if (["shortText", "longText", "number", "date", "select"].includes(f.type)) {
         const val = (answers[f.id] || "");
         if (f.type === "date" && f.range) {
@@ -335,7 +346,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     const workLog = Object.values(workLogByField).flat();
     const formAnswers = {
       programId, programName,
-      fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement"].includes(f.type))
+      fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement", "table"].includes(f.type))
         .map((f) => ({ id: f.id, label: f.label, type: f.type, value: answers[f.id] || "" })),
     };
     return {
@@ -532,6 +543,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           </div>
         </div>
       );
+      case "table": return <div key={f.id}>{label}<TableField field={f} value={answers[f.id]} onChange={(v) => setAns(f.id, v)} /></div>;
       default: return null;
     }
   };
