@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check, Save } from "lucide-react";
-import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail, EventLocation } from "@/types";
+import type { Application, ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail, EventLocation } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import type { FormSchema, FormField } from "@/lib/form-schema";
 import { workLogGroupOfGrade } from "@/lib/form-schema";
@@ -23,6 +23,7 @@ interface Props {
   programId: string;
   programName: string;
   isAdmin?: boolean;   // 관리자 확인용(제약·제출 없이 신청자 화면 그대로 보기)
+  draft?: Application | null; // 임시저장/보완요청 이어서 작성 시 복원할 원본 신청
   onBack: () => void;
 }
 
@@ -135,7 +136,7 @@ function FileField({ label, files, onChange }: { label: string; files: UploadedF
   );
 }
 
-export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, onBack }: Props) {
+export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, draft = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";
   const [submitting, setSubmitting] = useState(false);
@@ -167,6 +168,31 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       }));
     })();
   }, []);
+
+  // 임시저장/보완요청 이어서 작성 — 저장된 필드별 상태를 무손실 복원
+  useEffect(() => {
+    if (!draft) return;
+    setDraftId(draft.id);
+    const st = (draft.programDetail as { schemaState?: any } | undefined)?.schemaState;
+    if (st) {
+      if (st.basicInfo) setBasicInfo((b) => ({ ...b, ...st.basicInfo }));
+      if (st.consent) setConsent(st.consent);
+      if (typeof st.signature === "string") setSignature(st.signature);
+      if (st.answers) setAnswers(st.answers);
+      if (st.filesByField) setFilesByField(st.filesByField);
+      if (st.workLogByField) setWorkLogByField(st.workLogByField);
+      if (st.cost) setCost(st.cost);
+      if (st.eventLocByField) setEventLocByField(st.eventLocByField);
+    } else {
+      // schemaState 이전 버전(구 임시저장) 호환: 기본정보·계좌만이라도 복원
+      setBasicInfo((b) => ({
+        ...b, name: draft.name || b.name, studentId: draft.studentId || b.studentId, department: draft.department || b.department,
+        grade: draft.grade || b.grade, phone: draft.phone || b.phone, email: draft.email || b.email,
+        bankName: draft.bankInfo?.bankName || b.bankName, accountNumber: draft.bankInfo?.accountNumber || b.accountNumber, accountHolder: draft.bankInfo?.accountHolder || b.accountHolder,
+      }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.id]);
 
   const steps = schema.steps || [];
   const allFields = useMemo(() => steps.flatMap((s) => s.fields), [steps]);
@@ -245,7 +271,11 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
       applicationPhase: mode, applicationType: type,
       // programDetail(JSONB)에도 답변을 함께 저장 → form_answers 컬럼 미마이그레이션 환경에서도 보존
-      programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers },
+      // schemaState: 임시저장 후 이어서 작성 시 필드별 입력 상태를 무손실 복원하기 위한 원본 상태
+      programDetail: {
+        programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers,
+        schemaState: { basicInfo, consent, signature, answers, filesByField, workLogByField, cost, eventLocByField },
+      },
       files,
       privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
       signature,
@@ -284,16 +314,33 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { alert("로그인이 필요합니다. 다시 로그인해 주세요."); router.push("/login?next=/apply"); return; }
-      const row = toRow(buildPayload(), user.id);
-      let { data, error } = await supabase.from("applications").insert(row).select("id,receipt_number").single();
-      // form_answers 컬럼이 없으면(마이그레이션 전) 제외하고 재시도 — 답변은 programDetail에 보존됨
-      if (error && /form_answers/i.test(error.message)) {
-        const { form_answers, ...rest } = row;
-        ({ data, error } = await supabase.from("applications").insert(rest).select("id,receipt_number").single());
+      let receiptNumber: string | undefined;
+      let appId: string | undefined;
+      if (draftId) {
+        // 임시저장(또는 보완요청)에서 이어서 제출 → 기존 행을 최종 제출 처리(중복 생성 방지)
+        const { data: { session } } = await supabase.auth.getSession();
+        const { form_answers, ...row } = toRow(buildPayload(), user.id) as Record<string, unknown>;
+        const res = await fetch("/api/applications/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ id: draftId, row, finalize: true }),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("신청 제출 중 오류가 발생했습니다.\n" + (j.error || "알 수 없는 오류")); return; }
+        receiptNumber = j.receiptNumber; appId = j.id;
+      } else {
+        const row = toRow(buildPayload(), user.id);
+        let { data, error } = await supabase.from("applications").insert(row).select("id,receipt_number").single();
+        // form_answers 컬럼이 없으면(마이그레이션 전) 제외하고 재시도 — 답변은 programDetail에 보존됨
+        if (error && /form_answers/i.test(error.message)) {
+          const { form_answers, ...rest } = row;
+          ({ data, error } = await supabase.from("applications").insert(rest).select("id,receipt_number").single());
+        }
+        if (error) { alert("신청 저장 중 오류가 발생했습니다.\n" + error.message); return; }
+        receiptNumber = data.receipt_number; appId = data.id;
       }
-      if (error) { alert("신청 저장 중 오류가 발생했습니다.\n" + error.message); return; }
-      try { await fetch("/api/drive-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: data.id }) }); } catch { /* ignore */ }
-      router.push(`/apply/complete?receipt=${data.receipt_number}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[type])}&amount=${requestAmount}&phase=${mode}`);
+      try { await fetch("/api/drive-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: appId }) }); } catch { /* ignore */ }
+      router.push(`/apply/complete?receipt=${receiptNumber}&date=${basicInfo.applicationDate}&type=${encodeURIComponent(APPLICATION_TYPE_LABELS[type])}&amount=${requestAmount}&phase=${mode}`);
     } catch {
       alert("신청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally { setSubmitting(false); }

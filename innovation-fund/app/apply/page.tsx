@@ -102,6 +102,15 @@ function ApplyInner() {
     })();
   }, [draftId]);
 
+  // 스키마(관리자 폼) 기반 임시저장이면 해당 프로그램 폼으로 이어서 작성
+  useEffect(() => {
+    if (!draftApp) return;
+    const pid = (draftApp.programDetail as { programId?: string } | undefined)?.programId;
+    if (!pid) return;
+    const hasSchema = draftApp.applicationPhase === "pre" ? programForms[pid]?.pre : programForms[pid]?.fund;
+    if (hasSchema) setSchemaProgramId(pid);
+  }, [draftApp, programForms]);
+
   // 로그인 게이트 (신청자 로그인 / 관리자는 화면 확인용으로 접근)
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
@@ -234,6 +243,7 @@ function ApplyInner() {
             mode={mode}
             programId={schemaProgram.id}
             programName={schemaProgram.name}
+            draft={draftApp}
             onBack={() => setSchemaProgramId(null)}
           />
         ) : selectedType && schemaPrograms.length > 0 && !draftApp && !prefill ? (
