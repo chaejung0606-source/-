@@ -8,6 +8,7 @@ import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
+import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -22,6 +23,8 @@ export default function ApplicationDetailPage() {
   const [syncing, setSyncing] = useState(false);
   // 관리자가 통장사본 확인 후 입력 (인쇄/내보내기 전용, 화면 마스킹)
   const [vAccount, setVAccount] = useState<{ bankName: string; accountNumber: string; accountHolder: string; residentNumber: string }>({ bankName: "", accountNumber: "", accountHolder: "", residentNumber: "" });
+  // 저장된 확인정보는 화면에서 마스킹하고, '수정'을 누르면 입력란을 다시 연다
+  const [editAccount, setEditAccount] = useState(false);
   // 검토/지급 상태 옵션 설정 (수정·추가·삭제 가능)
   const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
   const [statusEdit, setStatusEdit] = useState(false);
@@ -98,6 +101,8 @@ export default function ApplicationDetailPage() {
         accountHolder: d.verifiedAccount?.accountHolder || "",
         residentNumber: d.verifiedAccount?.residentNumber || "",
       });
+      // 이미 저장된 확인정보가 있으면 마스킹 표시, 없으면 입력 모드로 시작
+      setEditAccount(!(d.verifiedAccount?.accountNumber || d.verifiedAccount?.residentNumber));
       setLoading(false);
     });
   }, [id]);
@@ -117,6 +122,8 @@ export default function ApplicationDetailPage() {
     });
     setSaving(false);
     setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) } : a));
+    // 저장 후에는 화면에서 계좌·주민번호를 마스킹 표시
+    if (vAccount.accountNumber || vAccount.residentNumber) setEditAccount(false);
     alert("저장되었습니다.");
   };
 
@@ -455,16 +462,30 @@ export default function ApplicationDetailPage() {
                   <span className="badge" style={{ background: confirmed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: theme.title }}>
                     {confirmed ? "입력 완료" : "미입력"}
                   </span>
+                  {confirmed && !editAccount && (
+                    <button onClick={() => setEditAccount(true)} className="ml-auto text-xs text-indigo-600 hover:underline">수정</button>
+                  )}
                 </div>
-                <p className="text-[11px] text-gray-500 mb-3">통장사본·신분증을 보고 직접 입력하세요. 입력값은 화면에서는 가려지고, <strong>인쇄·내보내기 문서에만 전체 표시</strong>됩니다.</p>
-                <div className="grid sm:grid-cols-3 gap-2">
-                  <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
-                  <input type="password" className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호 (화면 마스킹)" autoComplete="off" />
-                  <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
-                  <input type="password" className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호 (화면 마스킹)" autoComplete="off" />
-                </div>
+                <p className="text-[11px] text-gray-500 mb-3">통장사본·신분증을 보고 직접 입력하세요. 입력 중에는 보이고, <strong>저장하면 화면에서 마스킹</strong>됩니다. (인쇄·내보내기 문서에만 전체 표시)</p>
+                {confirmed && !editAccount ? (
+                  <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+                    <div><dt className="text-gray-500 text-xs">은행</dt><dd className="font-medium">{vAccount.bankName || "—"}</dd></div>
+                    <div><dt className="text-gray-500 text-xs">계좌번호</dt><dd className="font-medium font-mono tracking-wide">{maskAccountNumber(vAccount.accountNumber) || "—"}</dd></div>
+                    <div><dt className="text-gray-500 text-xs">예금주</dt><dd className="font-medium">{vAccount.accountHolder || "—"}</dd></div>
+                    <div className="sm:col-span-3"><dt className="text-gray-500 text-xs">주민등록번호</dt><dd className="font-medium font-mono tracking-wide">{maskResidentNumber(vAccount.residentNumber) || "—"}</dd></div>
+                  </dl>
+                ) : (
+                  <div className="grid sm:grid-cols-3 gap-2">
+                    <input className="input-field" value={vAccount.bankName} onChange={(e) => setVAccount({ ...vAccount, bankName: e.target.value })} placeholder="은행" />
+                    <input className="input-field" value={vAccount.accountNumber} onChange={(e) => setVAccount({ ...vAccount, accountNumber: e.target.value })} placeholder="계좌번호" autoComplete="off" inputMode="numeric" />
+                    <input className="input-field" value={vAccount.accountHolder} onChange={(e) => setVAccount({ ...vAccount, accountHolder: e.target.value })} placeholder="예금주" />
+                    <input className="input-field sm:col-span-3" value={vAccount.residentNumber} onChange={(e) => setVAccount({ ...vAccount, residentNumber: e.target.value })} placeholder="주민등록번호" autoComplete="off" inputMode="numeric" />
+                  </div>
+                )}
                 <p className="text-[11px] mt-2" style={{ color: confirmed ? "#047857" : "#b91c1c" }}>
-                  {confirmed ? "✓ 확인 정보가 저장되었습니다. 수정 후에는 ‘상태 관리’의 저장 버튼을 다시 누르세요." : "※ 아직 저장되지 않았습니다. 입력 후 ‘상태 관리’의 저장 버튼을 누르세요."}
+                  {confirmed
+                    ? (editAccount ? "수정 후 ‘상태 관리’의 저장 버튼을 누르면 다시 마스킹됩니다." : "✓ 확인 정보가 저장되어 화면에서 마스킹 표시 중입니다. (전체 값은 인쇄·내보내기에서만 표시)")
+                    : "※ 아직 저장되지 않았습니다. 입력 후 ‘상태 관리’의 저장 버튼을 누르세요."}
                 </p>
               </div>
             );
