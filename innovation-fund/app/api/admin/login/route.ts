@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
 
   let role: "expense" | "program" | null = null;
   let id = "";
-  if ((loginId === expense.loginId && password === expense.password) || (!loginId && legacyPw && password === legacyPw)) {
+  // 비밀번호만 보낸 경우(아이디 생략): 가상학과 접근 게이트 등 — 지출관리자 비밀번호(또는 레거시 ADMIN_PASSWORD) 허용
+  if ((loginId === expense.loginId && password === expense.password)
+    || (!loginId && password && password === expense.password)
+    || (!loginId && legacyPw && password === legacyPw)) {
     role = "expense"; id = expense.loginId;
   } else if (loginId) {
     const match = accounts.find((a) => a.loginId === loginId && a.password === password);
