@@ -243,7 +243,10 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         if (answers[f.id] !== "동의") e.push(`• [${f.label || "서약"}] 항목에 동의해주세요.`);
       } else if (["shortText", "longText", "number", "date", "select"].includes(f.type)) {
         const val = (answers[f.id] || "");
-        if (!val.replace("~", "").trim()) { if (f.required ?? true) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
+        if (f.type === "date" && f.range) {
+          const [a = "", b = ""] = val.split("~");
+          if (!a.trim() || !b.trim()) e.push(`• [${f.label || "항목"}] 시작일과 종료일을 모두 선택해주세요.`);
+        } else if (!val.replace("~", "").trim()) { if (f.required ?? true) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
         else if (f.type === "shortText" || f.type === "longText") {
           const len = val.length;
           if (typeof f.minLen === "number" && f.minLen > 0 && len < f.minLen) e.push(`• [${f.label || "항목"}] 최소 ${f.minLen}자 이상 입력해주세요. (현재 ${len}자)`);

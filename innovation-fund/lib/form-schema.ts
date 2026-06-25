@@ -162,14 +162,27 @@ export function defaultInnovationSchema(programName: string, phase: "pre" | "fun
   return { submitLabel: isPre ? "지원신청 제출" : "신청 제출", steps };
 }
 
-// 스키마를 새 id로 깊은 복사 (템플릿 복사용 — 원본/복사본 id 충돌 방지)
+// 필드 깊은 복사 (options 배열 / branches(선택지별 하위질문) 객체까지 새 참조로 복제)
+function cloneField(f: FormField): FormField {
+  const c: FormField = { ...f, id: newSchemaId("f") };
+  if (f.options) c.options = [...f.options];
+  if (f.unitPriceByGrade) c.unitPriceByGrade = { ...f.unitPriceByGrade };
+  if (f.maxHoursByGrade) c.maxHoursByGrade = { ...f.maxHoursByGrade };
+  if (f.branches) {
+    c.branches = {};
+    for (const [opt, subs] of Object.entries(f.branches)) c.branches[opt] = (subs || []).map(cloneField);
+  }
+  return c;
+}
+
+// 스키마를 새 id로 깊은 복사 (템플릿 복사용 — 원본/복사본 id·참조 충돌 방지)
 export function cloneSchema(schema: FormSchema): FormSchema {
   return {
     submitLabel: schema.submitLabel,
     steps: (schema.steps || []).map((s) => ({
       id: newSchemaId(),
       title: s.title,
-      fields: (s.fields || []).map((f) => ({ ...f, id: newSchemaId("f") })),
+      fields: (s.fields || []).map(cloneField),
     })),
   };
 }

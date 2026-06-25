@@ -191,6 +191,10 @@ export default function ApplicationDetailPage() {
       ["지도교수", app.programDetail.supervisorName],
       ["참여 내용", app.programDetail.participationContent],
       ...locationRows(app.programDetail.eventLocation),
+      ...((app.programDetail.workLog && app.programDetail.workLog.length)
+        ? [["근무 기록", app.programDetail.workLog.map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ")] as [string, string],
+           ["총 근무시간", `${app.programDetail.workLog.reduce((s, e) => s + (Number(e.hours) || 0), 0)}시간`] as [string, string]]
+        : []),
       ...costRows(app.programDetail.costDetail, app.programDetail.transport, app.programDetail.extraCosts),
       ...reportRows(app.programDetail.reportEntries),
     ];

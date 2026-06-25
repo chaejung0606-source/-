@@ -94,6 +94,8 @@ function ApplyInner() {
       const { data } = await supabase.from("applications").select("*").eq("id", draftId).maybeSingle();
       if (data) {
         const app = fromRow(data);
+        // 취소(삭제)된 임시저장은 이어서 작성 불가 — 잘못된/오래된 링크 방어
+        if (app.canceled) { alert("취소되어 더 이상 이어서 작성할 수 없는 신청입니다."); router.replace("/mypage"); return; }
         setDraftApp(app);
         setCategory(categoryOfType(app.applicationType));
         setSelectedType(app.applicationType);
