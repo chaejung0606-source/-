@@ -386,7 +386,7 @@ export default function ApplicationDetailPage() {
                   return (
                     <div key={f.id} className="flex gap-2">
                       <dt className="text-gray-500 min-w-[120px] flex-shrink-0">{f.label}</dt>
-                      <dd className="font-medium whitespace-pre-line">
+                      <dd className="font-medium whitespace-pre-line min-w-0 flex-1 break-all">
                         {grid ? (
                           <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
                             {grid.map((row, r) => (
@@ -414,7 +414,7 @@ export default function ApplicationDetailPage() {
               {getDetail().map(([k, v]) => (
                 <div key={k} className="flex gap-2">
                   <dt className="text-gray-500 min-w-[100px] flex-shrink-0">{k}</dt>
-                  <dd className="font-medium">{v}</dd>
+                  <dd className="font-medium min-w-0 flex-1 break-all whitespace-pre-line">{v}</dd>
                 </div>
               ))}
             </dl>
