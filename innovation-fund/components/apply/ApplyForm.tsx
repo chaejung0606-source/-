@@ -218,7 +218,6 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       }));
       if (d.reportEntries) setReportEntries(d.reportEntries);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill, applicationType]);
 
   const [gradeDetail, setGradeDetail] = useState<{
@@ -280,7 +279,6 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (draft.gradeDetail) setGradeDetail((p) => ({ ...p, ...(draft.gradeDetail as any) }));
     if (draft.contestDetail) setContestDetail((p) => ({ ...p, ...(draft.contestDetail as any) }));
     if (draft.certificateDetail) setCertDetail((p) => ({ ...p, ...(draft.certificateDetail as any) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft]);
 
   // 계산 금액 (지원신청은 활동 전이므로 금액 없음)

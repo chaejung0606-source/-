@@ -196,7 +196,6 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         bankName: draft.bankInfo?.bankName || b.bankName, accountNumber: draft.bankInfo?.accountNumber || b.accountNumber, accountHolder: draft.bankInfo?.accountHolder || b.accountHolder,
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.id]);
 
   const steps = schema.steps || [];
