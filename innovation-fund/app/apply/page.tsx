@@ -131,6 +131,18 @@ function ApplyInner() {
     })();
   }, [router]);
 
+  // 관리자 대리 신청: ?adminFor=<신청자uid> → 그 학생 정보로 프로그램 참여지원비 신청 작성
+  const adminFor = params.get("adminFor");
+  const [adminUser, setAdminUser] = useState<{ studentId: string; name: string; campus?: string; department: string; phone: string; email: string; university?: string; bankName?: string; accountNumber?: string; accountHolder?: string } | null>(null);
+  useEffect(() => {
+    if (!adminFor || !isAdmin) return;
+    setCategory("innovation"); setSelectedType("program"); setPreChecked(true);
+    fetch(`/api/admin/student-profile?id=${encodeURIComponent(adminFor)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.profile) setAdminUser(d.profile); else { alert("대상 신청자 정보를 불러오지 못했습니다."); router.replace("/admin/applicants"); } })
+      .catch(() => {});
+  }, [adminFor, isAdmin, router]);
+
   // 마이페이지의 "지원금 신청" 버튼 등에서 특정 지원신청 내역으로 진입
   useEffect(() => {
     if (!fromId) return;
@@ -249,6 +261,8 @@ function ApplyInner() {
           <SchemaApplyForm
             schema={activeSchema}
             isAdmin={isAdmin}
+            adminApplicantId={adminFor && adminUser ? adminFor : null}
+            adminUser={adminUser}
             type={selectedType}
             mode={mode}
             programId={schemaProgram.id}
@@ -281,6 +295,8 @@ function ApplyInner() {
             prefill={prefill}
             draft={draftApp}
             isAdmin={isAdmin}
+            adminApplicantId={adminFor && adminUser ? adminFor : null}
+            adminUser={adminUser}
             onBack={() => {
               setPrefill(null);
               // 지원신청(pre)서 작성 중 뒤로가기는 곧장 홈으로(종류 선택을 다시 거치지 않도록)

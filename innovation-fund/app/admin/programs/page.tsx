@@ -2,13 +2,18 @@
 import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, Search } from "lucide-react";
 import type { FundCategory } from "@/types";
-import { FUND_CATEGORY_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, SEED, newProgramId, effectiveReportFields, isPhaseEnabled, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
 
-const CATEGORIES: FundCategory[] = ["labor", "innovation"];
+// 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비
+type ProgKind = "labor" | "program" | "staff";
+const KINDS: ProgKind[] = ["labor", "program", "staff"];
+const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비" };
+const kindOf = (p: Program): ProgKind => p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : "program");
+const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : "innovation");
+const inKind = (p: Program, k: ProgKind) => kindOf(p) === k;
 const today = () => new Date().toISOString().split("T")[0];
 type SchemaKey = "preFormSchema" | "fundFormSchema";
 interface FormTemplate { id: string; name: string; schema: FormSchema; }
@@ -16,7 +21,7 @@ interface FormTemplate { id: string; name: string; schema: FormSchema; }
 export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
-  const [selectedCat, setSelectedCat] = useState<FundCategory | null>(null);
+  const [selectedKind, setSelectedKind] = useState<ProgKind | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
   const [progSearch, setProgSearch] = useState("");
@@ -118,10 +123,11 @@ export default function ProgramsAdminPage() {
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) { setPeriodsSaved(true); } else { alert("저장 실패: " + (j.error || "알 수 없는 오류")); }
   };
-  const add = (category: FundCategory) => {
-    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(category === "innovation" ? { programType: "program" as const } : {}) };
+  const add = (kind: ProgKind) => {
+    const category = categoryOfKind(kind);
+    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(category === "innovation" ? { programType: (kind === "staff" ? "staff" : "program") as "program" | "staff" } : {}) };
     setList((l) => [...l, np]);
-    setSelectedCat(category);
+    setSelectedKind(kind);
     setSelectedId(np.id);
     setSaved(false);
   };
@@ -181,31 +187,31 @@ export default function ProgramsAdminPage() {
       <div className="card mb-4">
         <p className="text-xs font-semibold text-gray-500 mb-2">① 지원금 종류 선택</p>
         <div className="flex flex-wrap gap-1.5">
-          {CATEGORIES.map((cat) => (
+          {KINDS.map((kind) => (
             <button
-              key={cat}
-              onClick={() => { setSelectedCat(cat); setSelectedId(null); }}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${selectedCat === cat ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
+              key={kind}
+              onClick={() => { setSelectedKind(kind); setSelectedId(null); }}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${selectedKind === kind ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"}`}
             >
-              {FUND_CATEGORY_LABELS[cat]} <span className="text-xs font-normal opacity-80">({list.filter((p) => p.category === cat).length})</span>
+              {KIND_LABELS[kind]} <span className="text-xs font-normal opacity-80">({list.filter((p) => inKind(p, kind)).length})</span>
             </button>
           ))}
         </div>
       </div>
 
-      {!selectedCat && <p className="text-sm text-gray-400">위에서 지원금 종류를 선택하면 해당 종류의 하위 프로그램이 표시됩니다.</p>}
+      {!selectedKind && <p className="text-sm text-gray-400">위에서 지원금 종류를 선택하면 해당 종류의 하위 프로그램이 표시됩니다.</p>}
 
       {/* 2단계: 하위 프로그램 선택 / 추가 */}
-      {selectedCat && (
+      {selectedKind && (
         <div className="card mb-4">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-            <p className="text-xs font-semibold text-gray-500">② {FUND_CATEGORY_LABELS[selectedCat]} 하위 프로그램 선택 (클릭하면 해당 프로그램만 수정)</p>
-            <button onClick={() => add(selectedCat)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 프로그램 추가</button>
+            <p className="text-xs font-semibold text-gray-500">② {KIND_LABELS[selectedKind]} 하위 프로그램 선택 (클릭하면 해당 프로그램만 수정)</p>
+            <button onClick={() => add(selectedKind)} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 프로그램 추가</button>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {list.filter((p) => p.category === selectedCat).length === 0 ? (
+            {list.filter((p) => inKind(p, selectedKind)).length === 0 ? (
               <p className="text-xs text-gray-400">등록된 프로그램이 없습니다. &lsquo;프로그램 추가&rsquo;로 생성하세요.</p>
-            ) : [...list.filter((p) => p.category === selectedCat)]
+            ) : [...list.filter((p) => inKind(p, selectedKind))]
                 .sort((a, b) => (fullyOff(a) ? 1 : 0) - (fullyOff(b) ? 1 : 0))
                 .map((p) => {
                   const off = fullyOff(p);
@@ -232,7 +238,7 @@ export default function ProgramsAdminPage() {
       )}
 
       {/* 3단계: 선택한 프로그램 수정 */}
-      {selectedCat && list.filter((p) => p.category === selectedCat && p.id === selectedId).map((p) => {
+      {selectedKind && list.filter((p) => inKind(p, selectedKind) && p.id === selectedId).map((p) => {
         const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
         const preOn = isPhaseEnabled(p, "pre");
         const fundOn = isPhaseEnabled(p, "fund");
@@ -309,20 +315,9 @@ export default function ProgramsAdminPage() {
                 <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
               </div>
 
-              {/* 혁신인재지원금 세부 유형 — 지정한 유형에서만 신청 가능 */}
+              {/* 지원 유형은 ① 지원금 종류 선택에서 이미 구분됨 (참여지원비/진행요원비) */}
               {p.category === "innovation" && (
-                <div className="mb-3">
-                  <label className="label">지원 유형 <span className="text-red-500">*</span></label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[{ v: "program", label: "프로그램 참여지원비" }, { v: "staff", label: "진행요원비" }].map((t) => (
-                      <button key={t.v} type="button" onClick={() => update(p.id, { programType: t.v as "program" | "staff" })}
-                        className={`rounded-xl py-2.5 text-sm font-semibold border transition ${(p.programType || "program") === t.v ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"}`}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-gray-400 mt-1">선택한 유형에서만 이 프로그램을 신청할 수 있습니다.</p>
-                </div>
+                <p className="mb-3 text-[11px] text-indigo-600">구분: <strong>{KIND_LABELS[kindOf(p)]}</strong> (① 지원금 종류 선택에서 변경)</p>
               )}
 
               {/* 역할 (공통, 여러 개) */}
@@ -391,7 +386,7 @@ export default function ProgramsAdminPage() {
         );
       })}
 
-      {selectedCat && selectedId === null && (
+      {selectedKind && selectedId === null && (
         <p className="text-sm text-gray-400">위에서 하위 프로그램을 선택하면 해당 프로그램의 단계별 입력 항목을 수정할 수 있습니다.</p>
       )}
       </>)}
@@ -442,13 +437,13 @@ export default function ProgramsAdminPage() {
                       <tr><td colSpan={6} className="text-center py-8 text-gray-400">검색 결과가 없습니다.</td></tr>
                     ) : hits.map((p) => (
                       <tr key={p.id}>
-                        <td className="text-xs whitespace-nowrap text-gray-600">{FUND_CATEGORY_LABELS[p.category]}</td>
+                        <td className="text-xs whitespace-nowrap text-gray-600">{KIND_LABELS[kindOf(p)]}</td>
                         <td className="font-medium">{p.name || "(이름 없음)"}</td>
                         <td className="text-xs text-gray-500 whitespace-nowrap">{(p.preApplyStart || p.applyStart || "-")} ~ {(p.preApplyEnd || p.applyEnd || "-")}</td>
                         <td className="text-xs text-gray-500 whitespace-nowrap">{(p.applyStart || "-")} ~ {(p.applyEnd || "-")}</td>
                         <td className="text-xs whitespace-nowrap">{fullyOff(p) ? <span className="badge bg-gray-200 text-gray-500">비활성</span> : <span className="badge bg-emerald-100 text-emerald-700">활성</span>}</td>
                         <td className="text-center whitespace-nowrap">
-                          <button onClick={() => { setTab("edit"); setSelectedCat(p.category); setSelectedId(p.id); }} className="text-indigo-600 hover:underline text-xs mr-2">수정</button>
+                          <button onClick={() => { setTab("edit"); setSelectedKind(kindOf(p)); setSelectedId(p.id); }} className="text-indigo-600 hover:underline text-xs mr-2">수정</button>
                           <button onClick={() => { if (window.confirm(`‘${p.name || "이 프로그램"}’을(를) 삭제할까요? (상단 ‘저장’을 눌러야 최종 반영됩니다)`)) remove(p.id); }} className="text-rose-500 hover:underline text-xs">삭제</button>
                         </td>
                       </tr>

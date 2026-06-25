@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS } from "@/types";
@@ -54,6 +55,11 @@ export default function ApplicantsPage() {
   const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible">("students");
   const [skipModal, setSkipModal] = useState<Applicant | null>(null);
+  // 신청자 등록(회원가입 처리)
+  const [regOpen, setRegOpen] = useState(false);
+  const [regBusy, setRegBusy] = useState(false);
+  const [regForm, setRegForm] = useState({ studentId: "", name: "", password: "", university: "강원대학교", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" });
+  const setRf = (k: keyof typeof regForm, v: string) => setRegForm((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
     if (!unlocked) return;
@@ -140,6 +146,23 @@ export default function ApplicantsPage() {
     else alert("재설정 실패: " + (j.error || "알 수 없는 오류"));
   };
 
+  // 신청자 등록 (서버에서 service_role로 계정 생성)
+  const submitRegister = async () => {
+    if (!regForm.studentId.trim() || !regForm.name.trim() || !regForm.password) { alert("학번·이름·비밀번호는 필수입니다."); return; }
+    if (regForm.password.length < 8) { alert("비밀번호는 8자 이상이어야 합니다."); return; }
+    setRegBusy(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(regForm),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("등록 실패: " + (j.error || "알 수 없는 오류")); return; }
+      alert(`신청자가 등록되었습니다.\n학번: ${regForm.studentId}\n비밀번호: ${regForm.password}\n\n학생에게 안내해주세요. (학번/비밀번호로 로그인)`);
+      setRegOpen(false);
+      fetch("/api/admin/applicants").then((r) => r.json()).then((d) => setList(Array.isArray(d) ? d : [])).catch(() => {});
+    } finally { setRegBusy(false); }
+  };
+
   if (!unlocked) return (
     <AdminLayout>
       <div className="max-w-sm mx-auto mt-16 card text-center">
@@ -170,12 +193,17 @@ export default function ApplicantsPage() {
 
       {view === "students" ? (
         <>
-          <div className="card mb-4">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="card mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+              <p className="text-xs text-gray-400 mt-2">{filtered.length}명</p>
             </div>
-            <p className="text-xs text-gray-400 mt-2">{filtered.length}명</p>
+            <button onClick={() => { setRegForm({ studentId: "", name: "", password: "", university: "강원대학교", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" }); setRegOpen(true); }} className="btn-primary text-sm flex items-center gap-1.5">
+              <UserPlus className="w-4 h-4" /> 신청자 등록
+            </button>
           </div>
 
           <div className="overflow-x-auto rounded-[32px]">
@@ -190,12 +218,13 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">연락처</th>
                   <th className="whitespace-nowrap">비밀번호</th>
                   <th className="text-center whitespace-nowrap">지원신청 면제</th>
+                  <th className="text-center whitespace-nowrap">대리 신청 (참여지원비)</th>
                   <th className="text-center whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                  <tr><td colSpan={10} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
                 ) : filtered.map((a) => (
                   <tr key={a.id}>
                     <td className="font-mono text-xs">
@@ -219,6 +248,16 @@ export default function ApplicantsPage() {
                         <ShieldCheck className="w-3.5 h-3.5" />
                         {(a.skip_pre_programs?.length || 0) > 0 ? `면제 ${a.skip_pre_programs!.length}개` : "면제 설정"}
                       </button>
+                    </td>
+                    <td className="text-center whitespace-nowrap">
+                      <div className="inline-flex gap-1.5">
+                        <Link href={`/apply?adminFor=${a.id}&mode=pre`} className="px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 inline-flex items-center gap-1" title="이 신청자 명의로 프로그램 참여지원비 지원신청 작성">
+                          <FilePlus className="w-3.5 h-3.5" /> 지원신청
+                        </Link>
+                        <Link href={`/apply?adminFor=${a.id}&mode=fund`} className="px-2 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 inline-flex items-center gap-1" title="이 신청자 명의로 프로그램 참여지원비 지원금 신청 작성">
+                          <FilePlus className="w-3.5 h-3.5" /> 지원금
+                        </Link>
+                      </div>
                     </td>
                     <td className="text-center">
                       <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
@@ -294,6 +333,41 @@ export default function ApplicantsPage() {
           onClose={() => setSkipModal(null)}
           onSave={(ids) => saveSkipPrograms(skipModal, ids)}
         />
+      )}
+
+      {/* 신청자 등록 모달 */}
+      {regOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setRegOpen(false)} />
+          <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
+            <button onClick={() => setRegOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">신청자 등록</h2>
+            <p className="text-xs text-gray-500 mb-4">관리자가 학생 계정을 직접 생성합니다. 등록 후 학번/비밀번호로 로그인할 수 있습니다.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="label">학번 <span className="text-red-500">*</span></label><input className="input-field" value={regForm.studentId} onChange={(e) => setRf("studentId", e.target.value)} placeholder="숫자만" /></div>
+              <div><label className="label">이름 <span className="text-red-500">*</span></label><input className="input-field" value={regForm.name} onChange={(e) => setRf("name", e.target.value)} /></div>
+              <div><label className="label">비밀번호 <span className="text-red-500">*</span></label><input className="input-field" value={regForm.password} onChange={(e) => setRf("password", e.target.value)} placeholder="8자 이상" /></div>
+              <div>
+                <label className="label">캠퍼스</label>
+                <select className="input-field" value={regForm.campus} onChange={(e) => setRf("campus", e.target.value)}>
+                  {["춘천", "강릉", "삼척", "삼척(도계)", "원주"].map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2"><label className="label">학과/전공</label><input className="input-field" value={regForm.department} onChange={(e) => setRf("department", e.target.value)} placeholder="컴퓨터공학과" /></div>
+              <div><label className="label">연락처</label><input className="input-field" value={regForm.phone} onChange={(e) => setRf("phone", e.target.value)} placeholder="010-0000-0000" /></div>
+              <div><label className="label">이메일</label><input className="input-field" value={regForm.email} onChange={(e) => setRf("email", e.target.value)} placeholder="id@kangwon.ac.kr" /></div>
+              <div className="col-span-2 grid grid-cols-3 gap-3">
+                <div><label className="label">은행</label><input className="input-field" value={regForm.bankName} onChange={(e) => setRf("bankName", e.target.value)} placeholder="국민은행" /></div>
+                <div><label className="label">예금주</label><input className="input-field" value={regForm.accountHolder} onChange={(e) => setRf("accountHolder", e.target.value)} /></div>
+                <div><label className="label">계좌번호</label><input className="input-field" value={regForm.accountNumber} onChange={(e) => setRf("accountNumber", e.target.value)} placeholder="- 없이" /></div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setRegOpen(false)} className="btn-secondary text-sm">취소</button>
+              <button onClick={submitRegister} disabled={regBusy} className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-60"><UserPlus className="w-4 h-4" /> {regBusy ? "등록 중..." : "등록"}</button>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   );

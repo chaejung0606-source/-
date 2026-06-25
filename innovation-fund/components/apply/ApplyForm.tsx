@@ -55,10 +55,20 @@ interface Props {
   prefill?: Application | null;  // 이전 지원신청 내역 → 중복 항목 자동입력
   draft?: Application | null;    // 임시저장 이어쓰기 → 전체 복원
   isAdmin?: boolean;             // 관리자 계정으로 화면 확인 중(제출 불가)
+  adminApplicantId?: string | null; // 관리자 대리 신청: 이 신청자(uid) 명의로 제출
+  adminUser?: StudentUserLike | null; // 대리 신청 대상 신청자 정보(자동입력)
   onBack: () => void;
 }
 
-export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, isAdmin = false, onBack }: Props) {
+// 대리 신청 자동입력에 쓰는 신청자 정보(StudentUser 호환)
+export interface StudentUserLike {
+  studentId: string; name: string; campus?: string; department: string;
+  phone: string; email: string; university?: string;
+  bankName?: string; accountNumber?: string; accountHolder?: string;
+  timetable?: ClassTime[];
+}
+
+export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, isAdmin = false, adminApplicantId = null, adminUser = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   // 성적·경진대회·자격증: 개인정보 동의를 기본정보 위로 + 서류 개별 업로드 슬롯 + 전 항목 필수
@@ -140,10 +150,10 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   // 근로장학금: 마이페이지에서 입력한 수강 시간표 (수업시간엔 근로 불가)
   const [classTimes, setClassTimes] = useState<ClassTime[]>([]);
 
-  // 로그인한 신청자 정보 자동 채움
+  // 신청자 정보 자동 채움 — 대리 신청이면 대상 신청자, 아니면 로그인한 본인
   useEffect(() => {
     (async () => {
-      const u = await currentUser();
+      const u = adminApplicantId && adminUser ? adminUser : await currentUser();
       if (u) {
         setClassTimes(u.timetable || []);
         setBasicInfo((b) => ({
@@ -155,13 +165,13 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,
           university: u.university || b.university,
-          bankName: b.bankName || u.bankName,
-          accountNumber: b.accountNumber || u.accountNumber,
-          accountHolder: b.accountHolder || u.accountHolder,
+          bankName: b.bankName || u.bankName || "",
+          accountNumber: b.accountNumber || u.accountNumber || "",
+          accountHolder: b.accountHolder || u.accountHolder || "",
         }));
       }
     })();
-  }, []);
+  }, [adminApplicantId, adminUser]);
 
   // 성과형(성적·경진대회·자격증) 학기별 신청기한 — 지원금 신청 시 기간 밖이면 차단
   const [typePeriod, setTypePeriod] = useState<{ start: string; end: string } | null | undefined>(undefined);
@@ -489,6 +499,24 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         alert("지원 자격을 충족하지 않아 제출할 수 없습니다.\n\n" + reasons.join("\n"));
         return;
       }
+    }
+    // 관리자 대리 신청: 대상 신청자 명의로 서버 라우트를 통해 저장
+    if (adminApplicantId) {
+      setSubmitting(true);
+      try {
+        const row = toRow(buildPayload(false), adminApplicantId);
+        const res = await fetch("/api/admin/apply-for", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applicantId: adminApplicantId, row }),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("대리 신청 저장 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
+        alert(`대리 신청이 등록되었습니다.\n접수번호: ${j.receiptNumber}\n(${basicInfo.name} · ${basicInfo.studentId})`);
+        router.push("/admin/applications");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
     }
     if (isAdmin) {
       alert("관리자 계정은 신청서를 제출할 수 없습니다.\n신청 화면 확인용입니다. 실제 신청은 신청자 계정으로 진행해주세요.");

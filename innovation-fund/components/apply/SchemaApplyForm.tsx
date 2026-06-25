@@ -26,6 +26,8 @@ interface Props {
   programName: string;
   isAdmin?: boolean;   // 관리자 확인용(제약·제출 없이 신청자 화면 그대로 보기)
   draft?: Application | null; // 임시저장/보완요청 이어서 작성 시 복원할 원본 신청
+  adminApplicantId?: string | null; // 관리자 대리 신청: 이 신청자(uid) 명의로 제출
+  adminUser?: { studentId: string; name: string; campus?: string; department: string; phone: string; email: string; university?: string; bankName?: string; accountNumber?: string; accountHolder?: string } | null;
   onBack: () => void;
 }
 
@@ -182,7 +184,7 @@ function SignatureField({ label, value, onChange }: { label: string; value: stri
   );
 }
 
-export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, draft = null, onBack }: Props) {
+export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, draft = null, adminApplicantId = null, adminUser = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";
   const [submitting, setSubmitting] = useState(false);
@@ -207,14 +209,14 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
 
   useEffect(() => {
     (async () => {
-      const u = await currentUser();
+      const u = adminApplicantId && adminUser ? adminUser : await currentUser();
       if (u) setBasicInfo((b) => ({
         ...b, name: b.name || u.name, studentId: b.studentId || u.studentId, campus: b.campus || u.campus || b.campus,
         department: b.department || u.department, phone: b.phone || formatPhone(u.phone), email: b.email || u.email,
-        university: u.university || b.university, bankName: b.bankName || u.bankName, accountNumber: b.accountNumber || u.accountNumber, accountHolder: b.accountHolder || u.accountHolder,
+        university: u.university || b.university, bankName: b.bankName || u.bankName || "", accountNumber: b.accountNumber || u.accountNumber || "", accountHolder: b.accountHolder || u.accountHolder || "",
       }));
     })();
-  }, []);
+  }, [adminApplicantId, adminUser]);
 
   // 임시저장/보완요청 이어서 작성 — 저장된 필드별 상태를 무손실 복원
   useEffect(() => {
@@ -363,8 +365,24 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   };
 
   const submit = async () => {
-    if (isAdmin) { alert("관리자 확인용 화면입니다. 실제 제출은 신청자 계정으로 진행해주세요."); return; }
     for (let i = 0; i < steps.length; i++) { const errs = validateStep(i); if (errs.length) { setStep(i); alert(`'${steps[i].title}' 단계를 확인해주세요.\n\n` + errs.join("\n")); return; } }
+    // 관리자 대리 신청: 대상 신청자 명의로 서버 라우트를 통해 저장
+    if (adminApplicantId) {
+      setSubmitting(true);
+      try {
+        const row = toRow(buildPayload(), adminApplicantId);
+        const res = await fetch("/api/admin/apply-for", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applicantId: adminApplicantId, row }),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("대리 신청 저장 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
+        alert(`대리 신청이 등록되었습니다.\n접수번호: ${j.receiptNumber}\n(${basicInfo.name} · ${basicInfo.studentId})`);
+        router.push("/admin/applications");
+      } finally { setSubmitting(false); }
+      return;
+    }
+    if (isAdmin) { alert("관리자 확인용 화면입니다. 실제 제출은 신청자 계정으로 진행해주세요."); return; }
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
