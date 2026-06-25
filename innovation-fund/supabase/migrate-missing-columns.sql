@@ -10,6 +10,10 @@
 -- student_profiles
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre BOOLEAN DEFAULT FALSE;
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre_programs JSONB DEFAULT '[]'::jsonb;
+-- 회원가입·프로필 저장이 쓰는 계좌 컬럼(구버전 DB에 없을 수 있음)
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS account_number TEXT;
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS account_holder TEXT;
 
 -- programs
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
