@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { fromRow } from "@/lib/app-mapper";
 import ApplyForm from "@/components/apply/ApplyForm";
 import SchemaApplyForm from "@/components/apply/SchemaApplyForm";
-import { fetchPrograms, isProgramActive, programMatchesType, type Program } from "@/lib/programs";
+import { fetchPrograms, isProgramActive, programMatchesType, audienceOf, type Program } from "@/lib/programs";
 import type { FormSchema } from "@/lib/form-schema";
 
 const typeDescriptions: Record<ApplicationType, string> = {
@@ -251,7 +251,7 @@ function ApplyInner() {
             mode={mode}
             programId={schemaProgram.id}
             programName={schemaProgram.name}
-            audience={schemaProgram.audience}
+            audience={audienceOf(schemaProgram, mode)}
             draft={draftApp}
             onBack={() => setSchemaProgramId(null)}
           />

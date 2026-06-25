@@ -61,6 +61,11 @@ export function effectiveReportFields(
   return [];
 }
 
+export type Audience = "virtual" | "designated" | "anyone";
+function normAudience(v: unknown): Audience {
+  return v === "virtual" ? "virtual" : (v === "designated" ? "designated" : "anyone");
+}
+
 export interface Program {
   id: string;
   category: FundCategory;   // labor / innovation / activity
@@ -68,7 +73,10 @@ export interface Program {
   // 지정된 유형에서만 신청 가능. 미지정(구버전)은 program으로 간주.
   programType?: "program" | "staff";
   // 프로그램 신청대상: virtual(미래융합가상학과 학생만) / designated(지정학생만) / anyone(누구나). 미지정은 anyone.
+  // audience: 구버전 단일 값(폴백). 단계별로 따로 설정하려면 audiencePre/audienceFund 사용.
   audience?: "virtual" | "designated" | "anyone";
+  audiencePre?: "virtual" | "designated" | "anyone";   // 지원신청(활동 전) 신청대상
+  audienceFund?: "virtual" | "designated" | "anyone";  // 지원금 신청(활동 후) 신청대상
   name: string;
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
@@ -123,7 +131,9 @@ function rowToProgram(r: any): Program {
   return {
     id: r.id, category: r.category, name: r.name,
     programType: r.program_type === "staff" ? "staff" : (r.program_type === "program" ? "program" : undefined),
-    audience: r.audience === "virtual" ? "virtual" : (r.audience === "designated" ? "designated" : "anyone"),
+    audience: normAudience(r.audience),
+    audiencePre: r.audience_pre != null ? normAudience(r.audience_pre) : undefined,
+    audienceFund: r.audience_fund != null ? normAudience(r.audience_fund) : undefined,
     role: r.role || undefined,
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
@@ -142,7 +152,10 @@ export function programToRow(p: Program): Record<string, any> {
   return {
     id: p.id, category: p.category, name: p.name,
     program_type: p.category === "innovation" ? (p.programType || "program") : null,
-    audience: p.audience === "virtual" ? "virtual" : (p.audience === "designated" ? "designated" : "anyone"),
+    // 단계별 신청대상을 우선 저장하고, 호환을 위해 단일 audience도 함께 저장(지원금 단계 기준)
+    audience: normAudience(p.audienceFund ?? p.audience),
+    audience_pre: normAudience(p.audiencePre ?? p.audience),
+    audience_fund: normAudience(p.audienceFund ?? p.audience),
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
@@ -187,6 +200,12 @@ export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "
 // 목록을 카테고리 + 날짜 + 단계(pre/fund)로 필터
 export function filterActive(list: Program[], category: FundCategory, date?: string, phase: ApplyPhase = "fund"): Program[] {
   return list.filter((p) => p.category === category && isProgramActive(p, date, phase));
+}
+
+// 단계별 신청대상 — 단계 전용 값이 있으면 그것을, 없으면 단일 audience(구버전)로 폴백
+export function audienceOf(p: Program, phase: ApplyPhase = "fund"): Audience {
+  const v = phase === "pre" ? p.audiencePre : p.audienceFund;
+  return normAudience(v ?? p.audience);
 }
 
 // 프로그램이 특정 신청 유형(program/staff 등)에 속하는지 — 혁신인재지원금은 programType로 구분

@@ -324,31 +324,39 @@ export default function ProgramsAdminPage() {
                 )}
               </div>
 
-              {/* 프로그램 신청대상 (가상학과 전용 / 누구나) */}
-              <div className="mb-3">
-                <label className="label mb-1.5">프로그램 신청대상</label>
-                <div className="flex gap-2 flex-wrap">
-                  {([["virtual", "미래융합가상학과 학생만"], ["designated", "지정학생만"], ["anyone", "누구나"]] as const).map(([val, lbl]) => {
-                    const active = (p.audience || "anyone") === val;
-                    return (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => update(p.id, { audience: val })}
-                        className={`flex-1 min-w-[120px] rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-white" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
-                        style={active ? { background: stepAccent, borderColor: stepAccent } : undefined}
-                      >
-                        {lbl}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-gray-500 mt-1.5">
-                  {p.audience === "designated"
-                    ? "‘지정학생만’: 신청자 정보 메뉴에서 이 프로그램을 신청할 수 있는 학생을 직접 지정합니다. 지정되지 않은 학생은 신청할 수 없습니다."
-                    : "‘미래융합가상학과 학생만’을 선택하면 재학생 명단에 없는 학생은 이 프로그램을 신청할 수 없습니다."}
-                </p>
-              </div>
+              {/* 프로그램 신청대상 — 지원신청/지원금 신청 단계별로 따로 설정 */}
+              {(() => {
+                const audKey = selectedStep === "pre" ? "audiencePre" : "audienceFund";
+                const curAud = ((selectedStep === "pre" ? (p.audiencePre ?? p.audience) : (p.audienceFund ?? p.audience)) || "anyone");
+                return (
+                  <div className="mb-3">
+                    <label className="label mb-1.5">프로그램 신청대상 <span className="text-[11px] font-normal" style={{ color: stepAccent }}>· {stepLabel} 단계</span></label>
+                    <div className="flex gap-2 flex-wrap">
+                      {([["virtual", "미래융합가상학과 학생만"], ["designated", "지정학생만"], ["anyone", "누구나"]] as const).map(([val, lbl]) => {
+                        const active = curAud === val;
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => update(p.id, { [audKey]: val })}
+                            className={`flex-1 min-w-[120px] rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${active ? "text-white" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                            style={active ? { background: stepAccent, borderColor: stepAccent } : undefined}
+                          >
+                            {lbl}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1.5">
+                      {curAud === "designated"
+                        ? "‘지정학생만’: 신청자 정보 메뉴에서 이 프로그램을 신청할 수 있는 학생을 직접 지정합니다. 지정되지 않은 학생은 신청할 수 없습니다."
+                        : curAud === "virtual"
+                          ? "‘미래융합가상학과 학생만’을 선택하면 재학생 명단에 없는 학생은 이 단계에서 신청할 수 없습니다."
+                          : "신청대상은 지원신청·지원금 신청 단계별로 따로 설정됩니다. (위 ‘수정할 단계 선택’에서 단계를 바꿔 각각 지정)"}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {selectedStep === "pre" ? (
                 <>

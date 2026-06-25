@@ -378,7 +378,7 @@ function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: A
   const [sel, setSel] = useState<string[]>(applicant.designated_programs || []);
   const toggle = (id: string) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   // '지정학생만'으로 설정된 프로그램만 대상 (그 외는 지정 의미 없음). 단, 이미 지정된 항목은 함께 노출.
-  const targetPrograms = useMemo(() => programs.filter((p) => p.audience === "designated" || sel.includes(p.id)), [programs, sel]);
+  const targetPrograms = useMemo(() => programs.filter((p) => p.audiencePre === "designated" || p.audienceFund === "designated" || p.audience === "designated" || sel.includes(p.id)), [programs, sel]);
   const byCat = useMemo(() => {
     const m: Record<string, Program[]> = {};
     targetPrograms.forEach((p) => { (m[p.category] ||= []).push(p); });
