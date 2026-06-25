@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { withMissingColumnRetry } from "@/lib/app-mapper";
 
 // 임시저장(작성 중) 신청의 생성/갱신/최종제출.
 // RLS상 신청자는 UPDATE가 불가하므로 JWT 인증 후 service_role로 처리한다.
@@ -29,21 +30,17 @@ export async function POST(req: NextRequest) {
     const { data: existing } = await admin.from("applications").select("applicant_id").eq("id", id).maybeSingle();
     if (!existing) return NextResponse.json({ ok: false, error: "내역을 찾을 수 없습니다." }, { status: 404 });
     if (existing.applicant_id !== user.id) return NextResponse.json({ ok: false, error: "본인 신청만 수정할 수 있습니다." }, { status: 403 });
-    let { data, error } = await admin.from("applications").update(payload).eq("id", id).select("id,receipt_number").single();
-    // review_stage 컬럼이 없으면(마이그레이션 전) 제외 후 재시도
-    if (error && /review_stage/i.test(error.message)) {
-      const { review_stage, ...rest } = payload;
-      ({ data, error } = await admin.from("applications").update(rest).eq("id", id).select("id,receipt_number").single());
-    }
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // 배포 DB에 없는 컬럼(is_test/review_stage/form_answers 등)은 자동 제외 후 재시도
+    const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+      payload, (r) => admin.from("applications").update(r).eq("id", id).select("id,receipt_number").single(),
+    );
+    if (error || !data) return NextResponse.json({ ok: false, error: error?.message || "저장 실패" }, { status: 500 });
     return NextResponse.json({ ok: true, id: data.id, receiptNumber: data.receipt_number });
   }
 
-  let { data, error } = await admin.from("applications").insert(payload).select("id,receipt_number").single();
-  if (error && /review_stage/i.test(error.message)) {
-    const { review_stage, ...rest } = payload;
-    ({ data, error } = await admin.from("applications").insert(rest).select("id,receipt_number").single());
-  }
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+    payload, (r) => admin.from("applications").insert(r).select("id,receipt_number").single(),
+  );
+  if (error || !data) return NextResponse.json({ ok: false, error: error?.message || "저장 실패" }, { status: 500 });
   return NextResponse.json({ ok: true, id: data.id, receiptNumber: data.receipt_number });
 }

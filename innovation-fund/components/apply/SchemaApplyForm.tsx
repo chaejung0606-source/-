@@ -8,7 +8,7 @@ import type { FormSchema, FormField } from "@/lib/form-schema";
 import { workLogGroupOfGrade } from "@/lib/form-schema";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { toRow } from "@/lib/app-mapper";
+import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
@@ -333,13 +333,11 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         receiptNumber = j.receiptNumber; appId = j.id;
       } else {
         const row = toRow(buildPayload(), user.id);
-        let { data, error } = await supabase.from("applications").insert(row).select("id,receipt_number").single();
-        // form_answers 컬럼이 없으면(마이그레이션 전) 제외하고 재시도 — 답변은 programDetail에 보존됨
-        if (error && /form_answers/i.test(error.message)) {
-          const { form_answers, ...rest } = row;
-          ({ data, error } = await supabase.from("applications").insert(rest).select("id,receipt_number").single());
-        }
-        if (error) { alert("신청 저장 중 오류가 발생했습니다.\n" + error.message); return; }
+        // 배포 DB에 없는 컬럼(is_test/form_answers 등)은 자동 제외하고 재시도 — 답변은 programDetail에 보존됨
+        const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+          row, (r) => supabase.from("applications").insert(r).select("id,receipt_number").single(),
+        );
+        if (error || !data) { alert("신청 저장 중 오류가 발생했습니다.\n" + (error?.message || "알 수 없는 오류")); return; }
         receiptNumber = data.receipt_number; appId = data.id;
       }
       try { await fetch("/api/drive-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: appId }) }); } catch { /* ignore */ }

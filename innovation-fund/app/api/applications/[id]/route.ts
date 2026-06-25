@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { fromRow } from "@/lib/app-mapper";
+import { fromRow, withMissingColumnRetry } from "@/lib/app-mapper";
 import { requireAdmin, requireExpense, canManageApplication } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -48,11 +48,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.reviewStage !== undefined) stagePatch.review_stage = body.reviewStage;
   if (body.handoffNote !== undefined) stagePatch.handoff_note = body.handoffNote;
 
-  let { data, error } = await adminDb.from("applications").update({ ...patch, ...stagePatch }).eq("id", id).select("*").maybeSingle();
-  // review_stage/handoff_note 컬럼이 없으면(마이그레이션 전) 해당 필드 제외 후 재시도
-  if (error && /review_stage|handoff_note/i.test(error.message)) {
-    ({ data, error } = await adminDb.from("applications").update(patch).eq("id", id).select("*").maybeSingle());
-  }
+  // 배포 DB에 없는 컬럼(review_stage/handoff_note/verified_account 등)은 자동 제외 후 재시도
+  const { data, error } = await withMissingColumnRetry<Record<string, unknown>>(
+    { ...patch, ...stagePatch }, (r) => adminDb.from("applications").update(r).eq("id", id).select("*").maybeSingle(),
+  );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(fromRow(data));

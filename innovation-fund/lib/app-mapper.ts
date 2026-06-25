@@ -1,6 +1,26 @@
 // 앱(camelCase) ↔ Supabase applications 테이블(snake_case) 변환
 import type { Application } from "@/types";
 
+// PostgREST가 "Could not find the 'X' column ... in the schema cache" 오류를 내면
+// (배포 DB가 일부 컬럼 미마이그레이션) 해당 컬럼을 제외하고 자동 재시도한다.
+// exec: 주어진 row로 insert/update 등을 수행하고 { data, error }를 반환.
+export async function withMissingColumnRetry<T>(
+  row: Record<string, unknown>,
+  exec: (r: Record<string, unknown>) => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+  maxTries = 12,
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  let attempt: Record<string, unknown> = { ...row };
+  let last: { data: T | null; error: { message: string } | null } = { data: null, error: null };
+  for (let i = 0; i < maxTries; i++) {
+    last = await exec(attempt);
+    if (!last.error) return last;
+    const m = last.error.message.match(/Could not find the '([^']+)' column/i);
+    if (m && m[1] in attempt) { const { [m[1]]: _drop, ...rest } = attempt; attempt = rest; continue; }
+    return last;
+  }
+  return last;
+}
+
 // 신청 제출 payload → DB row
 export function toRow(p: any, applicantId?: string): Record<string, any> {
   return {

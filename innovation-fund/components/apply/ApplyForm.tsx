@@ -11,7 +11,7 @@ import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
 import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/programs";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { toRow } from "@/lib/app-mapper";
+import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
@@ -446,13 +446,12 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         if (!j.ok) { alert("신청 제출 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
         inserted = { id: j.id, receipt_number: j.receiptNumber };
       } else {
-        const { data, error } = await supabase
-          .from("applications")
-          .insert(row)
-          .select("id,receipt_number")
-          .single();
-        if (error) {
-          alert("신청 저장 중 오류가 발생했습니다.\n" + error.message);
+        // 배포 DB에 없는 컬럼(is_test/form_answers 등)은 자동 제외하고 재시도
+        const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+          row, (r) => supabase.from("applications").insert(r).select("id,receipt_number").single(),
+        );
+        if (error || !data) {
+          alert("신청 저장 중 오류가 발생했습니다.\n" + (error?.message || "알 수 없는 오류"));
           return;
         }
         inserted = data;
