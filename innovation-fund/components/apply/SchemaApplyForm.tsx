@@ -181,12 +181,15 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   const costAmount = hasCost ? calcSupportTotal(cost) : 0;
   const requestAmount = isPre ? 0 : workLogAmount + costAmount;
   const setAns = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
+  // 드롭다운 선택에 따라 현재 노출 중인 하위질문까지 펼친 목록
+  const activeFields = (fields: FormField[]): FormField[] =>
+    fields.flatMap((f) => f.type === "select" ? [f, ...activeFields(f.branches?.[answers[f.id] || ""] || [])] : [f]);
   const summary = { name: basicInfo.name, type: APPLICATION_TYPE_LABELS[type], amount: requestAmount, calculatedAmount: requestAmount };
 
   // 단계별 필수 검증
   const validateStep = (idx: number): string[] => {
     const e: string[] = [];
-    for (const f of (steps[idx]?.fields || [])) {
+    for (const f of activeFields(steps[idx]?.fields || [])) {
       if (f.type === "applicantInfo") {
         let errs = validateBasicFormat({ name: basicInfo.name, studentId: basicInfo.studentId, department: basicInfo.department, phone: basicInfo.phone, email: basicInfo.email, accountNumber: basicInfo.accountNumber, applicationDate: basicInfo.applicationDate });
         errs = errs.filter((x) => !x.includes("계좌번호"));
@@ -207,7 +210,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         if (answers[f.id] !== "동의") e.push(`• [${f.label || "서약"}] 항목에 동의해주세요.`);
       } else if (["shortText", "longText", "number", "date", "select"].includes(f.type)) {
         const val = (answers[f.id] || "");
-        if (!val.replace("~", "").trim()) { e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
+        if (!val.replace("~", "").trim()) { if (f.required ?? true) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
         else if (f.type === "shortText" || f.type === "longText") {
           const len = val.length;
           if (typeof f.minLen === "number" && f.minLen > 0 && len < f.minLen) e.push(`• [${f.label || "항목"}] 최소 ${f.minLen}자 이상 입력해주세요. (현재 ${len}자)`);
@@ -231,7 +234,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       const workLog = Object.values(workLogByField).flat();
       const formAnswers = {
         programId, programName,
-        fields: allFields.filter((f) => ["shortText", "longText", "number", "date", "select", "agreement"].includes(f.type))
+        fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement"].includes(f.type))
           .map((f) => ({ id: f.id, label: f.label, type: f.type, value: answers[f.id] || "" })),
       };
       const payload = {
@@ -332,7 +335,17 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2"><input type="date" className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }
         return <div key={f.id}>{label}<input type="date" className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} /></div>;
       }
-      case "select": return <div key={f.id}>{label}<select className="input-field" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value)}><option value="">선택하세요</option>{(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
+      case "select": {
+        const sel = answers[f.id] || "";
+        const subs = f.branches?.[sel] || [];
+        return <div key={f.id}>{label}<select className="input-field" value={sel} onChange={(e) => setAns(f.id, e.target.value)}><option value="">선택하세요</option>{(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}</select>
+          {subs.length > 0 && (
+            <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
+              {subs.map((sf) => renderField(sf))}
+            </div>
+          )}
+        </div>;
+      }
       case "agreement": return (
         <div key={f.id}>{label}
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">

@@ -57,6 +57,7 @@ export interface FormField {
   type: FormFieldType;
   required?: boolean;
   options?: string[];      // select
+  branches?: Record<string, FormField[]>; // select: 선택지별 조건부 하위질문(선택지 값 → 하위 항목 목록)
   text?: string;           // agreement 본문
   placeholder?: string;
   minLen?: number;         // shortText/longText: 최소 글자수(이상)

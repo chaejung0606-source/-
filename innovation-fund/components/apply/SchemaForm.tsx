@@ -303,7 +303,45 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               {/* 신청자 화면과 동일한 미리보기 */}
               <FieldView f={f} disabled />
               {f.type === "select" && (
-                <input className="input-field text-xs mt-2" value={(f.options || []).join(", ")} onChange={(e) => updField(cur.id, f.id, { options: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분)" />
+                <div className="mt-2 space-y-2">
+                  <input className="input-field text-xs" value={(f.options || []).join(", ")} onChange={(e) => updField(cur.id, f.id, { options: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분)" />
+                  {(f.options || []).length > 0 && (
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-2 space-y-2">
+                      <p className="text-[11px] font-semibold text-indigo-700">선택지별 추가 질문(조건부)</p>
+                      {(f.options || []).map((opt) => {
+                        const subs = f.branches?.[opt] || [];
+                        const setSubs = (next: FormField[]) => updField(cur.id, f.id, { branches: { ...(f.branches || {}), [opt]: next } });
+                        return (
+                          <div key={opt} className="rounded-md bg-white border border-gray-200 p-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-gray-700">‘{opt}’ 선택 시</span>
+                              <button onClick={() => setSubs([...subs, { id: newSchemaId("sf"), label: "", type: "shortText", required: true }])} className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3 h-3" />질문 추가</button>
+                            </div>
+                            {subs.length === 0 ? (
+                              <p className="text-[11px] text-gray-400 mt-1">추가 질문 없음</p>
+                            ) : (
+                              <div className="mt-1.5 space-y-1.5">
+                                {subs.map((sf, si) => (
+                                  <div key={sf.id} className="flex flex-wrap items-center gap-1.5">
+                                    <input className="flex-1 min-w-[120px] text-xs border-b border-gray-200 outline-none bg-transparent pb-0.5" value={sf.label} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, label: e.target.value } : x))} placeholder={`하위 질문 ${si + 1}`} />
+                                    <select className="input-field !w-auto text-[11px] !py-0.5" value={sf.type} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, type: e.target.value as FormFieldType } : x))}>
+                                      {(["shortText", "longText", "number", "date", "select", "file"] as FormFieldType[]).map((t) => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
+                                    </select>
+                                    <label className="flex items-center gap-1 text-[11px] text-gray-600"><input type="checkbox" checked={!!sf.required} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, required: e.target.checked } : x))} />필수</label>
+                                    <button onClick={() => setSubs(subs.filter((x) => x.id !== sf.id))} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    {sf.type === "select" && (
+                                      <input className="w-full input-field text-[11px] !py-0.5" value={(sf.options || []).join(", ")} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, options: e.target.value.split(",").map((y) => y.trim()).filter(Boolean) } : x))} placeholder="선택지 (쉼표로 구분)" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
               {f.type === "agreement" && (
                 <textarea className="input-field text-xs mt-2 h-16 resize-none" value={f.text || ""} onChange={(e) => updField(cur.id, f.id, { text: e.target.value })} placeholder="서약 본문" />
