@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Lock, User } from "lucide-react";
+import Link from "next/link";
+import { Shield, Lock, User, Home, LogIn } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [loginId, setLoginId] = useState("");
@@ -78,6 +79,15 @@ export default function AdminLoginPage() {
               {loading ? "로그인 중..." : "로그인"}
             </button>
           </form>
+          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-center gap-4 text-sm">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-indigo-600 transition">
+              <Home className="w-4 h-4" /> 홈으로
+            </Link>
+            <span className="text-gray-200">|</span>
+            <Link href="/login" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-indigo-600 transition">
+              <LogIn className="w-4 h-4" /> 신청자 로그인
+            </Link>
+          </div>
         </div>
       </div>
     </div>

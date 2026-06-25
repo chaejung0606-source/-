@@ -23,7 +23,7 @@ export function normalizeAdminAccounts(value: unknown): AdminAccountsConfig {
     const o = (a || {}) as Record<string, unknown>;
     return {
       loginId: String(o.loginId || "").trim(),
-      password: String(o.password || ""),
+      password: String(o.password || "").trim(),
       name: String(o.name || "").trim(),
       programIds: Array.isArray(o.programIds) ? (o.programIds as unknown[]).map((x) => String(x)) : [],
     };
@@ -31,7 +31,7 @@ export function normalizeAdminAccounts(value: unknown): AdminAccountsConfig {
   const e = (v.expense || {}) as Record<string, unknown>;
   const expense: ExpenseAdmin = {
     loginId: String(e.loginId || "").trim() || EXPENSE_ADMIN_ID,
-    password: String(e.password || "") || EXPENSE_ADMIN_PW,
+    password: String(e.password || "").trim() || EXPENSE_ADMIN_PW,
   };
   return { expense, accounts };
 }

@@ -17,7 +17,7 @@ const COOKIE_OPTS = {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const loginId = String(body.loginId || body.id || "").trim();
-  const password = String(body.password || "");
+  const password = String(body.password || "").trim();
 
   // 구버전 단일 비밀번호 호환(아이디 없이 비번만) → 지출관리자로 처리
   const legacyPw = process.env.ADMIN_PASSWORD;
