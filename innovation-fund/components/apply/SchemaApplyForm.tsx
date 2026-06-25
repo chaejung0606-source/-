@@ -13,8 +13,10 @@ import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
 import ConsentChecklist from "./ConsentChecklist";
-import ConsentSection from "./ConsentSection";
 import EventLocationSection from "./EventLocationSection";
+import CostSection from "./CostSection";
+import SignaturePad from "./SignaturePad";
+import { CheckCircle } from "lucide-react";
 
 interface Props {
   schema: FormSchema;
@@ -141,6 +143,45 @@ function FileField({ label, files, onChange, notice }: { label: string; files: U
   );
 }
 
+// 항목별 서명(직접 서명 / 이미지 업로드) — 폼 빌더의 라벨(지도교수 서명·신청인 서명 등)을 그대로 표시
+function SignatureField({ label, value, onChange }: { label: string; value: string; onChange: (s: string) => void; }) {
+  const [sigMode, setSigMode] = useState<"draw" | "upload">("draw");
+  const onImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white/60 p-3">
+      <div className="text-sm font-semibold text-gray-800 mb-2">{label}</div>
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl mb-3 bg-gray-50 border border-gray-100 max-w-xs">
+        <button type="button" onClick={() => setSigMode("draw")} className={`py-2 rounded-xl text-sm font-semibold transition ${sigMode === "draw" ? "bg-primary-600 text-white" : "text-gray-600"}`}>직접 서명</button>
+        <button type="button" onClick={() => setSigMode("upload")} className={`py-2 rounded-xl text-sm font-semibold transition ${sigMode === "upload" ? "bg-primary-600 text-white" : "text-gray-600"}`}>이미지 업로드</button>
+      </div>
+      {sigMode === "draw" ? (
+        <SignaturePad onChange={onChange} />
+      ) : (
+        <div className="flex items-center gap-4">
+          <label className={`cursor-pointer text-sm ${value ? "btn-secondary" : "btn-primary"}`}>
+            서명 이미지 업로드
+            <input type="file" accept="image/*" className="hidden" onChange={onImage} />
+          </label>
+          {value && (
+            <div className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt="서명" className="h-14 border border-gray-200 rounded-lg bg-white px-2" />
+              <button type="button" onClick={() => onChange("")} className="text-xs text-red-500 hover:underline">삭제</button>
+            </div>
+          )}
+        </div>
+      )}
+      {value && <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> 서명이 적용되었습니다.</p>}
+    </div>
+  );
+}
+
 export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, draft = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";
@@ -157,6 +198,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   });
   const [consent, setConsent] = useState({ privacy: false, truth: false, account: false });
   const [signature, setSignature] = useState("");
+  const [signaturesByField, setSignaturesByField] = useState<Record<string, string>>({});
   const [filesByField, setFilesByField] = useState<Record<string, UploadedFile[]>>({});
   const [workLogByField, setWorkLogByField] = useState<Record<string, WorkLogEntry[]>>({});
   const [cost, setCost] = useState<CostDetail>({ registrationFee: 0, transports: [] });
@@ -183,6 +225,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       if (st.basicInfo) setBasicInfo((b) => ({ ...b, ...st.basicInfo }));
       if (st.consent) setConsent(st.consent);
       if (typeof st.signature === "string") setSignature(st.signature);
+      if (st.signaturesByField) setSignaturesByField(st.signaturesByField);
       if (st.answers) setAnswers(st.answers);
       if (st.filesByField) setFilesByField(st.filesByField);
       if (st.workLogByField) setWorkLogByField(st.workLogByField);
@@ -202,6 +245,10 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   const allFields = useMemo(() => steps.flatMap((s) => s.fields), [steps]);
   const hasAccount = allFields.some((f) => f.type === "account");
   const hasCost = allFields.some((f) => ["registration", "transport", "lodging"].includes(f.type));
+  // 여러 서명 항목(지도교수 서명·신청인 서명 등) 중 지급신청서에 들어갈 대표 서명: '신청인' 우선, 없으면 마지막 서명
+  const signatureFields = allFields.filter((f) => f.type === "signature");
+  const primarySigId = (signatureFields.find((f) => (f.label || "").includes("신청인")) || signatureFields[signatureFields.length - 1])?.id;
+  const mainSignature = primarySigId ? (signaturesByField[primarySigId] || signature || "") : signature;
   const group = workLogGroupOfGrade(basicInfo.grade);
 
   const workLogAmount = useMemo(() => {
@@ -236,7 +283,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       } else if (f.type === "privacyConsent") {
         if (!consent.privacy || !consent.truth || (!isPre && hasAccount && !consent.account)) e.push("• 개인정보 수집·이용 및 신청 동의 항목에 모두 체크해주세요.");
       } else if (f.type === "signature") {
-        if (!signature) e.push("• 서명을 완료하거나 서명 이미지를 업로드해주세요.");
+        if (f.required !== false && !signaturesByField[f.id]) e.push(`• [${f.label || "서명"}] 서명을 완료하거나 서명 이미지를 업로드해주세요.`);
       } else if (!f.required) {
         continue;
       } else if (f.type === "file") {
@@ -281,11 +328,12 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       // schemaState: 임시저장 후 이어서 작성 시 필드별 입력 상태를 무손실 복원하기 위한 원본 상태
       programDetail: {
         programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers,
-        schemaState: { basicInfo, consent, signature, answers, filesByField, workLogByField, cost, eventLocByField },
+        signatures: signaturesByField,
+        schemaState: { basicInfo, consent, signature: mainSignature, signaturesByField, answers, filesByField, workLogByField, cost, eventLocByField },
       },
       files,
       privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
-      signature,
+      signature: mainSignature,
       accountMismatch: false, // 자동 비교 기능 제거 — 관리자가 통장사본을 직접 확인해 입력
       requestAmount, calculatedAmount: requestAmount, formAnswers,
     };
@@ -406,12 +454,13 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         );
       }
       case "privacyConsent": return <ConsentChecklist key={f.id} values={consent} onChange={setConsent} isPre={isPre || !hasAccount} />;
-      case "signature": return <ConsentSection key={f.id} signature={signature} onSignatureChange={setSignature} isPre={isPre} summary={summary} />;
+      case "signature": return <div key={f.id}><SignatureField label={(f.label || "서명") + (f.required !== false ? " *" : "")} value={signaturesByField[f.id] || ""} onChange={(s) => setSignaturesByField((m) => ({ ...m, [f.id]: s }))} /></div>;
       case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} notice={f.uploadNotice} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
       case "workLog": return <div key={f.id}>{label}<WorkLogField field={f} entries={workLogByField[f.id] || []} onChange={(en) => setWorkLogByField((m) => ({ ...m, [f.id]: en }))} group={group} isPre={isPre} /></div>;
       case "eventLocation": return <div key={f.id}><EventLocationSection title={f.label || "활동 장소"} values={eventLocByField[f.id] || { scope: "domestic" }} onChange={(v) => setEventLocByField((m) => ({ ...m, [f.id]: v }))} /></div>;
-      case "registration": return <div key={f.id}>{label}<div className="grid sm:grid-cols-2 gap-2 items-end"><div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field" inputMode="numeric" value={cost.registrationFee || ""} onChange={(e) => setCost((c) => ({ ...c, registrationFee: Number(e.target.value.replace(/[^\d]/g, "")) || 0 }))} placeholder="0" /></div></div></div>;
-      case "transport": case "lodging": return null; // 비용은 등록비 항목에서 통합 처리(간이) — 필요 시 확장
+      case "registration": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["registration"]} /></div>;
+      case "transport": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["transport"]} /></div>;
+      case "lodging": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["lodging"]} /></div>;
       case "shortText": return <div key={f.id}>{label}<input className="input-field" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
       case "number": return <div key={f.id}>{label}<input className="input-field" inputMode="numeric" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value.replace(/[^\d]/g, ""))} placeholder={f.placeholder || "0"} /></div>;
       case "longText": return <div key={f.id}>{label}<textarea className="input-field h-24 resize-none" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
@@ -469,6 +518,18 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         ))}
       </div>
       <p className="text-xs text-gray-400">단계 {step + 1} / {steps.length} · {cur?.title}</p>
+
+      {/* 마지막 단계: 신청 내용 확인 요약을 한 번만 표시 (서명 항목과 분리) */}
+      {isLast && signatureFields.length > 0 && (
+        <div className="card bg-primary-50 border border-primary-200">
+          <h2 className="section-title text-primary-800">신청 내용 확인</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-gray-600">신청자</span><span className="font-medium">{summary.name || "-"}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">신청 유형</span><span className="font-medium">{summary.type}</span></div>
+            {!isPre && <div className="flex justify-between"><span className="text-gray-600">신청 금액</span><span className="font-medium text-primary-700">{summary.amount.toLocaleString()}원</span></div>}
+          </div>
+        </div>
+      )}
 
       {cur && (
         <div className="card space-y-4">

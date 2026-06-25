@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
 import MoneyInput from "@/components/common/MoneyInput";
 
-interface Props { value?: CostDetail; onChange: (v: CostDetail) => void; }
+interface Props { value?: CostDetail; onChange: (v: CostDetail) => void; parts?: ("registration" | "transport" | "lodging")[]; showTotal?: boolean; }
 
 const LODGING_CAP = 70000;
 const MODES = Object.keys(TRANSPORT_MODE_LABELS) as TransportMode[];
@@ -22,10 +22,14 @@ const EMPTY: CostDetail = {
   lodging: { usage: "personal", roomAmount: 0, personalAmount: 0 },
 };
 
-export default function CostSection({ value, onChange }: Props) {
+export default function CostSection({ value, onChange, parts, showTotal }: Props) {
   const v: CostDetail = value || EMPTY;
   const lodging: LodgingDetail = v.lodging || { usage: "personal", roomAmount: 0, personalAmount: 0 };
   const [uploading, setUploading] = useState(false);
+  // parts 미지정 시 전체 렌더(+합계). 특정 파트만 지정하면 해당 카드만 렌더.
+  const show = (p: "registration" | "transport" | "lodging") => !parts || parts.includes(p);
+  const withTotal = showTotal ?? !parts;
+  const num = !parts; // 단독 렌더 시 ①②③ 번호 숨김
 
   const update = (patch: Partial<CostDetail>) => onChange({ ...v, ...patch });
   const updateLodging = (patch: Partial<LodgingDetail>) => update({ lodging: { ...lodging, ...patch } });
@@ -97,8 +101,9 @@ export default function CostSection({ value, onChange }: Props) {
   return (
     <div className="space-y-4">
       {/* ① 등록비 */}
+      {show("registration") && (
       <div className="card space-y-4">
-        <h2 className="section-title">① 등록비</h2>
+        <h2 className="section-title">{num ? "① 등록비" : "등록비"}</h2>
         <div className="grid sm:grid-cols-2 gap-4 items-end">
           <div>
             <label className="label">등록비용 (원)</label>
@@ -124,11 +129,13 @@ export default function CostSection({ value, onChange }: Props) {
         </div>
         <p className="text-xs text-gray-500">증빙: 학회 참가확인서 등 업로드</p>
       </div>
+      )}
 
       {/* ② 교통비 (다중) */}
+      {show("transport") && (
       <div className="card space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="section-title mb-0">② 교통비</h2>
+          <h2 className="section-title mb-0">{num ? "② 교통비" : "교통비"}</h2>
           <button type="button" onClick={addTransport} className="btn-primary flex items-center gap-1.5 text-sm">
             <Plus className="w-4 h-4" /> 교통비 추가
           </button>
@@ -194,10 +201,12 @@ export default function CostSection({ value, onChange }: Props) {
           </div>
         )}
       </div>
+      )}
 
       {/* ③ 숙박비 */}
+      {show("lodging") && (
       <div className="card space-y-4">
-        <h2 className="section-title">③ 숙박비</h2>
+        <h2 className="section-title">{num ? "③ 숙박비" : "숙박비"}</h2>
         <div>
           <label className="label">사용 형태</label>
           <div className="flex gap-2">
@@ -259,8 +268,10 @@ export default function CostSection({ value, onChange }: Props) {
           )}
         </div>
       </div>
+      )}
 
       {/* ④ 지원비 합계 */}
+      {withTotal && (
       <div className="card space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="section-title mb-0">지원비 합계</h2>
@@ -268,6 +279,7 @@ export default function CostSection({ value, onChange }: Props) {
         </div>
         <p className="text-xs text-gray-500">※ 등록비는 합계에 포함되지 않습니다. 숙박비는 1인 70,000원 한도까지만 합산됩니다.</p>
       </div>
+      )}
     </div>
   );
 }
