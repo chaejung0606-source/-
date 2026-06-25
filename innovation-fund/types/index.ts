@@ -333,6 +333,7 @@ export interface ContestDetail {
   organizer: string;
   scale: ContestScale;
   isTeam: boolean;
+  teamMembers?: { studentId: string; name: string }[]; // 팀일 경우 본인 포함 전체 팀원 (n분의 1 지급)
   awardLevel: ContestAward;
   awardDate: string;
   hasMonetaryPrize: boolean;

@@ -79,7 +79,7 @@ function typeDetailRows(app: Application): [string, string][] {
   if (app.contestDetail) {
     const d = app.contestDetail;
     const award = { grand: "대상(최우수)", silver: "은상(우수상)", bronze: "동상(장려상)", participation: "입상" };
-    return [["대회명", d.contestName], ["대회 주제", d.contestTheme], ["개최기관", d.organizer], ["대회 규모", `${d.scale}규모`], ["개인/팀", d.isTeam ? "팀" : "개인"], ["시상 등급", award[d.awardLevel]], ["수상일", d.awardDate], ["상금/부상 수령", d.hasMonetaryPrize ? "있음" : "없음"]];
+    return [["대회명", d.contestName], ["대회 주제", d.contestTheme], ["개최기관", d.organizer], ["대회 규모", `${d.scale}규모`], ["개인/팀", d.isTeam ? `팀 (${(d.teamMembers || []).length}명, 1인당 ${(d.calculatedAmount || 0).toLocaleString()}원)` : "개인"], ...((d.isTeam && (d.teamMembers || []).length > 0) ? [["팀원", (d.teamMembers || []).map((m) => `${m.name}(${m.studentId})`).join(", ")] as [string, string]] : []), ["시상 등급", award[d.awardLevel]], ["수상일", d.awardDate], ["상금/부상 수령", d.hasMonetaryPrize ? "있음" : "없음"]];
   }
   if (app.certificateDetail) {
     const d = app.certificateDetail;

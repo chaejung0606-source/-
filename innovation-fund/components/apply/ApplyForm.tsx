@@ -24,8 +24,23 @@ import GradeDetailSection from "./GradeDetailSection";
 import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
 import FileUploadSection from "./FileUploadSection";
+import DocumentSlotsSection, { type DocSlot } from "./DocumentSlotsSection";
 import ConsentSection from "./ConsentSection";
 import ConsentChecklist from "./ConsentChecklist";
+
+// 성적·경진대회: 같은 화면에서 서류별로 따로 업로드(필수)
+const GRADE_SLOTS: DocSlot[] = [
+  { type: "transcript", label: "성적증명서", required: true },
+  { type: "enrollment_certificate", label: "재학증명서", required: true, notice: "재학증명서는 열람용이 아닌, 학교 직인이 날인된 정식 발급본으로 제출해야 합니다." },
+  { type: "id_card", label: "신분증 사본", required: true },
+  { type: "bankbook", label: "통장 사본", required: true, notice: "예금주가 신청자 본인 명의인 통장 사본을 제출해주세요." },
+];
+const CONTEST_SLOTS: DocSlot[] = [
+  { type: "award_certificate", label: "수상 증빙 (상장 등)", required: true },
+  { type: "enrollment_certificate", label: "재학증명서", required: true, notice: "재학증명서는 열람용이 아닌, 학교 직인이 날인된 정식 발급본으로 제출해야 합니다." },
+  { type: "id_card", label: "신분증 사본", required: true },
+  { type: "bankbook", label: "통장 사본", required: true, notice: "예금주가 신청자 본인 명의인 통장 사본을 제출해주세요." },
+];
 
 interface Props {
   applicationType: ApplicationType;
@@ -39,6 +54,8 @@ interface Props {
 export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, isAdmin = false, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
+  // 성적·경진대회: 개인정보 동의를 기본정보 위로 + 서류 개별 업로드 슬롯 + 전 항목 필수
+  const consentFirst = applicationType === "grade" || applicationType === "contest";
   const [step, setStep] = useState(draft?.draftStep || 1);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -223,6 +240,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   const [contestDetail, setContestDetail] = useState({
     contestName: "", contestTheme: "", relevanceDescription: "", organizer: "",
     scale: "A" as "A" | "B", isTeam: false,
+    teamMembers: [] as { studentId: string; name: string }[],
     awardLevel: "grand" as "grand" | "silver" | "bronze" | "participation",
     awardDate: "", hasMonetaryPrize: false,
   });
@@ -271,7 +289,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (applicationType === "staff") return calcStaffAmount(staffDetail.totalHours, staffDetail.studentType);
     if (applicationType === "labor") return calcStaffAmount(Math.min(laborDetail.totalHours, 40), laborDetail.studentType); // 월 40시간 이내
     if (applicationType === "grade") return calcGradeAmount(gradeDetail.subType);
-    if (applicationType === "contest") return calcContestAmount(contestDetail.scale, contestDetail.awardLevel, contestDetail.isTeam);
+    if (applicationType === "contest") {
+      const total = calcContestAmount(contestDetail.scale, contestDetail.awardLevel, contestDetail.isTeam);
+      if (contestDetail.isTeam) return Math.floor(total / Math.max(1, contestDetail.teamMembers.length)); // 본인 포함 팀원 수로 n분의 1
+      return total;
+    }
     if (applicationType === "certificate") return calcCertAmount(certDetail.difficulty);
     if (applicationType === "activity") return activityDetail.requestAmount;
     return calcSupportTotal(costDetail);
@@ -359,8 +381,27 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       if (!certDetail.certName.trim()) e.push("• 자격증명을 입력해주세요.");
       if (certDetail.acquisitionDate && !/^\d{4}-\d{2}-\d{2}$/.test(certDetail.acquisitionDate)) e.push("• 취득일은 YYYY-MM-DD 형식으로 입력해주세요.");
     }
+    if (applicationType === "grade") {
+      // 성적 우수: 핵심 선택 항목 필수 (세부 이수조건은 제출 시 추가 검증)
+      if (gradeDetail.subType === "microdegree") {
+        if (!gradeDetail.mdDepartment) e.push("• 마이크로디그리 학과를 선택해주세요.");
+        if (!gradeDetail.mdProgramId) e.push("• 마이크로디그리 과정을 선택해주세요.");
+      } else {
+        if (!gradeDetail.minorMajorName) e.push("• 부전공/복수전공 전공명을 선택해주세요.");
+        if (!(gradeDetail.gpa > 0)) e.push("• 평점 평균을 입력해주세요.");
+      }
+    }
     if (applicationType === "contest") {
       if (!contestDetail.contestName.trim()) e.push("• 대회명을 입력해주세요.");
+      if (!contestDetail.organizer.trim()) e.push("• 개최기관을 입력해주세요.");
+      if (!contestDetail.contestTheme.trim()) e.push("• 대회 주제를 입력해주세요.");
+      if (!contestDetail.relevanceDescription.trim()) e.push("• 사업단 분야 적합성 설명을 입력해주세요.");
+      if (!contestDetail.awardDate) e.push("• 수상일을 입력해주세요.");
+      if (contestDetail.isTeam) {
+        const ms = contestDetail.teamMembers;
+        if (ms.length < 2) e.push("• 팀 신청은 본인 포함 2명 이상의 팀원 정보를 입력해주세요.");
+        else if (ms.some((m) => !m.studentId.trim() || !m.name.trim())) e.push("• 모든 팀원의 학번과 이름을 입력해주세요.");
+      }
     }
     // 관리자가 '필수'로 설정한 신청자 입력 항목(서술/파일/드롭다운/서약/서명) 검증
     for (const f of reportFieldDefs) {
@@ -378,6 +419,14 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     return e;
   };
 
+  // 3단계(서류) 필수 업로드 검증 — 성적·경진대회는 슬롯별 필수
+  const validateStep3 = (): string[] => {
+    const slots = applicationType === "grade" ? GRADE_SLOTS : applicationType === "contest" ? CONTEST_SLOTS : [];
+    return slots
+      .filter((s) => s.required && !files.some((f) => f.type === s.type))
+      .map((s) => `• [${s.label}] 서류를 업로드해주세요.`);
+  };
+
   const handleSubmit = async () => {
     if (!consent.privacy || !consent.truth || (!isPre && !consent.account)) {
       alert("모든 동의 항목에 체크해주세요.");
@@ -387,6 +436,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       alert("신청인 서명 이미지를 업로드해주세요. (필수)");
       return;
     }
+    const docErrs = validateStep3();
+    if (docErrs.length) { alert("제출 서류를 모두 업로드해주세요.\n\n" + docErrs.join("\n")); return; }
     // 마이크로디그리 이수조건 검증
     if (applicationType === "grade" && gradeDetail.subType === "microdegree") {
       const program = gradeDetail.mdProgramId ? getProgramById(gradeDetail.mdProgramId) : undefined;
@@ -520,12 +571,19 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         ))}
       </div>
 
-      {/* 1단계: 기본 정보 + 개인정보 동의(한 번에) */}
+      {/* 1단계: 기본 정보 + 개인정보 동의(한 번에) — 성적·경진대회는 동의를 기본정보 위로 */}
       {step === 1 && (
-        <>
-          <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
-          <ConsentChecklist values={consent} onChange={setConsent} isPre={isPre} />
-        </>
+        consentFirst ? (
+          <>
+            <ConsentChecklist values={consent} onChange={setConsent} isPre={isPre} />
+            <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
+          </>
+        ) : (
+          <>
+            <BasicInfoSection values={basicInfo} onChange={setBasicInfo} hideAccount={isPre} />
+            <ConsentChecklist values={consent} onChange={setConsent} isPre={isPre} />
+          </>
+        )
       )}
 
       {/* 2단계: 유형별 상세 */}
@@ -539,7 +597,12 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <GradeDetailSection values={gradeDetail} onChange={setGradeDetail} calculatedAmount={getCalculatedAmount()} />
       )}
       {step === 2 && applicationType === "contest" && (
-        <ContestDetailSection values={contestDetail} onChange={setContestDetail} calculatedAmount={getCalculatedAmount()} />
+        <ContestDetailSection
+          values={contestDetail}
+          onChange={setContestDetail}
+          calculatedAmount={getCalculatedAmount()}
+          teamTotal={calcContestAmount(contestDetail.scale, contestDetail.awardLevel, contestDetail.isTeam)}
+        />
       )}
       {step === 2 && applicationType === "certificate" && (
         <CertificateDetailSection values={certDetail} onChange={setCertDetail} calculatedAmount={getCalculatedAmount()} />
@@ -557,8 +620,14 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries} />
       )}
 
-      {/* 3단계: 파일 업로드 */}
-      {step === 3 && (
+      {/* 3단계: 파일 업로드 — 성적·경진대회는 서류별 개별 업로드 슬롯 */}
+      {step === 3 && applicationType === "grade" && (
+        <DocumentSlotsSection files={files} onChange={setFiles} slots={GRADE_SLOTS} />
+      )}
+      {step === 3 && applicationType === "contest" && (
+        <DocumentSlotsSection files={files} onChange={setFiles} slots={CONTEST_SLOTS} />
+      )}
+      {step === 3 && applicationType !== "grade" && applicationType !== "contest" && (
         <FileUploadSection files={files} onChange={setFiles} applicationType={applicationType} />
       )}
 
@@ -612,6 +681,10 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
               if (step === 2) {
                 const e2 = validateStep2();
                 if (e2.length) { alert("신청 내용을 작성 예시와 동일하게 정확히 입력해주세요.\n\n" + e2.join("\n")); return; }
+              }
+              if (step === 3) {
+                const e3 = validateStep3();
+                if (e3.length) { alert("제출 서류를 모두 업로드해주세요.\n\n" + e3.join("\n")); return; }
               }
               setStep(step + 1);
             }}

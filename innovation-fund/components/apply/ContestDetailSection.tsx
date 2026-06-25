@@ -3,10 +3,11 @@
 interface ContestDetail {
   contestName: string; contestTheme: string; relevanceDescription: string; organizer: string;
   scale: "A" | "B"; isTeam: boolean;
+  teamMembers: { studentId: string; name: string }[];
   awardLevel: "grand" | "silver" | "bronze" | "participation"; awardDate: string; hasMonetaryPrize: boolean;
 }
 
-interface Props { values: ContestDetail; onChange: (v: ContestDetail) => void; calculatedAmount: number; }
+interface Props { values: ContestDetail; onChange: (v: ContestDetail) => void; calculatedAmount: number; teamTotal: number; }
 
 const AWARD_LEVELS = [
   { value: "grand", label: "대상/최우수" },
@@ -15,8 +16,14 @@ const AWARD_LEVELS = [
   { value: "participation", label: "입상" },
 ] as const;
 
-export default function ContestDetailSection({ values, onChange, calculatedAmount }: Props) {
+export default function ContestDetailSection({ values, onChange, calculatedAmount, teamTotal }: Props) {
   const set = <K extends keyof ContestDetail>(k: K, v: ContestDetail[K]) => onChange({ ...values, [k]: v });
+  const members = values.teamMembers || [];
+  const setMembers = (m: { studentId: string; name: string }[]) => set("teamMembers", m);
+  const addMember = () => setMembers([...members, { studentId: "", name: "" }]);
+  const updMember = (i: number, patch: Partial<{ studentId: string; name: string }>) =>
+    setMembers(members.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  const removeMember = (i: number) => setMembers(members.filter((_, idx) => idx !== i));
 
   return (
     <div className="card space-y-4">
@@ -67,6 +74,26 @@ export default function ContestDetailSection({ values, onChange, calculatedAmoun
             ))}
           </div>
         </div>
+
+        {/* 팀 선택 시 팀원 정보 입력 — 본인 포함 전체 팀원 기준 n분의 1 지급 */}
+        {values.isTeam && (
+          <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-3">
+            <div className="text-sm text-amber-800">
+              <strong>팀 신청은 시상금(팀 총액)을 본인 포함 전체 팀원 수로 나누어(n분의 1) 1인당 지급</strong>됩니다. 본인을 포함한 모든 팀원의 학번·이름을 입력해주세요.
+            </div>
+            <div className="space-y-2">
+              {members.length === 0 && <p className="text-xs text-amber-600">‘팀원 추가’를 눌러 본인을 포함한 팀원을 모두 입력하세요.</p>}
+              {members.map((m, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <input className="input-field flex-1" value={m.studentId} onChange={(e) => updMember(i, { studentId: e.target.value })} placeholder={`팀원 ${i + 1} 학번`} />
+                  <input className="input-field flex-1" value={m.name} onChange={(e) => updMember(i, { name: e.target.value })} placeholder="이름" />
+                  <button type="button" onClick={() => removeMember(i)} className="text-gray-400 hover:text-red-500 text-xs px-2">삭제</button>
+                </div>
+              ))}
+              <button type="button" onClick={addMember} className="btn-secondary text-xs">+ 팀원 추가</button>
+            </div>
+          </div>
+        )}
         <div>
           <label className="label">시상 등급</label>
           <div className="grid grid-cols-2 gap-2">
@@ -79,8 +106,14 @@ export default function ContestDetailSection({ values, onChange, calculatedAmoun
         </div>
         <div>
           <label className="label">지급 예정액 (자동 계산)</label>
-          <div className="input-field bg-gray-50 text-primary-700 font-bold">{calculatedAmount.toLocaleString()}원</div>
-          <p className="text-xs text-gray-400 mt-1">{values.scale}규모 / {values.isTeam ? "팀" : "개인"}</p>
+          <div className="input-field bg-gray-50 text-primary-700 font-bold">{calculatedAmount.toLocaleString()}원{values.isTeam ? " (1인당)" : ""}</div>
+          {values.isTeam ? (
+            <p className="text-xs text-gray-500 mt-1">
+              {values.scale}규모 / 팀 · 팀 총액 {teamTotal.toLocaleString()}원 ÷ {Math.max(1, members.length)}명 = 1인당 {calculatedAmount.toLocaleString()}원
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1">{values.scale}규모 / 개인</p>
+          )}
         </div>
         <div className="sm:col-span-2 flex items-center gap-2">
           <input type="checkbox" id="prize" checked={values.hasMonetaryPrize} onChange={(e) => set("hasMonetaryPrize", e.target.checked)} className="w-4 h-4 accent-primary-600" />

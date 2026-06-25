@@ -225,7 +225,12 @@ export default function ApplicationDetailPage() {
       ["주제", app.contestDetail.contestTheme],
       ["개최기관", app.contestDetail.organizer],
       ["규모", `${app.contestDetail.scale}규모`],
-      ["개인/팀", app.contestDetail.isTeam ? "팀" : "개인"],
+      ["개인/팀", app.contestDetail.isTeam
+        ? `팀 (${(app.contestDetail.teamMembers || []).length}명, 1인당 ${app.contestDetail.calculatedAmount?.toLocaleString() || 0}원)`
+        : "개인"],
+      ...(app.contestDetail.isTeam && (app.contestDetail.teamMembers || []).length > 0
+        ? [["팀원", (app.contestDetail.teamMembers || []).map((m) => `${m.name}(${m.studentId})`).join(", ")] as [string, string]]
+        : []),
       ["시상 등급", { grand: "대상/최우수", silver: "은상/우수", bronze: "동상/장려", participation: "입상" }[app.contestDetail.awardLevel]],
       ["수상일", app.contestDetail.awardDate],
       ["상금 수령", app.contestDetail.hasMonetaryPrize ? "있음" : "없음"],
