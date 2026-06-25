@@ -72,6 +72,11 @@ export default function ApplicationsPage() {
   }, [unlocked, me]);
 
   const nameToId = useMemo(() => Object.fromEntries(programs.map((p) => [p.name, p.id])), [programs]);
+  // 프로그램 관리자의 담당 프로그램명(대시보드 범위 표시용)
+  const myProgramNames = useMemo(
+    () => (me?.role === "program" ? programs.filter((p) => me.programIds.includes(p.id)).map((p) => p.name) : []),
+    [programs, me],
+  );
   const ownerProgramId = (a: Application) => nameToId[progNameOf(a)] || "";
   // 인계 단계: 명시값 우선, 없으면 담당 프로그램 관리자 존재 여부로 결정
   const effStage = (a: Application): "program" | "expense" => {
@@ -80,9 +85,6 @@ export default function ApplicationsPage() {
     if (me?.role === "program") return "program"; // 본인 담당 프로그램 기본은 검토중
     return pid && allAssigned.has(pid) ? "program" : "expense";
   };
-
-  const canceledCount = useMemo(() => apps.filter((a) => a.canceled).length, [apps]);
-  const activeCount = apps.length - canceledCount;
 
   // 역할별 노출: 프로그램 관리자=담당 프로그램의 검토중 건 / 지출관리자=전달됨(또는 담당자 없는) 건
   const roleVisible = (a: Application): boolean => {
@@ -93,6 +95,12 @@ export default function ApplicationsPage() {
     }
     return effStage(a) === "expense";
   };
+
+  // 현재 관리자에게 보이는 신청 집합 — 대시보드 통계·탭 카운트의 공통 기준(테이블과 일치)
+  const visibleApps = useMemo(() => apps.filter(roleVisible), // eslint-disable-line react-hooks/exhaustive-deps
+    [apps, me, nameToId, allAssigned]);
+  const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
+  const activeCount = visibleApps.length - canceledCount;
 
   const filtered = useMemo(() => {
     return apps.filter((a) => {
@@ -193,13 +201,31 @@ export default function ApplicationsPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
-  // 대시보드는 취소된 신청을 제외 (취소 목록은 집계에 포함하지 않음)
-  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => apps.filter((a) => !a.canceled && a[field] === val).length;
+  // 대시보드는 현재 관리자가 담당·열람하는 신청만(visibleApps), 취소 건 제외하고 집계
+  const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => visibleApps.filter((a) => !a.canceled && a[field] === val).length;
   // 관리자가 아직 확인하지 못한(검토 상태 '신청완료') 신청 건수
-  const unconfirmedCount = apps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
+  const unconfirmedCount = visibleApps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
 
   return (
     <AdminLayout>
+      {/* 역할별 안내 — 대시보드/목록이 현재 관리자 기준으로 표시됨 */}
+      {me && (
+        <div className="mb-3 flex items-center flex-wrap gap-2 text-sm">
+          {me.role === "expense" ? (
+            <span className="badge bg-teal-100 text-teal-700">지출관리자 · 전체 권한</span>
+          ) : (
+            <span className="badge bg-indigo-100 text-indigo-700">프로그램 관리자</span>
+          )}
+          <span className="text-gray-500">
+            {me.role === "expense"
+              ? "지출관리자에게 전달된(또는 담당자 없는) 신청 건을 표시합니다."
+              : myProgramNames.length > 0
+                ? `담당 프로그램: ${myProgramNames.join(", ")}`
+                : "배정된 담당 프로그램이 없습니다. 지출관리자에게 프로그램 배정을 요청하세요."}
+          </span>
+        </div>
+      )}
+
       {/* 대시보드 (신청 목록 상단 통합) — 좌: 미확인 신청 / 우: 상태 표시 */}
       <div className="card mb-5 flex flex-col sm:flex-row gap-5">
         <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
