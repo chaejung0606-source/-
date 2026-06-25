@@ -267,6 +267,7 @@ function ApplyInner() {
             mode={mode}
             programId={schemaProgram.id}
             programName={schemaProgram.name}
+            audience={schemaProgram.audience}
             draft={draftApp}
             onBack={() => setSchemaProgramId(null)}
           />

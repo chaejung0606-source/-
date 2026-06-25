@@ -25,6 +25,8 @@ interface Props {
   mode: ApplicationPhase;
   programId: string;
   programName: string;
+  audience?: "virtual" | "anyone"; // 프로그램 신청대상 — virtual이면 가상학과 재학생만 신청 가능
+
   isAdmin?: boolean;   // 관리자 확인용(제약·제출 없이 신청자 화면 그대로 보기)
   draft?: Application | null; // 임시저장/보완요청 이어서 작성 시 복원할 원본 신청
   adminApplicantId?: string | null; // 관리자 대리 신청: 이 신청자(uid) 명의로 제출
@@ -185,7 +187,7 @@ function SignatureField({ label, value, onChange }: { label: string; value: stri
   );
 }
 
-export default function SchemaApplyForm({ schema, type, mode, programId, programName, isAdmin = false, draft = null, adminApplicantId = null, adminUser = null, onBack }: Props) {
+export default function SchemaApplyForm({ schema, type, mode, programId, programName, audience = "anyone", isAdmin = false, draft = null, adminApplicantId = null, adminUser = null, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";
   const [submitting, setSubmitting] = useState(false);
@@ -219,16 +221,12 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     })();
   }, [adminApplicantId, adminUser]);
 
-  // 미래융합가상학과 학생 자격 검사 — 프로그램 신청은 가상학과 재학생만 가능(명단에 없으면 차단)
+  // 프로그램 신청대상이 '미래융합가상학과 학생만'인 경우 재학생 명단 확인(없으면 차단)
   const [vdeptBlocked, setVdeptBlocked] = useState<boolean | null>(null);
   useEffect(() => {
     (async () => {
       try {
-        if (isAdmin || (adminApplicantId && adminUser)) { setVdeptBlocked(false); return; } // 관리자 확인·대리신청은 제외
-        const cfg = await fetch("/api/vdept-config").then((r) => r.json());
-        // 프로그램 참여지원비(program)·진행요원비(staff)는 가상학과 학생 전용이므로 항상 검사한다.
-        const required: string[] = [...(cfg.requiredTypes || []), "program", "staff"];
-        if (!required.includes(type)) { setVdeptBlocked(false); return; }
+        if (audience !== "virtual" || isAdmin || (adminApplicantId && adminUser)) { setVdeptBlocked(false); return; }
         const u = await currentUser();
         const res = await fetch("/api/virtual-check", {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "" }),
@@ -236,7 +234,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         setVdeptBlocked(!res.isVirtual);
       } catch { setVdeptBlocked(false); }
     })();
-  }, [type, isAdmin, adminApplicantId, adminUser]);
+  }, [audience, isAdmin, adminApplicantId, adminUser]);
 
   // 임시저장/보완요청 이어서 작성 — 저장된 필드별 상태를 무손실 복원
   useEffect(() => {
@@ -552,7 +550,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         <div className="card text-center py-14">
           <div className="text-4xl mb-3">🔒</div>
           <h2 className="text-lg font-bold text-gray-800 mb-2">미래융합가상학과 학생만 신청할 수 있습니다</h2>
-          <p className="text-sm text-gray-500">이 프로그램 지원금은 미래융합가상학과 재학생 명단에 등록된 학생만 신청 가능합니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
+          <p className="text-sm text-gray-500">이 프로그램은 미래융합가상학과 재학생 명단에 등록된 학생만 신청할 수 있습니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
           <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
         </div>
       </div>

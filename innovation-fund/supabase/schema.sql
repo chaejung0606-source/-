@@ -190,6 +190,8 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_start TEXT;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_end TEXT;
 -- programs: 혁신인재지원금 세부 유형(program=프로그램 참여지원비 / staff=진행요원비)
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS program_type TEXT;
+-- programs: 프로그램 신청대상(virtual=미래융합가상학과 학생만 / anyone=누구나)
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS audience TEXT DEFAULT 'anyone';
 -- applications: 신청 단계 컬럼(기존 테이블)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS application_phase TEXT DEFAULT 'fund';
 -- applications: 신청 취소

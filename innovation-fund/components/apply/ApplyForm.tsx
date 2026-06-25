@@ -189,8 +189,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       try {
         if (isAdmin) { setVdeptBlocked(false); return; }  // 관리자는 화면 확인용이므로 자격 제한 없음
         const cfg = await fetch("/api/vdept-config").then((r) => r.json());
-        // 프로그램 참여지원비(program)·진행요원비(staff)는 가상학과 학생 전용이므로 항상 검사한다.
-        const required: string[] = [...(cfg.requiredTypes || []), "program", "staff"];
+        const required: string[] = cfg.requiredTypes || [];
         if (!required.includes(applicationType)) { setVdeptBlocked(false); return; }
         const u = await currentUser();
         const res = await fetch("/api/virtual-check", {
