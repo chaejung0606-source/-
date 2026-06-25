@@ -51,6 +51,10 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
     if (hours > DAILY_MAX_HOURS) { alert(`일일 최대 근무시간은 ${DAILY_MAX_HOURS}시간입니다. (입력: ${hours}시간)`); return; }
     const dayTotal = entries.filter((x) => x.date === date).reduce((s, x) => s + (Number(x.hours) || 0), 0) + hours;
     if (dayTotal > DAILY_MAX_HOURS) { alert(`같은 날짜 합계가 일일 최대 ${DAILY_MAX_HOURS}시간을 초과합니다. (${date} 합계 ${dayTotal}시간)`); return; }
+    if (maxH > 0 && Math.round((totalHours + hours) * 10) / 10 > maxH) {
+      alert(`최대 근무시간(${maxH}시간)을 초과하여 등록할 수 없습니다.\n현재 합계 ${totalHours}시간 + ${hours}시간 = ${Math.round((totalHours + hours) * 10) / 10}시간 (남은 시간 ${Math.round((maxH - totalHours) * 10) / 10}시간)`);
+      return;
+    }
     onChange([...entries, { date, startTime: start, endTime: end, hours, detail: "" }].sort((a, b) => a.date.localeCompare(b.date)));
     setStart(""); setEnd("");
   };
