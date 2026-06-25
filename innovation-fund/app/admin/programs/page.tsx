@@ -15,6 +15,10 @@ const kindOf = (p: Program): ProgKind => p.category === "labor" ? "labor" : (p.p
 const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : "innovation");
 const inKind = (p: Program, k: ProgKind) => kindOf(p) === k;
 const today = () => new Date().toISOString().split("T")[0];
+// 상시 신청: 기한 제약 없이 항상 신청 가능하도록 하는 센티넬 기간(아주 과거~아주 미래)
+const ALWAYS_START = "2000-01-01";
+const ALWAYS_END = "2099-12-31";
+const isAlways = (s?: string, e?: string) => s === ALWAYS_START && e === ALWAYS_END;
 type SchemaKey = "preFormSchema" | "fundFormSchema";
 interface FormTemplate { id: string; name: string; schema: FormSchema; }
 
@@ -242,7 +246,6 @@ export default function ProgramsAdminPage() {
         const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
         const preOn = isPhaseEnabled(p, "pre");
         const fundOn = isPhaseEnabled(p, "fund");
-        const stepOn = selectedStep === "pre" ? preOn : fundOn;
         const stepLabel = selectedStep === "pre" ? "지원신청" : "지원금 신청";
         return (
           <div key={p.id} id={`prog-${p.id}`} className="space-y-4 scroll-mt-20">
@@ -293,18 +296,6 @@ export default function ProgramsAdminPage() {
                   className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"} ${!fundOn ? "opacity-60" : ""}`}
                 >지원금 신청 (활동 후){!fundOn ? " · 비활성" : ""}</button>
               </div>
-            </div>
-
-            {/* 선택한 단계의 활성/비활성 토글 (단계별 설정) */}
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-500">‘{stepLabel}’ 단계 노출:</span>
-              <button
-                onClick={() => update(p.id, selectedStep === "pre" ? { enabledPre: !stepOn } : { enabledFund: !stepOn })}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${stepOn ? "bg-emerald-500 text-white border-emerald-500" : "bg-gray-200 text-gray-500 border-gray-300"}`}
-                title="이 단계의 신청·세부내용 노출 여부를 전환합니다"
-              >
-                {stepOn ? "● 활성" : "● 비활성 (이 단계 숨김)"}
-              </button>
             </div>
 
             {/* 선택한 단계: 프로그램명·역할·기간·신청 항목 모두 편집 */}
@@ -364,32 +355,62 @@ export default function ProgramsAdminPage() {
 
               {selectedStep === "pre" ? (
                 <>
-                  <p className="text-sm font-bold text-indigo-700 mb-2">지원신청 (활동 전)</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="label">신청 시작</label>
-                      <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="label">신청 마감</label>
-                      <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
-                    </div>
+                  {(() => { const always = isAlways(p.preApplyStart, p.preApplyEnd); return (
+                  <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-indigo-700">지원신청 (활동 전)</p>
+                    <button
+                      type="button"
+                      onClick={() => always ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: ALWAYS_START, preApplyEnd: ALWAYS_END })}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"}`}
+                    >{always ? "● 상시 신청 중" : "상시 신청"}</button>
                   </div>
+                  {always ? (
+                    <p className="text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">신청 시작</label>
+                        <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label">신청 마감</label>
+                        <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
+                      </div>
+                    </div>
+                  )}
                   <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
+                  </>
+                  ); })()}
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-bold text-emerald-700 mb-2">지원금 신청 (활동 후)</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="label">신청 시작</label>
-                      <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="label">신청 마감</label>
-                      <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
-                    </div>
+                  {(() => { const always = isAlways(p.applyStart, p.applyEnd); return (
+                  <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-emerald-700">지원금 신청 (활동 후)</p>
+                    <button
+                      type="button"
+                      onClick={() => always ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: ALWAYS_START, applyEnd: ALWAYS_END })}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
+                    >{always ? "● 상시 신청 중" : "상시 신청"}</button>
                   </div>
+                  {always ? (
+                    <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">신청 시작</label>
+                        <input type="date" className="input-field" value={p.applyStart} onChange={(e) => update(p.id, { applyStart: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label">신청 마감</label>
+                        <input type="date" className="input-field" value={p.applyEnd} onChange={(e) => update(p.id, { applyEnd: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                  </>
+                  ); })()}
                 </>
               )}
 
