@@ -29,7 +29,8 @@ export function saveExportSettings(s: ExportSettings): void {
 }
 
 function applyVars(tpl: string, vars: Record<string, string>): string {
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+  // 변수명이 한글({접수번호}·{이름} 등)이라 \w 대신 중괄호 안 전체를 매칭한다.
+  return tpl.replace(/\{([^{}]+)\}/g, (_, k) => vars[k.trim()] ?? `{${k}}`);
 }
 
 // 신청유형별 PDF 파일명 (지급신청서)
