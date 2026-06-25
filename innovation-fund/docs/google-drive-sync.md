@@ -22,24 +22,33 @@
 ```javascript
 // 시트 URL의 /d/ 와 /edit 사이 문자열 (스프레드시트 ID)로 교체하세요.
 var SHEET_ID = "여기에_시트_ID_붙여넣기";
+var SHEET_NAME = "신청내역";
+var ATTACH_ROOT = "지원금 신청 첨부";
 
 function doPost(e) {
   var data = JSON.parse(e.postData.contents);
-
-  // 1) 시트에 요약행 추가 (ID로 직접 지정 → 연결 시트 혼동 방지)
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sheet = ss.getSheetByName("신청내역") || ss.insertSheet("신청내역");
+  var sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["접수번호","신청일","신청유형","프로그램/내용","신청금액","자동산정금액","검토상태","지급상태","동기화시각"]);
+    sheet.appendRow(["접수번호","신청일","신청유형","프로그램/내용","신청금액","자동산정금액","검토상태","지급상태","동기화시각","삭제여부"]);
   }
+
+  // ── 취소(삭제) 처리: 시트 행은 '삭제 건'으로 표시(내용 보존) + 드라이브 첨부만 삭제 ──
+  if (data.action === "cancel") {
+    markCanceled(sheet, data.receiptNumber, data.canceledAt);
+    deleteAttachments(data.receiptNumber);
+    return jsonOut({ ok: true, canceled: true });
+  }
+
+  // ── 일반 동기화: 요약행 추가 ──
   sheet.appendRow([
     data.receiptNumber, data.applicationDate, data.applicationType, data.programName,
-    data.requestAmount, data.calculatedAmount, data.reviewStatus, data.paymentStatus, new Date()
+    data.requestAmount, data.calculatedAmount, data.reviewStatus, data.paymentStatus, new Date(), ""
   ]);
 
-  // 2) 비민감 첨부파일 → 접수번호 폴더
+  // 비민감 첨부파일 → 접수번호 폴더
   if (data.files && data.files.length) {
-    var root = getOrCreateFolder(DriveApp.getRootFolder(), "지원금 신청 첨부");
+    var root = getOrCreateFolder(DriveApp.getRootFolder(), ATTACH_ROOT);
     var folder = getOrCreateFolder(root, data.receiptNumber || "기타");
     data.files.forEach(function(f) {
       if (!f.dataUrl) return;
@@ -51,15 +60,43 @@ function doPost(e) {
     });
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonOut({ ok: true });
+}
+
+// 접수번호로 행을 찾아 '삭제여부' 열(10번째)에 표시 — 행/내용은 보존
+function markCanceled(sheet, receiptNumber, canceledAt) {
+  if (!receiptNumber || sheet.getLastRow() < 2) return;
+  var ids = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues(); // A열(접수번호)
+  var label = "삭제 건" + (canceledAt ? " · " + canceledAt : "");
+  for (var i = 1; i < ids.length; i++) {        // 0=헤더
+    if (String(ids[i][0]) === String(receiptNumber)) {
+      sheet.getRange(i + 1, 10).setValue(label); // 10 = '삭제여부' 열
+    }
+  }
+}
+
+// 접수번호 폴더(첨부)를 휴지통으로 이동 → 드라이브에서 제거
+function deleteAttachments(receiptNumber) {
+  if (!receiptNumber) return;
+  var roots = DriveApp.getFoldersByName(ATTACH_ROOT);
+  if (!roots.hasNext()) return;
+  var folders = roots.next().getFoldersByName(receiptNumber);
+  while (folders.hasNext()) folders.next().setTrashed(true);
 }
 
 function getOrCreateFolder(parent, name) {
   var it = parent.getFoldersByName(name);
   return it.hasNext() ? it.next() : parent.createFolder(name);
 }
+
+function jsonOut(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
 ```
+
+> 신청자가 신청을 취소(또는 임시저장 삭제)하면 서버가 이 웹훅에 `{ action: "cancel", receiptNumber }`를 보냅니다.
+> 시트의 해당 행은 **지우지 않고 '삭제여부' 열에 "삭제 건 · 취소일시"** 로 표시되고, 드라이브의 **접수번호 첨부 폴더는 휴지통으로 이동**됩니다.
+> ⚠️ 기존에 이미 배포해 둔 경우, 위 코드로 교체 후 **배포 → 배포 관리 → 편집(연필) → 새 버전 → 배포**로 꼭 재배포해야 취소 처리가 반영됩니다.
 
 ### 3. 웹앱으로 배포
 - 우측 상단 **배포 → 새 배포**
