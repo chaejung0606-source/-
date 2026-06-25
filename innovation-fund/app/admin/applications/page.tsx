@@ -55,6 +55,15 @@ export default function ApplicationsPage() {
   const [payFilter, setPayFilter] = useState<PaymentStatus | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
+  // 신청 건의 역할 추출 — 근로는 laborDetail.role, 스키마 폼은 '역할' 항목 답변
+  const roleOf = (a: Application): string => {
+    if (a.laborDetail?.role) return a.laborDetail.role;
+    const fields = a.formAnswers?.fields || a.programDetail?.formAnswers?.fields || [];
+    const m = fields.find((f) => (f.label || "").includes("역할"));
+    return m?.value || "";
+  };
 
   useEffect(() => {
     if (!unlocked) return;
@@ -113,10 +122,18 @@ export default function ApplicationsPage() {
       if (payFilter && a.paymentStatus !== payFilter) return false;
       if (dateFrom && a.applicationDate < dateFrom) return false;
       if (dateTo && a.applicationDate > dateTo) return false;
+      if (roleFilter && !roleOf(a).includes(roleFilter)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, me, nameToId, allAssigned]);
+  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, me, nameToId, allAssigned]);
+
+  // 검색용 역할 목록 (현재 표시 대상 신청 건들에서 추출)
+  const roleOptions = useMemo(
+    () => Array.from(new Set(visibleApps.map(roleOf).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleApps],
+  );
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -319,11 +336,25 @@ export default function ApplicationsPage() {
             ))}
           </select>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
           <span className="text-sm text-gray-500">신청일:</span>
           <input type="date" className="input-field w-auto" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <span className="text-gray-400">~</span>
           <input type="date" className="input-field w-auto" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <span className="text-sm text-gray-500 ml-2">역할:</span>
+          <input
+            className="input-field w-auto"
+            list="role-options"
+            placeholder="역할 검색"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          />
+          <datalist id="role-options">
+            {roleOptions.map((r) => <option key={r} value={r} />)}
+          </datalist>
+          {roleFilter && (
+            <button type="button" onClick={() => setRoleFilter("")} className="text-xs text-gray-400 hover:text-gray-600 underline">초기화</button>
+          )}
           <span className="text-sm text-gray-400 ml-2">{filtered.length}건</span>
         </div>
       </div>
