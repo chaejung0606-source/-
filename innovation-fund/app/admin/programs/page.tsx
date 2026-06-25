@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, Search } from "lucide-react";
 import type { FundCategory } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, effectiveReportFields, isPhaseEnabled, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
 
@@ -102,9 +102,6 @@ export default function ProgramsAdminPage() {
     setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     setSaved(false);
   };
-
-  // 두 단계(지원신청·지원금 신청) 모두 비활성인지
-  const fullyOff = (p: Program) => !isPhaseEnabled(p, "pre") && !isPhaseEnabled(p, "fund");
 
   // 단계 진입 시 폼 스키마가 없으면 현재 설정 항목으로 자동 생성 (모든 항목이 빌더에 들어오도록)
   useEffect(() => {
@@ -220,11 +217,7 @@ export default function ProgramsAdminPage() {
             {list.filter((p) => inKind(p, selectedKind)).length === 0 ? (
               <p className="text-xs text-gray-400">등록된 프로그램이 없습니다. &lsquo;프로그램 추가&rsquo;로 생성하세요.</p>
             ) : [...list.filter((p) => inKind(p, selectedKind))]
-                .sort((a, b) => (fullyOff(a) ? 1 : 0) - (fullyOff(b) ? 1 : 0))
                 .map((p) => {
-                  const off = fullyOff(p);
-                  const partial = !off && !(isPhaseEnabled(p, "pre") && isPhaseEnabled(p, "fund"));
-                  const tag = off ? " (비활성)" : partial ? (isPhaseEnabled(p, "pre") ? " (지원신청만)" : " (지원금만)") : "";
                   return (
                     <button
                       key={p.id}
@@ -232,12 +225,10 @@ export default function ProgramsAdminPage() {
                       className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${
                         selectedId === p.id
                           ? "bg-indigo-500 text-white border-indigo-500"
-                          : off
-                            ? "bg-gray-200 border-gray-200 text-gray-400 hover:text-gray-500"
-                            : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"
+                          : "bg-white/70 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"
                       }`}
                     >
-                      {p.name || "(이름 없음)"}{tag}
+                      {p.name || "(이름 없음)"}
                     </button>
                   );
                 })}
@@ -248,8 +239,6 @@ export default function ProgramsAdminPage() {
       {/* 3단계: 선택한 프로그램 수정 */}
       {selectedKind && list.filter((p) => inKind(p, selectedKind) && p.id === selectedId).map((p) => {
         const stepAccent = selectedStep === "pre" ? "#6366f1" : "#10b981";
-        const preOn = isPhaseEnabled(p, "pre");
-        const fundOn = isPhaseEnabled(p, "fund");
         const stepLabel = selectedStep === "pre" ? "지원신청" : "지원금 신청";
         return (
           <div key={p.id} id={`prog-${p.id}`} className="space-y-4 scroll-mt-20">
@@ -287,18 +276,18 @@ export default function ProgramsAdminPage() {
             <div className="flex items-center justify-end mb-3 gap-2 flex-wrap">
               <button onClick={() => remove(p.id)} className="text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 프로그램 삭제</button>
             </div>
-            {/* 단계 선택: 하위 프로그램 선택 후 바로 단계 선택 (단계별로 활성/비활성 표시) */}
+            {/* 단계 선택: 하위 프로그램 선택 후 수정할 단계(지원신청/지원금 신청)를 선택 */}
             <div className="mt-1">
               <p className="text-xs font-semibold text-gray-500 mb-2">④ 수정할 단계 선택</p>
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setSelectedStep("pre")}
-                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "pre" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"} ${!preOn ? "opacity-60" : ""}`}
-                >지원신청 (활동 전){!preOn ? " · 비활성" : ""}</button>
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "pre" ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"}`}
+                >지원신청 (활동 전)</button>
                 <button
                   onClick={() => setSelectedStep("fund")}
-                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"} ${!fundOn ? "opacity-60" : ""}`}
-                >지원금 신청 (활동 후){!fundOn ? " · 비활성" : ""}</button>
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold border transition ${selectedStep === "fund" ? "bg-emerald-500 text-white border-emerald-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-emerald-300"}`}
+                >지원금 신청 (활동 후)</button>
               </div>
             </div>
 
@@ -498,7 +487,6 @@ export default function ProgramsAdminPage() {
                     <th className="whitespace-nowrap">프로그램명</th>
                     <th className="whitespace-nowrap">지원신청 기간</th>
                     <th className="whitespace-nowrap">지원금 신청 기간</th>
-                    <th className="whitespace-nowrap">상태</th>
                     <th className="text-center whitespace-nowrap">작업</th>
                   </tr></thead>
                   <tbody>
@@ -510,7 +498,6 @@ export default function ProgramsAdminPage() {
                         <td className="font-medium">{p.name || "(이름 없음)"}</td>
                         <td className="text-xs text-gray-500 whitespace-nowrap">{(p.preApplyStart || p.applyStart || "-")} ~ {(p.preApplyEnd || p.applyEnd || "-")}</td>
                         <td className="text-xs text-gray-500 whitespace-nowrap">{(p.applyStart || "-")} ~ {(p.applyEnd || "-")}</td>
-                        <td className="text-xs whitespace-nowrap">{fullyOff(p) ? <span className="badge bg-gray-200 text-gray-500">비활성</span> : <span className="badge bg-emerald-100 text-emerald-700">활성</span>}</td>
                         <td className="text-center whitespace-nowrap">
                           <button onClick={() => { setTab("edit"); setSelectedKind(kindOf(p)); setSelectedId(p.id); }} className="text-indigo-600 hover:underline text-xs mr-2">수정</button>
                           <button onClick={() => { if (window.confirm(`‘${p.name || "이 프로그램"}’을(를) 삭제할까요? (상단 ‘저장’을 눌러야 최종 반영됩니다)`)) remove(p.id); }} className="text-rose-500 hover:underline text-xs">삭제</button>
