@@ -79,6 +79,7 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
       return (
         <div>
           <label className="label">{f.label || "(제목 없음)"}{req}</label>
+          {f.uploadNotice && <p className="text-[11px] text-amber-600 mb-1">※ {f.uploadNotice} (업로드 시 안내창 표시)</p>}
           <div className="upload-card p-5 text-center text-gray-400 text-sm bg-gray-50 flex flex-col items-center gap-1">
             <Upload className="w-6 h-6 opacity-60" /> 파일을 끌어다 놓거나 클릭하여 업로드
           </div>
@@ -418,6 +419,9 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               )}
               {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file", "date"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
+              )}
+              {f.type === "file" && (
+                <input className="input-field text-xs mt-2" value={f.uploadNotice || ""} onChange={(e) => updField(cur.id, f.id, { uploadNotice: e.target.value })} placeholder="업로드 안내창 문구(선택) — 예: 재학증명서는 직인 날인본으로 제출" />
               )}
               {(f.type === "shortText" || f.type === "longText") && (
                 <div className="flex items-center flex-wrap gap-2 mt-2 text-xs text-gray-600">

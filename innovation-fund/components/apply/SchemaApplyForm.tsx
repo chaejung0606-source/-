@@ -91,9 +91,11 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
 }
 
 // 항목별 단순 파일 업로드 (관리자 미리보기와 동일)
-function FileField({ label, files, onChange }: { label: string; files: UploadedFile[]; onChange: (f: UploadedFile[]) => void; }) {
+function FileField({ label, files, onChange, notice }: { label: string; files: UploadedFile[]; onChange: (f: UploadedFile[]) => void; notice?: string; }) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // 안내창: 업로드 직전 확인. 취소하면 업로드 중단.
+  const confirmNotice = () => !notice || window.confirm(`[${label}] 제출 전 확인\n\n${notice}\n\n확인하셨으면 ‘확인’을 눌러 진행하세요.`);
   const process = async (list: File[]) => {
     if (list.length === 0) return;
     const bad = list.find((f) => !isAllowedDoc(f));
@@ -115,6 +117,7 @@ function FileField({ label, files, onChange }: { label: string; files: UploadedF
   };
   return (
     <div className="space-y-2">
+      {notice && <p className="text-[11px] text-amber-600">※ {notice}</p>}
       {files.map((f) => (
         <div key={f.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm">
           <span className="flex-1 truncate">{f.name}</span>
@@ -124,13 +127,15 @@ function FileField({ label, files, onChange }: { label: string; files: UploadedF
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); process(Array.from(e.dataTransfer.files || [])); }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (confirmNotice()) process(Array.from(e.dataTransfer.files || [])); }}
         className={`upload-card flex flex-col items-center justify-center gap-1 p-6 text-center text-sm cursor-pointer ${dragOver ? "ring-2 ring-indigo-300" : ""}`}
       >
         <Upload className="w-6 h-6 opacity-60 text-gray-400" />
         <span className="text-gray-400">{uploading ? "업로드 중..." : "파일을 끌어다 놓거나 클릭하여 업로드"}</span>
         <span className="text-[11px] text-gray-300">PDF · JPG · PNG · WEBP</span>
-        <input type="file" className="hidden" accept={ACCEPT_DOC} multiple onChange={(e) => { process(Array.from(e.target.files || [])); e.currentTarget.value = ""; }} />
+        <input type="file" className="hidden" accept={ACCEPT_DOC} multiple
+          onClick={(e) => { if (!confirmNotice()) e.preventDefault(); }}
+          onChange={(e) => { process(Array.from(e.target.files || [])); e.currentTarget.value = ""; }} />
       </label>
     </div>
   );
@@ -403,7 +408,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       }
       case "privacyConsent": return <ConsentChecklist key={f.id} values={consent} onChange={setConsent} isPre={isPre || !hasAccount} />;
       case "signature": return <ConsentSection key={f.id} signature={signature} onSignatureChange={setSignature} isPre={isPre} summary={summary} />;
-      case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
+      case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} notice={f.uploadNotice} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
       case "workLog": return <div key={f.id}>{label}<WorkLogField field={f} entries={workLogByField[f.id] || []} onChange={(en) => setWorkLogByField((m) => ({ ...m, [f.id]: en }))} group={group} isPre={isPre} /></div>;
       case "eventLocation": return <div key={f.id}><EventLocationSection title={f.label || "활동 장소"} values={eventLocByField[f.id] || { scope: "domestic" }} onChange={(v) => setEventLocByField((m) => ({ ...m, [f.id]: v }))} /></div>;
       case "registration": return <div key={f.id}>{label}<div className="grid sm:grid-cols-2 gap-2 items-end"><div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field" inputMode="numeric" value={cost.registrationFee || ""} onChange={(e) => setCost((c) => ({ ...c, registrationFee: Number(e.target.value.replace(/[^\d]/g, "")) || 0 }))} placeholder="0" /></div></div></div>;

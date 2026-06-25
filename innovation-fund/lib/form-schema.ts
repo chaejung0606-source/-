@@ -60,6 +60,7 @@ export interface FormField {
   branches?: Record<string, FormField[]>; // select: 선택지별 조건부 하위질문(선택지 값 → 하위 항목 목록)
   text?: string;           // agreement 본문
   placeholder?: string;
+  uploadNotice?: string;   // file: 업로드 직전 띄울 안내창 문구(예: 재학증명서는 직인 날인본 제출)
   minLen?: number;         // shortText/longText: 최소 글자수(이상)
   maxLen?: number;         // shortText/longText: 최대 글자수(이하)
   range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
