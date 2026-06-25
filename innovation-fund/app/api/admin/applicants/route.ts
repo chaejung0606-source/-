@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   // skip_pre 컬럼 포함 조회, 컬럼이 없으면(마이그레이션 전) 제외하고 재시도
   const withSkip = await admin
     .from("student_profiles")
-    .select("id, student_id, name, department, phone, email, university, skip_pre, skip_pre_programs")
+    .select("id, student_id, name, department, phone, email, university, skip_pre, skip_pre_programs, academic_status, previous_student_ids")
     .order("student_id", { ascending: true });
   let data: unknown[] | null = withSkip.data;
   let error = withSkip.error;

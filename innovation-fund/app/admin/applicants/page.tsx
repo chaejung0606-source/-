@@ -10,6 +10,7 @@ interface Applicant {
   id: string; student_id: string; name: string;
   department?: string; phone?: string; email?: string; university?: string;
   skip_pre?: boolean; skip_pre_programs?: string[];
+  academic_status?: string; previous_student_ids?: string[];
 }
 
 // 지원금 신청 가능 학생 목록의 한 행 (승인 신청 / 지원신청 면제)
@@ -183,6 +184,7 @@ export default function ApplicantsPage() {
                 <tr>
                   <th className="whitespace-nowrap">학번</th>
                   <th className="whitespace-nowrap">이름</th>
+                  <th className="whitespace-nowrap">학적상태</th>
                   <th className="whitespace-nowrap">소속</th>
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
@@ -193,11 +195,17 @@ export default function ApplicantsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
                 ) : filtered.map((a) => (
                   <tr key={a.id}>
-                    <td className="font-mono text-xs">{a.student_id}</td>
+                    <td className="font-mono text-xs">
+                      {a.student_id}
+                      {(a.previous_student_ids?.length || 0) > 0 && (
+                        <span title={`이전 학번: ${a.previous_student_ids!.join(", ")}`} className="ml-1 text-gray-400 cursor-help">↩</span>
+                      )}
+                    </td>
                     <td className="font-medium whitespace-nowrap">{a.name || "-"}</td>
+                    <td className="whitespace-nowrap"><span className="badge bg-indigo-50 text-indigo-600">{a.academic_status || "재학생"}</span></td>
                     <td className="text-gray-600 whitespace-nowrap">{a.university || "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>

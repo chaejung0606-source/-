@@ -10,6 +10,9 @@
 -- student_profiles
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre BOOLEAN DEFAULT FALSE;
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre_programs JSONB DEFAULT '[]'::jsonb;
+-- 학적상태변경(대학원 진학 등으로 학번 변경) — 신청기록은 applicant_id로 유지
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS academic_status TEXT DEFAULT '재학생';
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS previous_student_ids JSONB DEFAULT '[]'::jsonb;
 -- 회원가입·프로필 저장이 쓰는 계좌 컬럼(구버전 DB에 없을 수 있음)
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS account_number TEXT;

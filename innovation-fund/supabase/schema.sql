@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS student_profiles (
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre BOOLEAN DEFAULT FALSE;
 -- 프로그램별 지원신청 면제 (program id 배열)
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS skip_pre_programs JSONB DEFAULT '[]'::jsonb;
+-- 학적상태(재학생/대학원생/졸업생 등) 및 학번 변경 이력 (학번이 바뀌어도 신청기록은 applicant_id로 유지)
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS academic_status TEXT DEFAULT '재학생';
+ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS previous_student_ids JSONB DEFAULT '[]'::jsonb;
 
 ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
 

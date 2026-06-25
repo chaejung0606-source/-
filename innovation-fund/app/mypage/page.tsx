@@ -43,6 +43,13 @@ export default function MyPage() {
   const [loginOk, setLoginOk] = useState(false);
   const [loginErr, setLoginErr] = useState("");
 
+  // 학적상태변경 (대학원 진학 등으로 학번 변경)
+  const [academicStatus, setAcademicStatus] = useState("재학생");
+  const [acOpen, setAcOpen] = useState(false);
+  const [acForm, setAcForm] = useState({ newStudentId: "", academicStatus: "재학생", currentPassword: "" });
+  const [acSaving, setAcSaving] = useState(false);
+  const [acErr, setAcErr] = useState("");
+
   // 수강 시간표 (근로장학금)
   const [ttOpen, setTtOpen] = useState(false);
   const [timetable, setTimetable] = useState<ClassTime[]>([]);
@@ -98,6 +105,7 @@ export default function MyPage() {
       accountHolder: m.accountHolder || "",
     });
     setTimetable(Array.isArray((m as any).timetable) ? (m as any).timetable : []);
+    setAcademicStatus((m as any).academicStatus || "재학생");
     const { data } = await supabase
       .from("applications")
       .select("*")
@@ -168,6 +176,48 @@ export default function MyPage() {
       router.replace("/login");
     } finally {
       setLoginSaving(false);
+    }
+  };
+
+  // 학적상태변경 패널 열기 — 본인 확인 후 현재 학번/상태를 기본값으로
+  const openAcademicEditor = () => {
+    requirePassword(() => {
+      setAcForm({ newStudentId: studentId, academicStatus, currentPassword: "" });
+      setAcErr(""); setAcOpen(true);
+    });
+  };
+
+  const saveAcademicStatus = async () => {
+    setAcErr("");
+    const newSid = acForm.newStudentId.trim();
+    if (!newSid) { setAcErr("새 학번을 입력해주세요."); return; }
+    if (!/^[A-Za-z0-9]{4,20}$/.test(newSid)) { setAcErr("학번은 영문/숫자 4~20자로 입력해주세요."); return; }
+    if (!acForm.currentPassword) { setAcErr("현재 비밀번호를 입력해주세요."); return; }
+    const changingId = newSid !== studentId;
+    if (!changingId && acForm.academicStatus === academicStatus) { setAcErr("변경된 내용이 없습니다."); return; }
+    setAcSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/auth/change-student-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ newStudentId: newSid, academicStatus: acForm.academicStatus, currentPassword: acForm.currentPassword }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { setAcErr(j.error || "변경에 실패했습니다."); return; }
+      setAcOpen(false);
+      if (changingId) {
+        // 학번(로그인 아이디)이 바뀌면 다시 로그인 필요. 기존 신청기록은 그대로 보존됩니다.
+        alert(`학적상태가 변경되었습니다.\n새 학번: ${newSid}\n\n기존 신청 기록은 모두 유지되며, 새 학번으로 다시 로그인해주세요.`);
+        await logout();
+        router.replace("/login");
+      } else {
+        setAcademicStatus(acForm.academicStatus);
+        alert("학적상태가 변경되었습니다.");
+        load();
+      }
+    } finally {
+      setAcSaving(false);
     }
   };
 
@@ -405,6 +455,53 @@ export default function MyPage() {
                 <button type="button" onClick={() => setLoginOpen(false)} className="btn-secondary text-sm">취소</button>
                 <button type="button" onClick={saveLogin} disabled={loginSaving} className="btn-primary text-sm disabled:opacity-60">
                   {loginSaving ? "변경 중..." : "변경"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 학적상태변경 (대학원 진학 등으로 학번 변경) */}
+        <div className="card">
+          <button
+            type="button"
+            onClick={() => { if (acOpen) setAcOpen(false); else openAcademicEditor(); }}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <UserCog className="w-5 h-5 text-indigo-500" />
+              <span className="font-semibold text-gray-800">학적상태변경</span>
+              <span className="badge bg-indigo-100 text-indigo-700">{academicStatus}</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${acOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {acOpen && (
+            <div className="mt-4 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                대학원 진학 등으로 학번이 바뀌는 경우 새 학번과 학적상태를 변경합니다. <strong>이전에 신청한 기록은 모두 그대로 유지·확인 가능</strong>합니다. 학번(로그인 아이디)이 바뀌면 변경 후 새 학번으로 다시 로그인해야 합니다.
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">학번 (로그인 아이디)</label>
+                  <input className="input-field" value={acForm.newStudentId} onChange={(e) => setAcForm((f) => ({ ...f, newStudentId: e.target.value }))} placeholder="새 학번" autoComplete="off" />
+                </div>
+                <div>
+                  <label className="label">학적상태</label>
+                  <select className="input-field" value={acForm.academicStatus} onChange={(e) => setAcForm((f) => ({ ...f, academicStatus: e.target.value }))}>
+                    {["재학생", "대학원생", "졸업생", "휴학생", "수료생", "기타"].map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-gray-100">
+                <label className="label">현재 비밀번호 <span className="text-red-500">*</span></label>
+                <input className="input-field sm:max-w-xs" type="password" value={acForm.currentPassword} onChange={(e) => setAcForm((f) => ({ ...f, currentPassword: e.target.value }))} placeholder="본인 확인을 위해 현재 비밀번호 입력" autoComplete="current-password" />
+              </div>
+              {acErr && <p className="text-red-500 text-sm">{acErr}</p>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setAcOpen(false)} className="btn-secondary text-sm">취소</button>
+                <button type="button" onClick={saveAcademicStatus} disabled={acSaving} className="btn-primary text-sm disabled:opacity-60">
+                  {acSaving ? "변경 중..." : "변경"}
                 </button>
               </div>
             </div>
