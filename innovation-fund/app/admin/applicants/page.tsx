@@ -139,7 +139,7 @@ export default function ApplicantsPage() {
     setList((l) => l.map((x) => x.id === a.id ? { ...x, designated_programs: programIds } : x));
     setDesignateModal(null);
     const res = await fetch("/api/admin/applicants/designate", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, programIds }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, studentId: a.student_id, programIds }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (!j.ok) { setList((l) => l.map((x) => x.id === a.id ? { ...x, designated_programs: prev } : x)); alert("변경 실패: " + (j.error || res.status)); }

@@ -22,5 +22,13 @@ export async function GET(req: NextRequest) {
     error = fallback.error;
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data || []);
+
+  // 지정학생(designated_programs)은 컬럼이 없을 수 있어 app_config에도 저장됨 — 학번 기준으로 덮어쓴다
+  const { data: cfg } = await admin.from("app_config").select("value").eq("key", "designated_programs").maybeSingle();
+  const map = (cfg?.value && typeof cfg.value === "object") ? (cfg.value as Record<string, string[]>) : {};
+  const rows = (data || []).map((r) => {
+    const sid = (r as { student_id?: string }).student_id || "";
+    return { ...(r as object), designated_programs: Array.isArray(map[sid]) ? map[sid] : ((r as { designated_programs?: string[] }).designated_programs ?? []) };
+  });
+  return NextResponse.json(rows);
 }
