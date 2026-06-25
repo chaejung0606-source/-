@@ -41,6 +41,12 @@ const CONTEST_SLOTS: DocSlot[] = [
   { type: "id_card", label: "신분증 사본", required: true },
   { type: "bankbook", label: "통장 사본", required: true, notice: "예금주가 신청자 본인 명의인 통장 사본을 제출해주세요." },
 ];
+const CERT_SLOTS: DocSlot[] = [
+  { type: "certificate_copy", label: "자격증 사본", required: true },
+  { type: "enrollment_certificate", label: "재학증명서", required: true, notice: "재학증명서는 열람용이 아닌, 학교 직인이 날인된 정식 발급본으로 제출해야 합니다." },
+  { type: "id_card", label: "신분증 사본", required: true },
+  { type: "bankbook", label: "통장 사본", required: true, notice: "예금주가 신청자 본인 명의인 통장 사본을 제출해주세요." },
+];
 
 interface Props {
   applicationType: ApplicationType;
@@ -54,8 +60,13 @@ interface Props {
 export default function ApplyForm({ applicationType, mode = "fund", prefill = null, draft = null, isAdmin = false, onBack }: Props) {
   const router = useRouter();
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
-  // 성적·경진대회: 개인정보 동의를 기본정보 위로 + 서류 개별 업로드 슬롯 + 전 항목 필수
-  const consentFirst = applicationType === "grade" || applicationType === "contest";
+  // 성적·경진대회·자격증: 개인정보 동의를 기본정보 위로 + 서류 개별 업로드 슬롯 + 전 항목 필수
+  const consentFirst = applicationType === "grade" || applicationType === "contest" || applicationType === "certificate";
+  // 서류 개별 업로드 슬롯을 쓰는 유형
+  const docSlots: DocSlot[] | null =
+    applicationType === "grade" ? GRADE_SLOTS :
+    applicationType === "contest" ? CONTEST_SLOTS :
+    applicationType === "certificate" ? CERT_SLOTS : null;
   const [step, setStep] = useState(draft?.draftStep || 1);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -377,7 +388,9 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     if (applicationType === "certificate") {
       if (!certDetail.certName.trim()) e.push("• 자격증명을 입력해주세요.");
-      if (certDetail.acquisitionDate && !/^\d{4}-\d{2}-\d{2}$/.test(certDetail.acquisitionDate)) e.push("• 취득일은 YYYY-MM-DD 형식으로 입력해주세요.");
+      if (!certDetail.issuingOrg.trim()) e.push("• 발급기관을 입력해주세요.");
+      if (!certDetail.acquisitionDate) e.push("• 취득일을 입력해주세요.");
+      else if (!/^\d{4}-\d{2}-\d{2}$/.test(certDetail.acquisitionDate)) e.push("• 취득일은 YYYY-MM-DD 형식으로 입력해주세요.");
     }
     if (applicationType === "grade") {
       // 성적 우수: 핵심 선택 항목 필수 (세부 이수조건은 제출 시 추가 검증)
@@ -417,13 +430,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     return e;
   };
 
-  // 3단계(서류) 필수 업로드 검증 — 성적·경진대회는 슬롯별 필수
-  const validateStep3 = (): string[] => {
-    const slots = applicationType === "grade" ? GRADE_SLOTS : applicationType === "contest" ? CONTEST_SLOTS : [];
-    return slots
+  // 3단계(서류) 필수 업로드 검증 — 성적·경진대회·자격증은 슬롯별 필수
+  const validateStep3 = (): string[] =>
+    (docSlots || [])
       .filter((s) => s.required && !files.some((f) => f.type === s.type))
       .map((s) => `• [${s.label}] 서류를 업로드해주세요.`);
-  };
 
   const handleSubmit = async () => {
     if (!consent.privacy || !consent.truth || (!isPre && !consent.account)) {
@@ -618,14 +629,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries} />
       )}
 
-      {/* 3단계: 파일 업로드 — 성적·경진대회는 서류별 개별 업로드 슬롯 */}
-      {step === 3 && applicationType === "grade" && (
-        <DocumentSlotsSection files={files} onChange={setFiles} slots={GRADE_SLOTS} />
+      {/* 3단계: 파일 업로드 — 성적·경진대회·자격증은 서류별 개별 업로드 슬롯 */}
+      {step === 3 && docSlots && (
+        <DocumentSlotsSection files={files} onChange={setFiles} slots={docSlots} />
       )}
-      {step === 3 && applicationType === "contest" && (
-        <DocumentSlotsSection files={files} onChange={setFiles} slots={CONTEST_SLOTS} />
-      )}
-      {step === 3 && applicationType !== "grade" && applicationType !== "contest" && (
+      {step === 3 && !docSlots && (
         <FileUploadSection files={files} onChange={setFiles} applicationType={applicationType} />
       )}
 

@@ -23,7 +23,8 @@ interface GradeDetail {
 const MINOR_MAJORS = ["클라우드융합학과", "사이버보안융합학과", "블록체인융합학과"];
 // 평점 선택지 (가/부 포함 — 가/부는 평점평균 계산에서 제외)
 const MINOR_GRADE_OPTIONS = [...GRADE_OPTIONS, "가", "부"];
-const CREDIT_OPTIONS = [1, 2, 3];
+// 학점 선택지 — 기본값 3학점(첫 번째)
+const CREDIT_OPTIONS = [3, 2, 1];
 
 // 전공명 → MD 카탈로그 학과(트랙 포함) 매칭
 function programsForMajor(major: string) {
@@ -256,7 +257,10 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
             minorMdName: names.join(", "),
           });
         };
-        const addCourse = () => apply([...courses, { name: "", credits: 1, grade: "A+", mdProgramId: "", excluded: false }]);
+        // 새로 추가하는 과목이 맨 위로 오도록 prepend (학점 기본 3)
+        const addCourse = () => apply([{ name: "", credits: 3, grade: "A+", mdProgramId: "", excluded: false }, ...courses]);
+        // 이미 선택된 교과목은 다른 행의 드롭다운에서 제외(중복 추가 방지)
+        const usedNames = new Set(courses.map((c) => c.name).filter(Boolean));
         const setCourse = (i: number, patch: Partial<MinorCourse>) =>
           apply(courses.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
         const removeCourse = (i: number) => apply(courses.filter((_, idx) => idx !== i));
@@ -327,7 +331,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                     <div className="grid grid-cols-12 gap-2 items-center">
                       <select className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })}>
                         <option value="">교과목 선택</option>
-                        {courseOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                        {courseOptions.filter((name) => name === c.name || !usedNames.has(name)).map((name) => <option key={name} value={name}>{name}</option>)}
                       </select>
                       <select className="input-field !min-h-[40px] col-span-5 sm:col-span-2" value={c.credits || 1} onChange={(e) => setCourse(i, { credits: Number(e.target.value) })}>
                         {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n}학점</option>)}

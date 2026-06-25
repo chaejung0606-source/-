@@ -5,6 +5,7 @@ import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, Mess
 import type { ApplicationType, FundCategory } from "@/types";
 import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
+import { fetchPrograms, isProgramActive, type Program, type ApplyPhase } from "@/lib/programs";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import HeroClouds from "@/components/home/HeroClouds";
@@ -61,6 +62,29 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { fetchSiteConfig().then(setSite); }, []);
   useEffect(() => { fetch("/api/admin/status").then((r) => r.json()).then((d) => setIsAdmin(!!d.admin)).catch(() => {}); }, []);
+
+  // 신청 가능 분야 동적 계산 — 현재 신청 가능한(활성 기간 내) 프로그램/유형만 표시.
+  // 관리자가 프로그램을 추가·삭제하면 다음 방문 시 자동 반영된다.
+  const [programs, setPrograms] = useState<Program[]>([]);
+  useEffect(() => { fetchPrograms().then(setPrograms).catch(() => {}); }, []);
+  const activeNames = (cat: FundCategory, mode: ApplyPhase) =>
+    programs.filter((p) => p.category === cat && isProgramActive(p, undefined, mode)).map((p) => p.name);
+  const fieldsFor = (cat: FundCategory, mode: ApplyPhase): string => {
+    if (cat === "labor") {
+      const names = activeNames("labor", mode);
+      return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
+    }
+    // 혁신인재지원금
+    if (mode === "pre") {
+      const names = activeNames("innovation", "pre");
+      return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
+    }
+    // 지원금 신청(활동 후): 프로그램·진행요원은 활성 프로그램이 있을 때만, 성적/경진대회/자격증은 상시
+    const parts: string[] = [];
+    if (activeNames("innovation", "fund").length) parts.push("프로그램 참여지원비", "진행요원비");
+    parts.push("성적 우수", "경진대회 입상", "자격증 취득");
+    return parts.join(" · ");
+  };
 
   // 홈 팝업 공지 (여러 개·기간·닫기 옵션)
   type Popup = { id: string; enabled: boolean; title: string; content: string; startDate?: string; endDate?: string };
@@ -209,7 +233,7 @@ export default function Home() {
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {categoryCard[c].fields}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {fieldsFor(c, "pre")}</p>
                   </div>
                   <Link href={`/apply?category=${c}&mode=pre`} className="btn-secondary w-full justify-center">
                     지원신청하기 <ChevronRight className="w-4 h-4" />
@@ -230,7 +254,7 @@ export default function Home() {
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {categoryCard[c].fields}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {fieldsFor(c, "fund")}</p>
                   </div>
                   <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
                     지원금 신청하기 <ChevronRight className="w-4 h-4" />

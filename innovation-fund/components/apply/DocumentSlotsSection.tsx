@@ -23,9 +23,20 @@ interface Props {
 // 서류별 개별 업로드 — 각 서류를 같은 화면에서 칸마다 따로 업로드한다(다음 단계로 넘어가지 않음).
 export default function DocumentSlotsSection({ files, onChange, slots, allowExtra = true }: Props) {
   const [busy, setBusy] = useState<string>("");
+  const [dragKey, setDragKey] = useState<string>(""); // 드래그 중인 슬롯 키
 
   const fileOfType = (t: DocumentType) => files.find((f) => f.type === t);
   const extraFiles = files.filter((f) => !slots.some((s) => s.type === f.type));
+
+  // 슬롯별 안내창(notice) 확인 후 드롭 처리
+  const dropToSlot = (e: React.DragEvent, slot: DocSlot) => {
+    e.preventDefault();
+    setDragKey("");
+    const f = Array.from(e.dataTransfer.files || [])[0];
+    if (!f) return;
+    if (slot.notice && !window.confirm(`[${slot.label}] 제출 전 확인\n\n${slot.notice}\n\n확인하셨으면 ‘확인’을 눌러 진행하세요.`)) return;
+    upload(f, slot.type, true);
+  };
 
   const upload = async (file: File, type: DocumentType, replace: boolean) => {
     if (!isAllowedDoc(file)) { alert(`${UPLOAD_GUIDE}\n(거부됨: ${file.name})`); return; }
@@ -61,7 +72,13 @@ export default function DocumentSlotsSection({ files, onChange, slots, allowExtr
             const cur = fileOfType(slot.type);
             const loading = busy === slot.type;
             return (
-              <div key={slot.type} className="rounded-xl border border-gray-200 p-3">
+              <div
+                key={slot.type}
+                onDragOver={(e) => { e.preventDefault(); setDragKey(slot.type); }}
+                onDragLeave={() => setDragKey((k) => (k === slot.type ? "" : k))}
+                onDrop={(e) => dropToSlot(e, slot)}
+                className={`rounded-xl border p-3 transition-colors ${dragKey === slot.type ? "border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-200" : "border-gray-200"}`}
+              >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     {cur ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <span className="w-4 h-4 rounded-full border border-gray-300 inline-block" />}
@@ -91,7 +108,7 @@ export default function DocumentSlotsSection({ files, onChange, slots, allowExtr
                     <button onClick={() => removeFile(cur.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400">아직 업로드되지 않았습니다.</p>
+                  <p className="text-xs text-gray-400">{dragKey === slot.type ? "여기에 놓으면 첨부됩니다." : "파일을 선택하거나 이 칸으로 끌어다 놓으세요."}</p>
                 )}
               </div>
             );
@@ -99,7 +116,12 @@ export default function DocumentSlotsSection({ files, onChange, slots, allowExtr
         </div>
 
         {allowExtra && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
+          <div
+            className={`mt-4 pt-4 border-t border-gray-100 rounded-lg transition-colors ${dragKey === "__extra" ? "bg-indigo-50/60 ring-2 ring-indigo-200" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragKey("__extra"); }}
+            onDragLeave={() => setDragKey((k) => (k === "__extra" ? "" : k))}
+            onDrop={(e) => { e.preventDefault(); setDragKey(""); const f = Array.from(e.dataTransfer.files || [])[0]; if (f) upload(f, "other", false); }}
+          >
             <div className="flex items-center justify-between gap-2 mb-2">
               <span className="text-sm font-semibold text-gray-700">기타 자료 (선택)</span>
               <label className={`btn-secondary cursor-pointer flex items-center gap-1.5 text-xs ${busy === "other-extra" ? "opacity-60 pointer-events-none" : ""}`}>

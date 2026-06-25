@@ -168,11 +168,11 @@ export default function CertificateDetailSection({ values, onChange, calculatedA
       {/* 공통 입력 */}
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="label">발급기관</label>
+          <label className="label">발급기관 <span className="text-red-500">*</span></label>
           <input className="input-field" value={values.issuingOrg} onChange={(e) => set("issuingOrg", e.target.value)} placeholder="한국산업인력공단" />
         </div>
         <div>
-          <label className="label">취득일</label>
+          <label className="label">취득일 <span className="text-red-500">*</span></label>
           <input className="input-field" type="date" value={values.acquisitionDate} onChange={(e) => set("acquisitionDate", e.target.value)} />
         </div>
         <div>
