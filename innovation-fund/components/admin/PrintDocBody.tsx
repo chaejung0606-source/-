@@ -221,6 +221,7 @@ export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
           </p>
           <div className="sign-row">
             신청일: {app.applicationDate} &nbsp;&nbsp;&nbsp; 신청인: {app.name}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             {app.signature ? <img src={app.signature} alt="서명" className="sign-img" /> : " (서명)"}
           </div>
         </div>
@@ -285,6 +286,7 @@ export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
                 <div className="ev-head-sub">접수번호 {app.receiptNumber} · {app.name}({app.studentId}) · {app.department}</div>
               </div>
               <div className="ev-img">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
               </div>
             </div>

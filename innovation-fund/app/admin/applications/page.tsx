@@ -97,7 +97,7 @@ export default function ApplicationsPage() {
   };
 
   // 현재 관리자에게 보이는 신청 집합 — 대시보드 통계·탭 카운트의 공통 기준(테이블과 일치)
-  const visibleApps = useMemo(() => apps.filter(roleVisible), // eslint-disable-line react-hooks/exhaustive-deps
+  const visibleApps = useMemo(() => apps.filter(roleVisible),
     [apps, me, nameToId, allAssigned]);
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
@@ -115,7 +115,6 @@ export default function ApplicationsPage() {
       if (dateTo && a.applicationDate > dateTo) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, me, nameToId, allAssigned]);
 
   const toggleSelect = (id: string) => {

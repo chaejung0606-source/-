@@ -31,7 +31,7 @@ export interface RegisterInput {
 export async function register(input: RegisterInput): Promise<{ ok: boolean; error?: string }> {
   const studentId = input.studentId.trim();
   if (!studentId || !input.password || !input.name.trim()) return { ok: false, error: "필수 정보를 모두 입력해주세요." };
-  if (input.password.length < 6) return { ok: false, error: "비밀번호는 6자 이상이어야 합니다." };
+  if (input.password.length < 8) return { ok: false, error: "비밀번호는 8자 이상이어야 합니다." };
 
   // 서버(service_role)에서 계정 생성 — 이메일 확인 불필요(email_confirm=true)
   const res = await fetch("/api/auth/register", {

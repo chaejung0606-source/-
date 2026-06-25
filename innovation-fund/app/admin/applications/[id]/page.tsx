@@ -435,6 +435,7 @@ export default function ApplicationDetailPage() {
                       </div>
                       <div className="bg-white/60 flex items-center justify-center" style={{ height: 160 }}>
                         {f.url && isImage ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
                         ) : f.url && isPdf ? (
                           <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
