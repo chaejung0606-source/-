@@ -106,7 +106,7 @@ export default function ApplicationsPage() {
   };
 
   // 현재 관리자에게 보이는 신청 집합 — 대시보드 통계·탭 카운트의 공통 기준(테이블과 일치)
-  const visibleApps = useMemo(() => apps.filter(roleVisible), // eslint-disable-line react-hooks/exhaustive-deps
+  const visibleApps = useMemo(() => apps.filter(roleVisible),
     [apps, me, nameToId, allAssigned]);
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
@@ -125,13 +125,11 @@ export default function ApplicationsPage() {
       if (roleFilter && !roleOf(a).includes(roleFilter)) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, me, nameToId, allAssigned]);
 
   // 검색용 역할 목록 (현재 표시 대상 신청 건들에서 추출)
   const roleOptions = useMemo(
     () => Array.from(new Set(visibleApps.map(roleOf).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [visibleApps],
   );
 

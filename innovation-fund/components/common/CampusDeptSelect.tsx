@@ -21,7 +21,6 @@ export default function CampusDeptSelect({ campus, department, onCampusChange, o
     const c = collegeOfDept(campus, department);
     if (c) { setCollege(c); setDirect(false); }
     else { setCollege(""); setDirect(true); } // 목록에 없는 값 → 직접 입력으로 간주
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campus]);
 
   const colleges = collegesFor(campus);
