@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeAdminAccounts } from "@/lib/admin-accounts";
 import { signAdminToken, ADMIN_SESSION_COOKIE } from "@/lib/admin-auth";
 
+export const dynamic = "force-dynamic";
+
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
