@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, List, Table as TableIcon, Type } from "lucide-react";
 
 // 간단한 한글 작업용 리치 텍스트 에디터 (글자크기·모양·정렬·표 삽입 등)
@@ -10,7 +10,17 @@ interface Props {
 
 export default function RichTextEditor({ initialHtml, onChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const emit = () => { if (ref.current) onChange(ref.current.innerHTML); };
+  const composing = useRef(false);
+  const emit = () => { if (ref.current && !composing.current) onChange(ref.current.innerHTML); };
+
+  // 외부 값(초기 로딩·다른 유형 전환)만 DOM에 반영하고, 편집 중(포커스/조합)에는 덮어쓰지 않는다.
+  // (매 입력마다 dangerouslySetInnerHTML로 덮어쓰면 커서가 튀고 한글 조합이 깨짐)
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (document.activeElement === el || composing.current) return; // 편집 중이면 보존
+    if (el.innerHTML !== initialHtml) el.innerHTML = initialHtml;
+  }, [initialHtml]);
   const cmd = (command: string, value?: string) => {
     ref.current?.focus();
     document.execCommand(command, false, value);
@@ -68,8 +78,9 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
         contentEditable
         suppressContentEditableWarning
         onInput={emit}
+        onCompositionStart={() => { composing.current = true; }}
+        onCompositionEnd={() => { composing.current = false; emit(); }}
         className="rich-content min-h-[220px] p-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-indigo-200"
-        dangerouslySetInnerHTML={{ __html: initialHtml }}
       />
     </div>
   );
