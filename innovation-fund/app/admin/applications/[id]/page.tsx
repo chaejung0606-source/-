@@ -381,6 +381,8 @@ export default function ApplicationDetailPage() {
               <dl className="space-y-2 text-sm">
                 {app.formAnswers.fields.map((f) => {
                   const grid = f.type === "table" ? parseTableGrid(f.value) : null;
+                  const isSig = f.type === "signature";
+                  const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
                   return (
                     <div key={f.id} className="flex gap-2">
                       <dt className="text-gray-500 min-w-[120px] flex-shrink-0">{f.label}</dt>
@@ -393,6 +395,10 @@ export default function ApplicationDetailPage() {
                               ))}</tr>
                             ))}
                           </tbody></table></div>
+                        ) : isSig ? (
+                          sigImg
+                            ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
+                            : (f.value ? "서명 완료" : "미서명")
                         ) : (f.value || "-")}
                       </dd>
                     </div>

@@ -69,12 +69,8 @@ function ApplyInner() {
   const [preChecked, setPreChecked] = useState(false);
   const [skipPre, setSkipPre] = useState(false);
 
-  // 지원금 신청 차단(지원신청 승인 필요) 안내
-  const [blocked, setBlocked] = useState(false);
+  // 지원금 신청 자격은 프로그램별 ‘신청대상’으로 판정한다(지원신청 승인 전제 없음).
   const requiresPre = (t: ApplicationType) => (["labor", "program", "activity"] as ApplicationType[]).includes(t);
-  const BLOCK_MSG = "지원금 신청 불가\n\n사유: 먼저 ‘지원신청’을 하고 관리자 승인을 받아야 이 지원금을 신청할 수 있습니다.\n승인된 지원신청 내역이 없습니다.";
-  useEffect(() => { setBlocked(false); }, [category, mode]);
-  useEffect(() => { if (blocked) window.alert(BLOCK_MSG); }, [blocked]);
 
   // 임시저장 이어쓰기
   const [draftApp, setDraftApp] = useState<Application | null>(null);
@@ -179,20 +175,13 @@ function ApplyInner() {
     if (preApps.length > 0 && !skipPre) return;
     if (CATEGORY_TYPES[category].length === 1) {
       const only = CATEGORY_TYPES[category][0];
-      // 승인 내역이 없고 관리자가 아니면 차단 (지원신청 승인 필요)
-      if (requiresPre(only) && preApps.length === 0 && !isAdmin) { setBlocked(true); return; }
+      // 신청 자격은 프로그램별 ‘신청대상’으로 판정한다(지원신청 승인 전제 제거).
       setSelectedType(only);
     }
   }, [category, mode, selectedType, preChecked, preApps.length, skipPre, isAdmin, draftApp, prefill]);
 
-  // ?type= 로 바로 진입한 경우 카테고리 유추(지원신청 승인 확인용)
+  // ?type= 로 바로 진입한 경우 카테고리 유추
   useEffect(() => { if (selectedType && !category) setCategory(categoryOfType(selectedType)); }, [selectedType, category]);
-
-  // 일반 가드: 지원금 신청 + 승인 필요 유형 + 승인 내역 없음 → 차단(모든 진입 경로 공통)
-  useEffect(() => {
-    if (mode !== "fund" || !selectedType || prefill || draftApp || !preChecked) return;
-    if (requiresPre(selectedType) && preApps.length === 0 && !isAdmin) { setSelectedType(null); setBlocked(true); }
-  }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, isAdmin]);
 
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "");
   const choosePre = (app: Application) => { setPrefill(app); setSelectedType(app.applicationType); };
@@ -225,22 +214,8 @@ function ApplyInner() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {blocked ? (
-          <>
-            <button onClick={() => { setBlocked(false); setCategory(null); }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 종류 다시 선택</button>
-            <div className="card text-center py-12">
-              <div className="text-4xl mb-3">🔒</div>
-              <h1 className="text-xl font-extrabold text-gray-800 mb-2">지원신청 승인 후 신청 가능</h1>
-              <p className="text-gray-600 mb-1">이 지원금은 먼저 <strong>지원신청</strong>을 하고 관리자 <strong>승인</strong>을 받아야 신청할 수 있습니다.</p>
-              <p className="text-sm text-gray-500 mb-6">승인된 지원신청 내역이 없습니다.</p>
-              <div className="flex gap-2 justify-center flex-wrap">
-                <button onClick={() => router.push(`/apply?mode=pre&category=${category}`)} className="btn-primary">지원신청 하러 가기</button>
-                <Link href="/mypage" className="btn-secondary">마이페이지에서 확인</Link>
-              </div>
-            </div>
-          </>
-        ) : awaitingPreCheck ? (
-          <div className="text-center py-20 text-gray-400">지원신청 승인 여부 확인 중...</div>
+        {awaitingPreCheck ? (
+          <div className="text-center py-20 text-gray-400">신청 정보 확인 중...</div>
         ) : selectedType && activeSchema && schemaProgram ? (
           <SchemaApplyForm
             schema={activeSchema}
@@ -352,11 +327,7 @@ function ApplyInner() {
               {CATEGORY_TYPES[category].map((type) => (
                 <button
                   key={type}
-                  onClick={() => {
-                    // 지원신청 승인이 필요한 유형인데 승인 내역이 없으면 차단(알림)
-                    if (mode === "fund" && requiresPre(type) && preApps.length === 0 && !isAdmin) { setBlocked(true); return; }
-                    setSelectedType(type);
-                  }}
+                  onClick={() => { setSelectedType(type); }}
                   className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
                 >
                   <div className="text-2xl mb-2">{typeIcons[type]}</div>

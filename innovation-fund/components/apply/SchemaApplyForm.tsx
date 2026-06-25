@@ -351,10 +351,17 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   const buildPayload = () => {
     const files = Object.values(filesByField).flat();
     const workLog = Object.values(workLogByField).flat();
+    // 신청자가 작성한 항목을 빠짐없이 보존 — 서명·파일(슬롯)도 라벨과 함께 기록해 관리자 상세에서 모두 노출
     const formAnswers = {
       programId, programName,
-      fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement", "table"].includes(f.type))
-        .map((f) => ({ id: f.id, label: f.label, type: f.type, value: answers[f.id] || "" })),
+      fields: activeFields(allFields)
+        .filter((f) => ["shortText", "longText", "number", "date", "select", "agreement", "table", "signature", "file"].includes(f.type))
+        .map((f) => {
+          let value = answers[f.id] || "";
+          if (f.type === "signature") value = signaturesByField[f.id] || "";
+          else if (f.type === "file") value = (filesByField[f.id] || []).map((x) => x.name).join(", ");
+          return { id: f.id, label: f.label, type: f.type, value };
+        }),
     };
     return {
       name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university, campus: basicInfo.campus,
