@@ -224,9 +224,6 @@ export default function Home() {
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">💸</span> 지원금 신청
             </h2>
-            <p className="text-sm sm:text-base font-semibold text-indigo-600 mb-1">
-              세부적으로 신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
-            </p>
             <div className="grid sm:grid-cols-2 gap-6 mt-3">
               {CATEGORY_ORDER.map((c) => (
                 <div key={c} className="card flex flex-col">
@@ -242,6 +239,10 @@ export default function Home() {
               ))}
             </div>
           </div>
+
+          <p className="text-base sm:text-lg font-semibold text-red-600">
+            신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
+          </p>
         </section>
 
         {/* 운영 절차 */}
