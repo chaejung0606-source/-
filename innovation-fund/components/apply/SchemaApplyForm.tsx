@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check, Save } from "lucide-react";
 import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail, EventLocation } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import type { FormSchema, FormField } from "@/lib/form-schema";
@@ -135,6 +135,9 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   const router = useRouter();
   const isPre = mode === "pre";
   const [submitting, setSubmitting] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [step, setStep] = useState(0);
 
   const [basicInfo, setBasicInfo] = useState({
@@ -223,6 +226,53 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
 
   const next = () => { if (!isAdmin) { const errs = validateStep(step); if (errs.length) { alert("아래 항목을 확인해주세요.\n\n" + errs.join("\n")); return; } } setStep((s) => Math.min(steps.length - 1, s + 1)); };
 
+  const buildPayload = () => {
+    const files = Object.values(filesByField).flat();
+    const workLog = Object.values(workLogByField).flat();
+    const formAnswers = {
+      programId, programName,
+      fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement"].includes(f.type))
+        .map((f) => ({ id: f.id, label: f.label, type: f.type, value: answers[f.id] || "" })),
+    };
+    return {
+      name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university, campus: basicInfo.campus,
+      department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
+      phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
+      bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
+      applicationPhase: mode, applicationType: type,
+      // programDetail(JSONB)에도 답변을 함께 저장 → form_answers 컬럼 미마이그레이션 환경에서도 보존
+      programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers },
+      files,
+      privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
+      signature,
+      accountMismatch: isPre || !hasAccount ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
+      requestAmount, calculatedAmount: requestAmount, formAnswers,
+    };
+  };
+
+  // 임시저장 (검증 없이 현재까지 작성 내용 저장)
+  const saveDraft = async () => {
+    if (isAdmin) { alert("관리자 확인용 화면입니다. 임시저장은 신청자 계정으로 진행해주세요."); return; }
+    setSavingDraft(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!user || !session) { alert("로그인이 필요합니다."); router.push("/login?next=/apply"); return; }
+      // form_answers 컬럼 미마이그레이션 환경 대비 — 답변은 programDetail에 보존되므로 제외하고 저장
+      const { form_answers, ...row } = toRow(buildPayload(), user.id) as Record<string, unknown>;
+      const res = await fetch("/api/applications/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id: draftId, row, finalize: false }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (j.ok) { setDraftId(j.id); setDraftSavedAt(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })); }
+      else alert("임시저장 실패: " + (j.error || "알 수 없는 오류"));
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const submit = async () => {
     if (isAdmin) { alert("관리자 확인용 화면입니다. 실제 제출은 신청자 계정으로 진행해주세요."); return; }
     for (let i = 0; i < steps.length; i++) { const errs = validateStep(i); if (errs.length) { setStep(i); alert(`'${steps[i].title}' 단계를 확인해주세요.\n\n` + errs.join("\n")); return; } }
@@ -230,28 +280,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { alert("로그인이 필요합니다. 다시 로그인해 주세요."); router.push("/login?next=/apply"); return; }
-      const files = Object.values(filesByField).flat();
-      const workLog = Object.values(workLogByField).flat();
-      const formAnswers = {
-        programId, programName,
-        fields: activeFields(allFields).filter((f) => ["shortText", "longText", "number", "date", "select", "agreement"].includes(f.type))
-          .map((f) => ({ id: f.id, label: f.label, type: f.type, value: answers[f.id] || "" })),
-      };
-      const payload = {
-        name: basicInfo.name, studentId: basicInfo.studentId, university: basicInfo.university, campus: basicInfo.campus,
-        department: basicInfo.department, grade: basicInfo.grade, academicStatus: basicInfo.academicStatus,
-        phone: basicInfo.phone, email: basicInfo.email, applicationDate: basicInfo.applicationDate,
-        bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
-        applicationPhase: mode, applicationType: type,
-        // programDetail(JSONB)에도 답변을 함께 저장 → form_answers 컬럼 미마이그레이션 환경에서도 보존
-        programDetail: { programId, programName, costDetail: hasCost ? cost : undefined, workLog: workLog.length ? workLog : undefined, eventLocation: Object.values(eventLocByField)[0], formAnswers },
-        files,
-        privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
-        signature,
-        accountMismatch: isPre || !hasAccount ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
-        requestAmount, calculatedAmount: requestAmount, formAnswers,
-      };
-      const row = toRow(payload, user.id);
+      const row = toRow(buildPayload(), user.id);
       let { data, error } = await supabase.from("applications").insert(row).select("id,receipt_number").single();
       // form_answers 컬럼이 없으면(마이그레이션 전) 제외하고 재시도 — 답변은 programDetail에 보존됨
       if (error && /form_answers/i.test(error.message)) {
@@ -401,11 +430,15 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
 
       <div className="flex items-center justify-between gap-3 pt-2">
         <button onClick={() => step === 0 ? onBack() : setStep((s) => s - 1)} className="btn-secondary flex items-center gap-1.5"><ChevronLeft className="w-4 h-4" /> {step === 0 ? "이전" : "이전 단계"}</button>
-        {isLast ? (
-          <button onClick={submit} disabled={submitting} className="btn-primary flex items-center gap-1.5"><Check className="w-4 h-4" /> {submitting ? "제출 중..." : (schema.submitLabel || (isPre ? "지원신청 제출" : "신청 제출"))}</button>
-        ) : (
-          <button onClick={next} className="btn-primary flex items-center gap-1.5">다음 단계 <ChevronRight className="w-4 h-4" /></button>
-        )}
+        <div className="flex items-center gap-2">
+          {draftSavedAt && <span className="text-xs text-gray-400 hidden sm:inline">임시저장됨 {draftSavedAt}</span>}
+          <button onClick={saveDraft} disabled={savingDraft || isAdmin} className="btn-secondary flex items-center gap-1.5 disabled:opacity-50"><Save className="w-4 h-4" /> {savingDraft ? "저장 중..." : "임시저장"}</button>
+          {isLast ? (
+            <button onClick={submit} disabled={submitting} className="btn-primary flex items-center gap-1.5"><Check className="w-4 h-4" /> {submitting ? "제출 중..." : (schema.submitLabel || (isPre ? "지원신청 제출" : "신청 제출"))}</button>
+          ) : (
+            <button onClick={next} className="btn-primary flex items-center gap-1.5">다음 단계 <ChevronRight className="w-4 h-4" /></button>
+          )}
+        </div>
       </div>
     </div>
   );
