@@ -338,7 +338,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "select": {
         const sel = answers[f.id] || "";
         const subs = f.branches?.[sel] || [];
-        return <div key={f.id}>{label}<select className="input-field" value={sel} onChange={(e) => setAns(f.id, e.target.value)}><option value="">선택하세요</option>{(f.options || []).map((o) => <option key={o} value={o}>{o}</option>)}</select>
+        return <div key={f.id}>{label}<select className="input-field" value={sel} onChange={(e) => setAns(f.id, e.target.value)}><option value="">선택하세요</option>{(f.options || []).filter((o) => o.trim()).map((o) => <option key={o} value={o}>{o}</option>)}</select>
           {subs.length > 0 && (
             <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
               {subs.map((sf) => renderField(sf))}

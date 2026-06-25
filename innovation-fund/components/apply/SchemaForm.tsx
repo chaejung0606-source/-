@@ -302,20 +302,37 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               </div>
               {/* 신청자 화면과 동일한 미리보기 */}
               <FieldView f={f} disabled />
-              {f.type === "select" && (
-                <div className="mt-2 space-y-2">
-                  <input className="input-field text-xs" value={(f.options || []).join(", ")} onChange={(e) => updField(cur.id, f.id, { options: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) })} placeholder="선택지 (쉼표로 구분)" />
-                  {(f.options || []).length > 0 && (
-                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-2 space-y-2">
-                      <p className="text-[11px] font-semibold text-indigo-700">선택지별 추가 질문(조건부)</p>
-                      {(f.options || []).map((opt) => {
-                        const subs = f.branches?.[opt] || [];
-                        const setSubs = (next: FormField[]) => updField(cur.id, f.id, { branches: { ...(f.branches || {}), [opt]: next } });
-                        return (
-                          <div key={opt} className="rounded-md bg-white border border-gray-200 p-2">
+              {f.type === "select" && (() => {
+                const opts = f.options || [];
+                const branches = f.branches || {};
+                const renameOpt = (i: number, val: string) => {
+                  const old = opts[i];
+                  const br: Record<string, FormField[]> = { ...branches };
+                  if (old !== val && br[old] !== undefined) { br[val] = br[old]; delete br[old]; }
+                  updField(cur.id, f.id, { options: opts.map((o, k) => k === i ? val : o), branches: br });
+                };
+                const addOpt = () => updField(cur.id, f.id, { options: [...opts, ""] });
+                const removeOpt = (i: number) => {
+                  const br: Record<string, FormField[]> = { ...branches }; delete br[opts[i]];
+                  updField(cur.id, f.id, { options: opts.filter((_, k) => k !== i), branches: br });
+                };
+                const setSubs = (opt: string, next: FormField[]) => updField(cur.id, f.id, { branches: { ...branches, [opt]: next } });
+                return (
+                  <div className="mt-2 space-y-2">
+                    {opts.length === 0 && <p className="text-[11px] text-gray-400">선택지가 없습니다. 아래 ‘옵션 추가’로 만드세요.</p>}
+                    {opts.map((opt, i) => {
+                      const subs = branches[opt] || [];
+                      return (
+                        <div key={i} className="rounded-md border border-gray-200 bg-white p-2 space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-gray-400 w-4 text-center shrink-0">{i + 1}</span>
+                            <input className="input-field text-xs flex-1" value={opt} onChange={(e) => renameOpt(i, e.target.value)} placeholder={`옵션 ${i + 1}`} />
+                            <button onClick={() => removeOpt(i)} className="text-gray-300 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                          <div className="ml-6 rounded-md bg-indigo-50/40 border border-indigo-100 p-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-gray-700">‘{opt}’ 선택 시</span>
-                              <button onClick={() => setSubs([...subs, { id: newSchemaId("sf"), label: "", type: "shortText", required: true }])} className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3 h-3" />질문 추가</button>
+                              <span className="text-[11px] font-medium text-indigo-700">이 선택지의 추가 질문(조건부)</span>
+                              <button disabled={!opt.trim()} onClick={() => setSubs(opt, [...subs, { id: newSchemaId("sf"), label: "", type: "shortText", required: true }])} className="text-[11px] text-indigo-600 hover:text-indigo-800 disabled:opacity-40 flex items-center gap-0.5"><Plus className="w-3 h-3" />질문 추가</button>
                             </div>
                             {subs.length === 0 ? (
                               <p className="text-[11px] text-gray-400 mt-1">추가 질문 없음</p>
@@ -323,26 +340,35 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                               <div className="mt-1.5 space-y-1.5">
                                 {subs.map((sf, si) => (
                                   <div key={sf.id} className="flex flex-wrap items-center gap-1.5">
-                                    <input className="flex-1 min-w-[120px] text-xs border-b border-gray-200 outline-none bg-transparent pb-0.5" value={sf.label} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, label: e.target.value } : x))} placeholder={`하위 질문 ${si + 1}`} />
-                                    <select className="input-field !w-auto text-[11px] !py-0.5" value={sf.type} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, type: e.target.value as FormFieldType } : x))}>
+                                    <input className="flex-1 min-w-[120px] text-xs border-b border-gray-200 outline-none bg-transparent pb-0.5" value={sf.label} onChange={(e) => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, label: e.target.value } : x))} placeholder={`하위 질문 ${si + 1}`} />
+                                    <select className="input-field !w-auto text-[11px] !py-0.5" value={sf.type} onChange={(e) => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, type: e.target.value as FormFieldType } : x))}>
                                       {(["shortText", "longText", "number", "date", "select", "file"] as FormFieldType[]).map((t) => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
                                     </select>
-                                    <label className="flex items-center gap-1 text-[11px] text-gray-600"><input type="checkbox" checked={!!sf.required} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, required: e.target.checked } : x))} />필수</label>
-                                    <button onClick={() => setSubs(subs.filter((x) => x.id !== sf.id))} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    <label className="flex items-center gap-1 text-[11px] text-gray-600"><input type="checkbox" checked={!!sf.required} onChange={(e) => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, required: e.target.checked } : x))} />필수</label>
+                                    <button onClick={() => setSubs(opt, subs.filter((x) => x.id !== sf.id))} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                                     {sf.type === "select" && (
-                                      <input className="w-full input-field text-[11px] !py-0.5" value={(sf.options || []).join(", ")} onChange={(e) => setSubs(subs.map((x) => x.id === sf.id ? { ...x, options: e.target.value.split(",").map((y) => y.trim()).filter(Boolean) } : x))} placeholder="선택지 (쉼표로 구분)" />
+                                      <div className="w-full ml-2 space-y-1">
+                                        {(sf.options || []).map((o, oi) => (
+                                          <div key={oi} className="flex items-center gap-1">
+                                            <input className="input-field text-[11px] !py-0.5 flex-1" value={o} onChange={(e) => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, options: (x.options || []).map((y, k) => k === oi ? e.target.value : y) } : x))} placeholder={`옵션 ${oi + 1}`} />
+                                            <button onClick={() => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, options: (x.options || []).filter((_, k) => k !== oi) } : x))} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+                                          </div>
+                                        ))}
+                                        <button onClick={() => setSubs(opt, subs.map((x) => x.id === sf.id ? { ...x, options: [...(x.options || []), ""] } : x))} className="text-[11px] text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3 h-3" />옵션 추가</button>
+                                      </div>
                                     )}
                                   </div>
                                 ))}
                               </div>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                        </div>
+                      );
+                    })}
+                    <button onClick={addOpt} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Plus className="w-3.5 h-3.5" />옵션 추가</button>
+                  </div>
+                );
+              })()}
               {f.type === "agreement" && (
                 <textarea className="input-field text-xs mt-2 h-16 resize-none" value={f.text || ""} onChange={(e) => updField(cur.id, f.id, { text: e.target.value })} placeholder="서약 본문" />
               )}
