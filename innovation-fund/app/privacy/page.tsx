@@ -34,7 +34,8 @@ const sections: { h: string; body: React.ReactNode }[] = [
     body: (
       <ul className="list-disc pl-5 space-y-1">
         <li>호스팅·데이터베이스: 신청 정보는 클라우드 인프라(Vercel, Supabase)에 저장·관리되며 접근통제(RLS)·암호화 등 보호조치를 적용합니다.</li>
-        <li>업무용 사본(Google Drive): 사업 운영 편의를 위해 <strong>비민감 신청 요약 및 일부 증빙</strong>을 운영자의 Google Drive·스프레드시트에 보관할 수 있습니다. 이때 <strong>이름·학번·계좌정보·연락처·이메일, 신분증·통장 사본 등 민감·식별 정보는 보관하지 않으며</strong> 접수번호로만 식별합니다.</li>
+        <li>업무용 사본(Google Drive): 사업 운영 편의를 위해 <strong>신청 요약(접수번호 기준) 및 일부 증빙 서류</strong>를 운영자의 Google Drive·스프레드시트에 보관할 수 있습니다. 시트 요약에는 <strong>이름·학번·계좌정보·연락처·이메일을 포함하지 않고</strong>, <strong>신분증·통장 사본은 전송하지 않습니다.</strong> 다만 재학증명서·성과/참여 증빙 등 일부 서류의 <strong>내용에는 이름·학번 등 식별정보가 포함될 수 있으며</strong>, 해당 파일은 접수번호 폴더에 분리 보관하고 운영자 계정 외 접근을 제한합니다.</li>
+        <li><strong>신청 취소 시</strong> Google Drive에 보관된 해당 신청의 첨부 서류는 삭제되며, 시트에는 ‘삭제 건’으로 표시됩니다.</li>
         <li>위탁 시 관련 법령에 따라 안전한 관리가 이루어지도록 합니다.</li>
       </ul>
     ),

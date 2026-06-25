@@ -128,9 +128,9 @@ export default function ApplicantsPage() {
   };
 
   const resetPw = async (a: Applicant) => {
-    const pw = window.prompt(`${a.name}(${a.student_id})님의 새 비밀번호를 입력하세요. (6자 이상)`);
+    const pw = window.prompt(`${a.name}(${a.student_id})님의 새 비밀번호를 입력하세요. (8자 이상)`);
     if (pw == null) return;
-    if (pw.length < 6) { alert("비밀번호는 6자 이상이어야 합니다."); return; }
+    if (pw.length < 8) { alert("비밀번호는 8자 이상이어야 합니다."); return; }
     const res = await fetch("/api/admin/reset-password", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id, password: pw }),
     });

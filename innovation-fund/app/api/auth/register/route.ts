@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
   if (!studentId || !password || !name) {
     return NextResponse.json({ ok: false, error: "필수 정보를 모두 입력해주세요." }, { status: 400 });
   }
-  if (password.length < 6) {
-    return NextResponse.json({ ok: false, error: "비밀번호는 6자 이상이어야 합니다." }, { status: 400 });
+  if (password.length < 8) {
+    return NextResponse.json({ ok: false, error: "비밀번호는 8자 이상이어야 합니다." }, { status: 400 });
   }
 
   const admin = supabaseAdmin();

@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const { id, password } = await req.json().catch(() => ({}));
   if (!id || !password) return NextResponse.json({ ok: false, error: "대상과 새 비밀번호가 필요합니다." }, { status: 400 });
-  if (String(password).length < 6) return NextResponse.json({ ok: false, error: "비밀번호는 6자 이상이어야 합니다." }, { status: 400 });
+  if (String(password).length < 8) return NextResponse.json({ ok: false, error: "비밀번호는 8자 이상이어야 합니다." }, { status: 400 });
 
   const { error } = await supabaseAdmin().auth.admin.updateUserById(id, { password: String(password) });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
