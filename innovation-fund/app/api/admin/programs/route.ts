@@ -15,10 +15,16 @@ export async function POST(req: NextRequest) {
   const rows = (programs as Program[]).map(programToRow);
 
   if (rows.length) {
-    let up = await admin.from("programs").upsert(rows, { onConflict: "id" });
-    // enabled/enabled_pre/enabled_fund 컬럼이 없으면(마이그레이션 전) 해당 필드 제외하고 재시도
-    if (up.error) up = await admin.from("programs").upsert(rows.map(({ enabled_pre, enabled_fund, ...r }) => r), { onConflict: "id" });
-    if (up.error) up = await admin.from("programs").upsert(rows.map(({ enabled, enabled_pre, enabled_fund, ...r }) => r), { onConflict: "id" });
+    // 배포 DB에 없는 컬럼(enabled/roles/report_fields/pre_apply 등)은 자동 감지·제외 후 재시도
+    let attempt: Record<string, unknown>[] = rows as unknown as Record<string, unknown>[];
+    let up = await admin.from("programs").upsert(attempt, { onConflict: "id" });
+    for (let i = 0; i < 12 && up.error; i++) {
+      const m = up.error.message.match(/Could not find the '([^']+)' column/i);
+      if (!m) break;
+      const col = m[1];
+      attempt = attempt.map(({ [col]: _drop, ...r }) => r);
+      up = await admin.from("programs").upsert(attempt, { onConflict: "id" });
+    }
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
   }
 
