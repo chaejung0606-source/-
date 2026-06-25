@@ -29,6 +29,7 @@ interface FormTemplate { id: string; name: string; schema: FormSchema; }
 export default function ProgramsAdminPage() {
   const [list, setList] = useState<Program[]>([]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedKind, setSelectedKind] = useState<ProgKind | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
@@ -155,25 +156,31 @@ export default function ProgramsAdminPage() {
   const setSchema = (p: Program, schema: FormSchema) => update(p.id, { [schemaKey]: schema });
 
   const save = async () => {
-    const forms: Record<string, { pre?: FormSchema; fund?: FormSchema }> = {};
-    list.forEach((p) => {
-      if (p.preFormSchema || p.fundFormSchema) forms[p.id] = { pre: p.preFormSchema, fund: p.fundFormSchema };
-    });
-    const [r1, r2] = await Promise.all([
-      fetch("/api/admin/programs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }) }),
-      fetch("/api/admin/program-forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ forms }) }),
-    ]);
-    const j1 = await r1.json().catch(() => ({}));
-    const j2 = await r2.json().catch(() => ({}));
-    if (j1.ok && j2.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
-    else alert("저장 실패: " + (j1.error || j2.error || `${r1.status}/${r2.status}`));
+    if (saving) return;
+    setSaving(true);
+    try {
+      const forms: Record<string, { pre?: FormSchema; fund?: FormSchema }> = {};
+      list.forEach((p) => {
+        if (p.preFormSchema || p.fundFormSchema) forms[p.id] = { pre: p.preFormSchema, fund: p.fundFormSchema };
+      });
+      const [r1, r2] = await Promise.all([
+        fetch("/api/admin/programs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }) }),
+        fetch("/api/admin/program-forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ forms }) }),
+      ]);
+      const j1 = await r1.json().catch(() => ({}));
+      const j2 = await r2.json().catch(() => ({}));
+      if (j1.ok && j2.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+      else alert("저장 실패: " + (j1.error || j2.error || `${r1.status}/${r2.status}`));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-800">프로그램 신청 내용</h1>
-        {tab !== "templates" && <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>}
+        {tab !== "templates" && <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}</button>}
       </div>
 
       {/* 하위 메뉴 */}
@@ -570,10 +577,11 @@ export default function ProgramsAdminPage() {
       {tab !== "templates" && (
         <button
           onClick={save}
-          className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2"
-          title="변경 내용 저장"
+          disabled={saving}
+          className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2 disabled:opacity-60"
+          title="변경 내용 저장 (상단 ‘저장’과 동일하게 신청 폼에 반영)"
         >
-          <Save className="w-4 h-4" /> 저장{saved ? "됨 ✓" : ""}
+          <Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}
         </button>
       )}
 
