@@ -236,7 +236,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           setVdeptBlocked(!res.isVirtual);
         } else {
           const res = await fetch("/api/program-designated-check", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "", programId }),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studentId: u?.studentId || "", programId, phase: mode }),
           }).then((r) => r.json());
           setVdeptBlocked(!res.allowed);
         }

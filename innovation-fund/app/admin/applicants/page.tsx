@@ -5,7 +5,16 @@ import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, F
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS } from "@/types";
-import { fetchPrograms, type Program } from "@/lib/programs";
+import { fetchPrograms, audienceOf, type Program } from "@/lib/programs";
+
+// 지정 키: "프로그램id::단계(pre|fund)" — 단계별로 따로 지정
+const DESIG_PHASES = [["pre", "지원신청"], ["fund", "지원금 신청"]] as const;
+const parseDesigKey = (k: string): { programId: string; phase: "pre" | "fund" } => {
+  const i = k.lastIndexOf("::");
+  if (i < 0) return { programId: k, phase: "fund" }; // 레거시(프로그램 id만): 지원금 신청으로 간주
+  const phase = k.slice(i + 2) === "pre" ? "pre" : "fund";
+  return { programId: k.slice(0, i), phase };
+};
 
 interface Applicant {
   id: string; student_id: string; name: string;
@@ -14,7 +23,7 @@ interface Applicant {
   academic_status?: string; previous_student_ids?: string[];
 }
 
-// 지원금 신청 가능 학생 목록의 한 행 (승인 신청 / 지정학생)
+// 프로그램별 신청 가능 학생 목록의 한 행 (승인 신청 / 지정학생)
 interface EligRow {
   program: string; studentId: string; name: string; department: string;
   source: "approved" | "designated"; phase?: string; type?: string; date?: string;
@@ -71,7 +80,7 @@ export default function ApplicantsPage() {
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
   const progNameById = useMemo(() => Object.fromEntries(programs.map((p) => [p.id, p.name])), [programs]);
 
-  // 프로그램별 지원금 신청 가능 학생 = 승인 신청(미취소) + '지정학생만' 프로그램에 지정된 학생
+  // 프로그램별 신청 가능 학생 = 승인 신청(미취소) + '지정학생만' 단계에 지정된 학생(학생 검색에서 지정)
   const eligibleRows = useMemo<EligRow[]>(() => {
     const rows: EligRow[] = [];
     apps.filter((a) => a.reviewStatus === "approved" && !a.canceled).forEach((a) => {
@@ -82,9 +91,11 @@ export default function ApplicantsPage() {
       });
     });
     list.forEach((s) => {
-      (s.designated_programs || []).forEach((pid) => {
+      (s.designated_programs || []).forEach((key) => {
+        const { programId, phase } = parseDesigKey(key);
+        const phaseLabel = phase === "pre" ? "지원신청" : "지원금 신청";
         rows.push({
-          program: progNameById[pid] || "(삭제된 프로그램)", studentId: s.student_id || "", name: s.name || "",
+          program: `${progNameById[programId] || "(삭제된 프로그램)"} · ${phaseLabel}`, studentId: s.student_id || "", name: s.name || "",
           department: s.department || "", source: "designated",
         });
       });
@@ -118,8 +129,8 @@ export default function ApplicantsPage() {
     }));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "지원금 신청 가능 학생");
-    XLSX.writeFile(wb, `지원금신청가능학생_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "신청 가능 학생");
+    XLSX.writeFile(wb, `프로그램별신청가능학생_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   // 프로그램별 지정학생 저장 (모달에서 호출)
@@ -188,7 +199,7 @@ export default function ApplicantsPage() {
       {/* 보기 전환 */}
       <div className="flex gap-2 mb-4">
         <button onClick={() => setView("students")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "students" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>학생 검색</button>
-        <button onClick={() => setView("eligible")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "eligible" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>프로그램별 지원금 신청 가능 학생</button>
+        <button onClick={() => setView("eligible")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "eligible" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>프로그램별 신청 가능 학생</button>
       </div>
 
       {view === "students" ? (
@@ -373,17 +384,30 @@ export default function ApplicantsPage() {
   );
 }
 
-// 지정학생 프로그램 선택 모달 — '지정학생만' 신청대상 프로그램만 표시
+// 지정학생 선택 모달 — '지정학생만'으로 설정된 (프로그램 × 단계) 항목만 표시
 function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: Applicant; programs: Program[]; onClose: () => void; onSave: (ids: string[]) => void; }) {
-  const [sel, setSel] = useState<string[]>(applicant.designated_programs || []);
-  const toggle = (id: string) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  // '지정학생만'으로 설정된 프로그램만 대상 (그 외는 지정 의미 없음). 단, 이미 지정된 항목은 함께 노출.
-  const targetPrograms = useMemo(() => programs.filter((p) => p.audiencePre === "designated" || p.audienceFund === "designated" || p.audience === "designated" || sel.includes(p.id)), [programs, sel]);
+  // 레거시(프로그램 id만 저장된) 값을 키 형식("id::단계")으로 정규화
+  const [sel, setSel] = useState<string[]>(() => (applicant.designated_programs || []).map((v) => v.includes("::") ? v : `${v}::fund`));
+  const toggle = (key: string) => setSel((s) => s.includes(key) ? s.filter((x) => x !== key) : [...s, key]);
+
+  // (프로그램, 단계) 단위 항목 — 해당 단계 신청대상이 '지정학생만'이거나 이미 지정된 항목만 노출
+  const entries = useMemo(() => {
+    const out: { key: string; programId: string; name: string; category: string; phaseLabel: string }[] = [];
+    programs.forEach((p) => {
+      DESIG_PHASES.forEach(([ph, lbl]) => {
+        const key = `${p.id}::${ph}`;
+        if (audienceOf(p, ph) === "designated" || sel.includes(key)) {
+          out.push({ key, programId: p.id, name: p.name || "(이름 없음)", category: p.category, phaseLabel: lbl });
+        }
+      });
+    });
+    return out;
+  }, [programs, sel]);
   const byCat = useMemo(() => {
-    const m: Record<string, Program[]> = {};
-    targetPrograms.forEach((p) => { (m[p.category] ||= []).push(p); });
+    const m: Record<string, typeof entries> = {};
+    entries.forEach((e) => { (m[e.category] ||= []).push(e); });
     return m;
-  }, [targetPrograms]);
+  }, [entries]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -391,19 +415,19 @@ function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: A
       <div className="modal relative w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
         <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">지정 프로그램 선택</h2>
-        <p className="text-sm text-gray-500 mb-4">{applicant.name}({applicant.student_id})님이 신청할 수 있도록 <strong>지정</strong>할 프로그램을 선택하세요. (신청대상이 <strong>‘지정학생만’</strong>인 프로그램만 표시됩니다)</p>
-        {targetPrograms.length === 0 ? (
-          <p className="text-sm text-gray-400">신청대상이 ‘지정학생만’인 프로그램이 없습니다. 먼저 ‘프로그램 신청 내용’에서 프로그램 신청대상을 ‘지정학생만’으로 설정해주세요.</p>
+        <p className="text-sm text-gray-500 mb-4">{applicant.name}({applicant.student_id})님이 신청할 수 있도록 <strong>지정</strong>할 항목을 선택하세요. 신청대상이 <strong>‘지정학생만’</strong>인 <strong>프로그램의 해당 단계(지원신청·지원금 신청)</strong>만 표시됩니다.</p>
+        {entries.length === 0 ? (
+          <p className="text-sm text-gray-400">신청대상이 ‘지정학생만’인 단계가 없습니다. 먼저 ‘프로그램 신청 내용’에서 해당 단계의 신청대상을 ‘지정학생만’으로 설정해주세요.</p>
         ) : (
           <div className="space-y-3">
-            {Object.entries(byCat).map(([cat, ps]) => (
+            {Object.entries(byCat).map(([cat, es]) => (
               <div key={cat}>
                 <p className="text-xs font-semibold text-gray-500 mb-1">{FUND_CATEGORY_LABELS[cat as keyof typeof FUND_CATEGORY_LABELS] || cat}</p>
                 <div className="space-y-1">
-                  {ps.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={sel.includes(p.id)} onChange={() => toggle(p.id)} />
-                      <span className="text-gray-700">{p.name || "(이름 없음)"}</span>
+                  {es.map((e) => (
+                    <label key={e.key} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" checked={sel.includes(e.key)} onChange={() => toggle(e.key)} />
+                      <span className="text-gray-700">{e.name} <span className="text-xs text-indigo-500">· {e.phaseLabel}</span></span>
                     </label>
                   ))}
                 </div>
