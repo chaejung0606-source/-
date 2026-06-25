@@ -31,6 +31,7 @@ export default function MyPage() {
   useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [canceledOpen, setCanceledOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>({ name: "", campus: "", department: "", phone: "", email: "", university: "강원대학교", bankName: "", accountNumber: "", accountHolder: "" });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileOk, setProfileOk] = useState(false);
@@ -178,7 +179,9 @@ export default function MyPage() {
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "-");
 
   const drafts = apps.filter((a) => a.isDraft && !a.canceled);
-  const submitted = apps.filter((a) => !a.isDraft);
+  const submitted = apps.filter((a) => !a.isDraft && !a.canceled);
+  // 신청 취소·임시저장 삭제한 건은 한 묶음으로 모아서 보여줌
+  const canceled = apps.filter((a) => a.canceled);
 
   return (
     <div className="min-h-screen">
@@ -505,6 +508,45 @@ export default function MyPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 신청 취소 내역 (취소·삭제한 건 한 묶음) */}
+        {!loading && canceled.length > 0 && (
+          <div className="card">
+            <button
+              type="button"
+              onClick={() => setCanceledOpen((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-rose-400" />
+                <span className="font-semibold text-gray-800">신청 취소 내역</span>
+                <span className="badge bg-rose-100 text-rose-700">{canceled.length}건</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${canceledOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {canceledOpen && (
+              <div className="mt-4 space-y-2 pt-3 border-t border-gray-100">
+                {canceled.map((app) => (
+                  <div key={app.id} className="rounded-xl px-3 py-2.5 flex items-center justify-between gap-3 flex-wrap" style={{ background: "rgba(244,63,94,0.05)", border: "1px solid rgba(244,63,94,0.18)" }}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="badge bg-rose-100 text-rose-700">{app.isDraft ? "임시저장 삭제" : "신청 취소"}</span>
+                        <span className="badge bg-gray-100 text-gray-600">{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
+                        <span className="font-semibold text-gray-700">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
+                        {!app.isDraft && <span className="text-xs text-gray-400">접수번호 {app.receiptNumber || "-"}</span>}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        신청일 {fmtDate(app.createdAt)}
+                        {app.canceledAt && ` · 취소 일시 ${new Date(app.canceledAt).toLocaleString("ko-KR")}`}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
