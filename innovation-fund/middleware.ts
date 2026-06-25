@@ -7,7 +7,10 @@ export function middleware(req: NextRequest) {
   const authed = req.cookies.get("admin_auth")?.value === "true";
 
   const isAdminPage = pathname.startsWith("/admin") && pathname !== "/admin/login";
-  const isAdminApi = pathname.startsWith("/api/applications");
+  // /api/applications/* 는 관리자 API지만, 신청자 본인용(JWT 자체 인증) 엔드포인트는 제외
+  const isApplicantApi = pathname.startsWith("/api/applications/cancel")
+    || pathname.startsWith("/api/applications/draft");
+  const isAdminApi = pathname.startsWith("/api/applications") && !isApplicantApi;
 
   if ((isAdminPage || isAdminApi) && !authed) {
     if (isAdminApi) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
