@@ -36,9 +36,9 @@ export default function MyPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileOk, setProfileOk] = useState(false);
 
-  // 로그인 정보(학번·비밀번호) 수정
+  // 비밀번호 변경
   const [loginOpen, setLoginOpen] = useState(false);
-  const [loginForm, setLoginForm] = useState({ studentId: "", newPassword: "", confirmPassword: "", currentPassword: "" });
+  const [loginForm, setLoginForm] = useState({ newPassword: "", confirmPassword: "", currentPassword: "" });
   const [loginSaving, setLoginSaving] = useState(false);
   const [loginOk, setLoginOk] = useState(false);
   const [loginErr, setLoginErr] = useState("");
@@ -137,22 +137,19 @@ export default function MyPage() {
     }
   };
 
-  // 로그인 정보 수정 패널 열기 — 본인 확인 후 현재 학번을 기본값으로 채움
+  // 비밀번호 변경 패널 열기 — 본인 확인 후 열림
   const openLoginEditor = () => {
     requirePassword(() => {
-      setLoginForm({ studentId, newPassword: "", confirmPassword: "", currentPassword: "" });
+      setLoginForm({ newPassword: "", confirmPassword: "", currentPassword: "" });
       setLoginErr(""); setLoginOk(false); setLoginOpen(true);
     });
   };
 
   const saveLogin = async () => {
     setLoginErr("");
-    const newSid = loginForm.studentId.trim();
-    const changingId = !!newSid && newSid !== studentId;
-    const changingPw = !!loginForm.newPassword;
-    if (!changingId && !changingPw) { setLoginErr("변경할 학번 또는 새 비밀번호를 입력해주세요."); return; }
-    if (changingPw && loginForm.newPassword.length < 6) { setLoginErr("새 비밀번호는 6자 이상이어야 합니다."); return; }
-    if (changingPw && loginForm.newPassword !== loginForm.confirmPassword) { setLoginErr("새 비밀번호가 일치하지 않습니다."); return; }
+    if (!loginForm.newPassword) { setLoginErr("새 비밀번호를 입력해주세요."); return; }
+    if (loginForm.newPassword.length < 6) { setLoginErr("새 비밀번호는 6자 이상이어야 합니다."); return; }
+    if (loginForm.newPassword !== loginForm.confirmPassword) { setLoginErr("새 비밀번호가 일치하지 않습니다."); return; }
     if (!loginForm.currentPassword) { setLoginErr("현재 비밀번호를 입력해주세요."); return; }
     setLoginSaving(true);
     try {
@@ -160,19 +157,13 @@ export default function MyPage() {
       const res = await fetch("/api/auth/update-login", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          newStudentId: changingId ? newSid : undefined,
-          newPassword: changingPw ? loginForm.newPassword : undefined,
-          currentPassword: loginForm.currentPassword,
-        }),
+        body: JSON.stringify({ newPassword: loginForm.newPassword, currentPassword: loginForm.currentPassword }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { setLoginErr(j.error || "변경에 실패했습니다."); return; }
-      if (changingId) setStudentId(newSid);
       setLoginOk(true);
       setLoginOpen(false);
-      // 학번/비밀번호가 바뀌면 다음 로그인부터 새 정보가 필요하므로 재로그인 안내
-      alert(`로그인 정보가 변경되었습니다.${changingId ? `\n새 학번: ${newSid}` : ""}\n보안을 위해 다시 로그인해주세요.`);
+      alert("비밀번호가 변경되었습니다.\n보안을 위해 다시 로그인해주세요.");
       await logout();
       router.replace("/login");
     } finally {
@@ -299,7 +290,7 @@ export default function MyPage() {
                 </div>
                 <div>
                   <label className="label">학번</label>
-                  <input className="input-field bg-gray-50 text-gray-400 cursor-not-allowed" value={studentId} readOnly title="학번 변경은 아래 ‘로그인 정보 수정’에서 가능합니다." />
+                  <input className="input-field bg-gray-50 text-gray-400 cursor-not-allowed" value={studentId} readOnly title="학번은 변경할 수 없습니다." />
                 </div>
                 <div>
                   <label className="label">소속 대학</label>
@@ -377,7 +368,7 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* 로그인 정보 수정 (학번·비밀번호) */}
+        {/* 비밀번호 변경 */}
         <div className="card">
           <button
             type="button"
@@ -386,7 +377,7 @@ export default function MyPage() {
           >
             <div className="flex items-center gap-2">
               <UserCog className="w-5 h-5 text-indigo-500" />
-              <span className="font-semibold text-gray-800">로그인 정보 수정 (학번·비밀번호)</span>
+              <span className="font-semibold text-gray-800">비밀번호 변경</span>
               {loginOk && <span className="text-xs text-green-600 font-medium">✓ 변경되었습니다</span>}
             </div>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${loginOpen ? "rotate-180" : ""}`} />
@@ -394,19 +385,14 @@ export default function MyPage() {
 
           {loginOpen && (
             <div className="mt-4 space-y-4">
-              <p className="text-xs text-gray-500">학번(로그인 아이디) 또는 비밀번호를 변경합니다. 변경 후에는 새 정보로 다시 로그인해야 합니다. 학번 변경은 관리자 페이지에도 반영됩니다.</p>
+              <p className="text-xs text-gray-500">로그인 비밀번호를 변경합니다. 변경 후에는 새 비밀번호로 다시 로그인해야 합니다.</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">학번 (로그인 아이디)</label>
-                  <input className="input-field" value={loginForm.studentId} onChange={(e) => setLoginForm((f) => ({ ...f, studentId: e.target.value }))} placeholder="학번" autoComplete="off" />
-                </div>
-                <div className="hidden sm:block" />
-                <div>
-                  <label className="label">새 비밀번호 <span className="text-gray-400 text-xs">(변경 시에만)</span></label>
+                  <label className="label">새 비밀번호 <span className="text-red-500">*</span></label>
                   <input className="input-field" type="password" value={loginForm.newPassword} onChange={(e) => setLoginForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="6자 이상" autoComplete="new-password" />
                 </div>
                 <div>
-                  <label className="label">새 비밀번호 확인</label>
+                  <label className="label">새 비밀번호 확인 <span className="text-red-500">*</span></label>
                   <input className="input-field" type="password" value={loginForm.confirmPassword} onChange={(e) => setLoginForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="새 비밀번호 재입력" autoComplete="new-password" />
                 </div>
               </div>
