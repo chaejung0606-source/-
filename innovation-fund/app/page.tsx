@@ -201,7 +201,7 @@ export default function Home() {
           {/* 1행: 지원신청 (활동 전) */}
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">📝</span> 지원신청 <span className="text-sm font-normal text-gray-500">— 활동 시작 전 참여 신청</span>
+              <span className="text-xl">📝</span> 지원신청
             </h2>
             <div className="grid sm:grid-cols-2 gap-6 mt-3">
               {CATEGORY_ORDER.map((c) => (
@@ -209,8 +209,7 @@ export default function Home() {
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">{categoryCard[c].desc}</p>
-                    <p className="text-sm text-gray-600 mt-2">신청 가능 분야: {categoryCard[c].fields}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {categoryCard[c].fields}</p>
                   </div>
                   <Link href={`/apply?category=${c}&mode=pre`} className="btn-secondary w-full justify-center">
                     지원신청하기 <ChevronRight className="w-4 h-4" />
@@ -223,16 +222,18 @@ export default function Home() {
           {/* 2행: 지원금 신청 (활동 후) */}
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">💸</span> 지원금 신청 <span className="text-sm font-normal text-gray-500">— 활동 종료 후 지원금 신청</span>
+              <span className="text-xl">💸</span> 지원금 신청
             </h2>
+            <p className="text-sm sm:text-base font-semibold text-indigo-600 mb-1">
+              세부적으로 신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
+            </p>
             <div className="grid sm:grid-cols-2 gap-6 mt-3">
               {CATEGORY_ORDER.map((c) => (
                 <div key={c} className="card flex flex-col">
                   <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">{categoryCard[c].desc}</p>
-                    <p className="text-sm text-gray-600 mt-2">신청 가능 분야: {categoryCard[c].fields}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {categoryCard[c].fields}</p>
                   </div>
                   <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
                     지원금 신청하기 <ChevronRight className="w-4 h-4" />
