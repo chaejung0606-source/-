@@ -59,6 +59,8 @@ export interface FormField {
   options?: string[];      // select
   text?: string;           // agreement 본문
   placeholder?: string;
+  minLen?: number;         // shortText/longText: 최소 글자수(이상)
+  maxLen?: number;         // shortText/longText: 최대 글자수(이하)
   range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
   unitPrice?: number;      // workLog: 시간당 단가(원, 고정) — 근무시간 합계 × 단가 = 합계 자동 계산
   unitPriceMode?: "flat" | "byGrade"; // workLog: 단가 방식(고정 / 구분별)

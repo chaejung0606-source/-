@@ -206,7 +206,13 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       } else if (f.type === "agreement") {
         if (answers[f.id] !== "동의") e.push(`• [${f.label || "서약"}] 항목에 동의해주세요.`);
       } else if (["shortText", "longText", "number", "date", "select"].includes(f.type)) {
-        if (!(answers[f.id] || "").replace("~", "").trim()) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`);
+        const val = (answers[f.id] || "");
+        if (!val.replace("~", "").trim()) { e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
+        else if (f.type === "shortText" || f.type === "longText") {
+          const len = val.length;
+          if (typeof f.minLen === "number" && f.minLen > 0 && len < f.minLen) e.push(`• [${f.label || "항목"}] 최소 ${f.minLen}자 이상 입력해주세요. (현재 ${len}자)`);
+          if (typeof f.maxLen === "number" && f.maxLen > 0 && len > f.maxLen) e.push(`• [${f.label || "항목"}] 최대 ${f.maxLen}자 이하로 입력해주세요. (현재 ${len}자)`);
+        }
       }
     }
     return e;
@@ -257,6 +263,21 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     } finally { setSubmitting(false); }
   };
 
+  const lenHint = (f: FormField) => {
+    if (typeof f.minLen !== "number" && typeof f.maxLen !== "number") return null;
+    const len = (answers[f.id] || "").length;
+    const min = f.minLen || 0;
+    const tooShort = min > 0 && len < min;
+    const tooLong = !!f.maxLen && len > f.maxLen;
+    const rule = [min > 0 ? `${min}자 이상` : "", f.maxLen ? `${f.maxLen}자 이하` : ""].filter(Boolean).join(" · ");
+    return (
+      <div className={`mt-1 text-[11px] flex justify-between ${tooShort || tooLong ? "text-red-500" : "text-gray-400"}`}>
+        <span>{rule}</span>
+        <span>{len}{f.maxLen ? ` / ${f.maxLen}` : ""}자</span>
+      </div>
+    );
+  };
+
   const renderField = (f: FormField) => {
     const req = f.required ? <span className="text-red-500"> *</span> : null;
     const label = <label className="label">{f.label || "(제목 없음)"}{req}</label>;
@@ -303,9 +324,9 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "eventLocation": return <div key={f.id}><EventLocationSection title={f.label || "활동 장소"} values={eventLocByField[f.id] || { scope: "domestic" }} onChange={(v) => setEventLocByField((m) => ({ ...m, [f.id]: v }))} /></div>;
       case "registration": return <div key={f.id}>{label}<div className="grid sm:grid-cols-2 gap-2 items-end"><div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field" inputMode="numeric" value={cost.registrationFee || ""} onChange={(e) => setCost((c) => ({ ...c, registrationFee: Number(e.target.value.replace(/[^\d]/g, "")) || 0 }))} placeholder="0" /></div></div></div>;
       case "transport": case "lodging": return null; // 비용은 등록비 항목에서 통합 처리(간이) — 필요 시 확장
-      case "shortText": return <div key={f.id}>{label}<input className="input-field" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} /></div>;
+      case "shortText": return <div key={f.id}>{label}<input className="input-field" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
       case "number": return <div key={f.id}>{label}<input className="input-field" inputMode="numeric" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value.replace(/[^\d]/g, ""))} placeholder={f.placeholder || "0"} /></div>;
-      case "longText": return <div key={f.id}>{label}<textarea className="input-field h-24 resize-none" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} /></div>;
+      case "longText": return <div key={f.id}>{label}<textarea className="input-field h-24 resize-none" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
       case "date": {
         const v = answers[f.id] || "";
         if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2"><input type="date" className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }

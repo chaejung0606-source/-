@@ -355,6 +355,17 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               {!STANDARD_TYPES.includes(f.type) && !["select", "agreement", "signature", "file", "date"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
               )}
+              {(f.type === "shortText" || f.type === "longText") && (
+                <div className="flex items-center flex-wrap gap-2 mt-2 text-xs text-gray-600">
+                  <span className="text-gray-500">글자수 제한</span>
+                  <label className="flex items-center gap-1">최소
+                    <input type="number" inputMode="numeric" min={0} className="input-field !w-20 text-xs !py-1" value={f.minLen ?? ""} onChange={(e) => updField(cur.id, f.id, { minLen: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="이상" /> 자
+                  </label>
+                  <label className="flex items-center gap-1">최대
+                    <input type="number" inputMode="numeric" min={0} className="input-field !w-20 text-xs !py-1" value={f.maxLen ?? ""} onChange={(e) => updField(cur.id, f.id, { maxLen: e.target.value === "" ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0) })} placeholder="이하" /> 자
+                  </label>
+                </div>
+              )}
               <div className="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-gray-100">
                 <button onClick={() => moveField(cur.id, f.id, -1)} disabled={fi === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
                 <button onClick={() => moveField(cur.id, f.id, 1)} disabled={fi === cur.fields.length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
