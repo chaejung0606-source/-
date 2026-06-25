@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeAdminAccounts } from "@/lib/admin-accounts";
+import { signAdminToken, ADMIN_SESSION_COOKIE } from "@/lib/admin-auth";
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
   if (!role) return NextResponse.json({ success: false, error: "아이디 또는 비밀번호가 올바르지 않습니다." }, { status: 401 });
 
   const res = NextResponse.json({ success: true, role, id });
+  // 서명된 세션 토큰(서버측 권한 검증의 신뢰 기준). 위조 불가.
+  res.cookies.set(ADMIN_SESSION_COOKIE, signAdminToken(id), COOKIE_OPTS);
+  // 아래 평문 쿠키는 미들웨어 페이지 게이팅·클라이언트 표시용(권한 판단의 신뢰 기준 아님)
   res.cookies.set("admin_auth", "true", COOKIE_OPTS);
   res.cookies.set("admin_role", role, COOKIE_OPTS);
   res.cookies.set("admin_id", id, COOKIE_OPTS);

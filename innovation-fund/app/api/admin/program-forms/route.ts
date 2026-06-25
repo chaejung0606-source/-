@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireExpense } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (req.cookies.get("admin_auth")?.value !== "true") {
+  if (!(await requireExpense(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

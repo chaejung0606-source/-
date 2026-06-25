@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { parseCsv, gridToSheetData, newCertId, type CertSheet } from "@/lib/cert-list";
+import { requireExpense } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 // 관리자: 구글 시트(공개) CSV/XLSX 또는 붙여넣은 CSV/TSV → CertList 파싱
 export async function POST(req: NextRequest) {
-  if (req.cookies.get("admin_auth")?.value !== "true") {
+  if (!(await requireExpense(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

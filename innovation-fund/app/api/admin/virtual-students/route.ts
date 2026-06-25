@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
+import { requireExpense } from "@/lib/admin-auth";
 
 // 관리자: 가상학과 학생 명단 조회
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { data, error } = await supabaseAdmin()
     .from("virtual_students").select("*").order("student_id", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -16,7 +13,7 @@ export async function GET(req: NextRequest) {
 
 // 관리자: 가상학과 학생 명단 변경 (action: replace | upsert | delete)
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const action = body.action as string;
   const admin = supabaseAdmin();

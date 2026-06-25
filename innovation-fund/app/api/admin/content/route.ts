@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
+import { requireExpense } from "@/lib/admin-auth";
 
 // 관리자: 유형 세부내용 저장 (type별 upsert)
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { content } = await req.json().catch(() => ({}));
   if (!content || typeof content !== "object") return NextResponse.json({ error: "content required" }, { status: 400 });
 

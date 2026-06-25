@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
+import { requireExpense } from "@/lib/admin-auth";
 
 // 관리자: 특정 학생의 '지원신청 면제' 프로그램 목록 설정
 // body: { id, programIds: string[] }  (빈 배열이면 면제 해제)
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const id = body.id;
   if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });

@@ -1,27 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { programToRow, type Program } from "@/lib/programs";
+import { requireExpense } from "@/lib/admin-auth";
 
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
-
-// 관리자: 프로그램 전체 교체
+// 관리자(지출관리자): 프로그램 전체 교체
+// 안전성: 기존처럼 '전체 삭제 후 삽입'하면 삽입 실패 시 전 프로그램이 유실되므로
+// 업서트(있으면 갱신/없으면 추가) 후, 들어온 목록에 없는 프로그램만 삭제한다.
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { programs } = await req.json().catch(() => ({}));
   if (!Array.isArray(programs)) return NextResponse.json({ error: "programs array required" }, { status: 400 });
 
   const admin = supabaseAdmin();
-  const del = await admin.from("programs").delete().neq("id", "___never___");
-  if (del.error) return NextResponse.json({ error: del.error.message }, { status: 500 });
-  if (programs.length) {
-    const rows = (programs as Program[]).map(programToRow);
-    let ins = await admin.from("programs").insert(rows);
+  const rows = (programs as Program[]).map(programToRow);
+
+  if (rows.length) {
+    let up = await admin.from("programs").upsert(rows, { onConflict: "id" });
     // enabled/enabled_pre/enabled_fund 컬럼이 없으면(마이그레이션 전) 해당 필드 제외하고 재시도
-    if (ins.error) ins = await admin.from("programs").insert(rows.map(({ enabled_pre, enabled_fund, ...r }) => r));
-    if (ins.error) ins = await admin.from("programs").insert(rows.map(({ enabled, enabled_pre, enabled_fund, ...r }) => r));
-    if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
+    if (up.error) up = await admin.from("programs").upsert(rows.map(({ enabled_pre, enabled_fund, ...r }) => r), { onConflict: "id" });
+    if (up.error) up = await admin.from("programs").upsert(rows.map(({ enabled, enabled_pre, enabled_fund, ...r }) => r), { onConflict: "id" });
+    if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+  }
+
+  // 업서트 성공 후에만 삭제 — 목록에 없는 기존 프로그램 제거
+  const keep = new Set(rows.map((r) => r.id).filter(Boolean));
+  const { data: existing, error: selErr } = await admin.from("programs").select("id");
+  if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 });
+  const toDelete = (existing || []).map((e) => e.id).filter((id) => !keep.has(id));
+  if (toDelete.length) {
+    const del = await admin.from("programs").delete().in("id", toDelete);
+    if (del.error) return NextResponse.json({ error: del.error.message }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

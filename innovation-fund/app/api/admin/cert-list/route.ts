@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeCertList, publicCertList } from "@/lib/cert-list";
+import { requireExpense, getAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ const KEY = "cert_list";
 export async function GET(req: NextRequest) {
   const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", KEY).maybeSingle();
   const full = normalizeCertList(data?.value);
-  const isAdmin = req.cookies.get("admin_auth")?.value === "true";
+  const isAdmin = !!(await getAdminSession(req));
   // ?pub=1 : 관리자 쿠키가 있어도 공개본만 반환(홈에서 학생 화면 그대로 확인)
   const forcePublic = req.nextUrl.searchParams.get("pub") === "1";
   return NextResponse.json(isAdmin && !forcePublic ? full : publicCertList(full));
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 // POST: 관리자 — 전체 저장
 export async function POST(req: NextRequest) {
-  if (req.cookies.get("admin_auth")?.value !== "true") {
+  if (!(await requireExpense(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

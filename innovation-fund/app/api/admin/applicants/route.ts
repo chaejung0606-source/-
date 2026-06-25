@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
+import { requireExpense } from "@/lib/admin-auth";
 
 // 관리자: 신청자(학생) 목록 조회 — 로그인 지원용(학번 확인)
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = supabaseAdmin();
   // skip_pre 컬럼 포함 조회, 컬럼이 없으면(마이그레이션 전) 제외하고 재시도
   const withSkip = await admin

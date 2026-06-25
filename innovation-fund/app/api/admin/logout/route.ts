@@ -10,6 +10,7 @@ export async function POST() {
     maxAge: 0,
     path: "/",
   });
+  clear("admin_sess");
   clear("admin_auth");
   clear("admin_role");
   clear("admin_id");

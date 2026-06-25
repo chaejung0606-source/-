@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fromRow } from "@/lib/app-mapper";
-
-function isAdmin(req: NextRequest) {
-  return req.cookies.get("admin_auth")?.value === "true";
-}
+import { requireAdmin, requireExpense, canManageApplication } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdmin(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const admin = supabaseAdmin();
   const { data, error } = await admin.from("applications").select("*").eq("id", id).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // 프로그램 관리자는 담당 프로그램의 신청만 열람 가능
+  if (!(await canManageApplication(session, data))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const app = fromRow(data);
   // Storage에 저장된 첨부는 만료형 서명 URL 발급 (관리자 열람용)
@@ -27,8 +27,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdmin(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
+  const adminDb = supabaseAdmin();
+  // 소유 검증: 대상 신청을 먼저 조회해 담당 프로그램 여부 확인
+  const { data: existing, error: selErr } = await adminDb.from("applications").select("*").eq("id", id).maybeSingle();
+  if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await canManageApplication(session, existing))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await req.json();
   const patch: Record<string, any> = {};
   if (body.reviewStatus !== undefined) patch.review_status = body.reviewStatus;
@@ -40,7 +48,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.reviewStage !== undefined) stagePatch.review_stage = body.reviewStage;
   if (body.handoffNote !== undefined) stagePatch.handoff_note = body.handoffNote;
 
-  const adminDb = supabaseAdmin();
   let { data, error } = await adminDb.from("applications").update({ ...patch, ...stagePatch }).eq("id", id).select("*").maybeSingle();
   // review_stage/handoff_note 컬럼이 없으면(마이그레이션 전) 해당 필드 제외 후 재시도
   if (error && /review_stage|handoff_note/i.test(error.message)) {
@@ -51,9 +58,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(fromRow(data));
 }
 
-// 관리자: 신청 삭제 (테스트 신청 정리 등)
+// 신청 삭제(테스트 신청 정리 등) — 파괴적이므로 지출관리자 전용
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const { error } = await supabaseAdmin().from("applications").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
