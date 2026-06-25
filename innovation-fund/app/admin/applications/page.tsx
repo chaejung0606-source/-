@@ -369,7 +369,7 @@ export default function ApplicationsPage() {
                 <td className="whitespace-nowrap">{app.applicationDate}</td>
                 <td className="font-medium whitespace-nowrap">
                   {app.isTest && <span className="badge bg-amber-100 text-amber-700 mr-1">테스트용</span>}
-                  {app.name}{app.accountMismatch && <span title="예금주 불일치 (본인명의 확인 필요)" className="ml-1 text-red-500">⚠️</span>}
+                  {app.name}
                 </td>
                 <td className="font-mono text-xs">{app.studentId}</td>
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>

@@ -282,7 +282,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       files,
       privacyConsent: consent.privacy, truthConsent: consent.truth, accountConsent: consent.account,
       signature,
-      accountMismatch: isPre || !hasAccount ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
+      accountMismatch: false, // 자동 비교 기능 제거 — 관리자가 통장사본을 직접 확인해 입력
       requestAmount, calculatedAmount: requestAmount, formAnswers,
     };
   };

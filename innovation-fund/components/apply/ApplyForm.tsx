@@ -305,7 +305,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     truthConsent: consent.truth,
     accountConsent: consent.account,
     signature,
-    accountMismatch: isPre ? false : basicInfo.name.replace(/\s/g, "") !== basicInfo.accountHolder.replace(/\s/g, ""),
+    accountMismatch: false, // 자동 비교 기능 제거 — 관리자가 통장사본을 직접 확인해 입력
     requestAmount: getRequestAmount(),
     calculatedAmount: getCalculatedAmount(),
     isDraft: asDraft,

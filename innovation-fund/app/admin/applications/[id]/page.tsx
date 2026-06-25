@@ -346,19 +346,14 @@ export default function ApplicationDetailPage() {
                 <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
               ))}
             </dl>
-            {app.accountMismatch && (
-              <div className="mt-3 flex items-start gap-2 rounded-2xl p-3 text-sm text-red-700" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
-                ⚠️ <span><strong>예금주({app.bankInfo.accountHolder})와 신청자 성명({app.name})이 다릅니다.</strong> 본인 명의 계좌 여부 및 통장 사본을 반드시 확인하세요.</span>
-              </div>
-            )}
-            {/* 통장 사본 대조 */}
+            {/* 통장 사본 (관리자 직접 확인용) */}
             {(() => {
               const bb = app.files.find((f) => f.type === "bankbook");
-              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다. 계좌 정보를 확인할 수 없습니다.</p>;
+              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>;
               const isImg = bb.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(bb.name);
               return (
                 <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 대조 — 위 입력 계좌정보와 사본의 예금주·계좌번호가 일치하는지 확인하세요.</p>
+                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 — 직접 확인 후 아래 ‘관리자 확인 입력’란에 계좌·예금주를 작성하세요.</p>
                   {bb.url && isImg ? (
                     <a href={bb.url} target="_blank" rel="noopener noreferrer" title="클릭하면 원본 크기로 보기">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
