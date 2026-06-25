@@ -28,6 +28,7 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_report_fields JSONB DEFAULT '[
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply BOOLEAN DEFAULT FALSE;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_start TEXT;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_end TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS program_type TEXT;
 
 -- applications
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS review_stage TEXT;

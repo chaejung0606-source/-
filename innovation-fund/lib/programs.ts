@@ -64,6 +64,9 @@ export function effectiveReportFields(
 export interface Program {
   id: string;
   category: FundCategory;   // labor / innovation / activity
+  // 혁신인재지원금 내 세부 유형: program(프로그램 참여지원비) / staff(진행요원비).
+  // 지정된 유형에서만 신청 가능. 미지정(구버전)은 program으로 간주.
+  programType?: "program" | "staff";
   name: string;
   role?: string;            // 근로장학금 역할 (구버전 단일 값 호환)
   roles?: string[];         // 역할 목록 (여러 개 입력 가능)
@@ -117,6 +120,7 @@ function rowToProgram(r: any): Program {
   const roles: string[] = Array.isArray(r.roles) ? r.roles : (r.role ? [r.role] : []);
   return {
     id: r.id, category: r.category, name: r.name,
+    programType: r.program_type === "staff" ? "staff" : (r.program_type === "program" ? "program" : undefined),
     role: r.role || undefined,
     roles,
     reportFields: Array.isArray(r.report_fields) ? r.report_fields : [],
@@ -134,6 +138,7 @@ export function programToRow(p: Program): Record<string, any> {
   const roles = (p.roles && p.roles.length) ? p.roles.filter((r) => r.trim()) : (p.role ? [p.role] : []);
   return {
     id: p.id, category: p.category, name: p.name,
+    program_type: p.category === "innovation" ? (p.programType || "program") : null,
     role: roles[0] || null,          // 구버전 호환 단일 값
     roles,
     report_fields: p.reportFields || [],
@@ -178,6 +183,17 @@ export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "
 // 목록을 카테고리 + 날짜 + 단계(pre/fund)로 필터
 export function filterActive(list: Program[], category: FundCategory, date?: string, phase: ApplyPhase = "fund"): Program[] {
   return list.filter((p) => p.category === category && isProgramActive(p, date, phase));
+}
+
+// 프로그램이 특정 신청 유형(program/staff 등)에 속하는지 — 혁신인재지원금은 programType로 구분
+export function programMatchesType(p: Program, type: string): boolean {
+  if (type === "program" || type === "staff") return (p.programType || "program") === type;
+  return true; // 그 외 유형은 카테고리만으로 판단
+}
+
+// 카테고리(by 유형) + 날짜 + 단계로 필터 — program/staff는 programType까지 구분
+export function filterActiveByType(list: Program[], type: string, category: FundCategory, date?: string, phase: ApplyPhase = "fund"): Program[] {
+  return list.filter((p) => p.category === category && programMatchesType(p, type) && isProgramActive(p, date, phase));
 }
 
 export function newProgramId(): string {

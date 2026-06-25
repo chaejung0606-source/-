@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { WorkLogEntry } from "@/types";
-import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActiveByType, type Program } from "@/lib/programs";
 import WorkLogEditor from "./WorkLogEditor";
 
 interface StaffDetail {
@@ -14,7 +14,7 @@ interface Props { values: StaffDetail; onChange: (v: StaffDetail) => void; calcu
 
 export default function StaffDetailSection({ values, onChange, calculatedAmount }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation"))); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "staff", "innovation"))); }, []);
 
   const set = (k: keyof StaffDetail, v: string | number) => onChange({ ...values, [k]: v });
 

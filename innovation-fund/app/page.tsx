@@ -2,10 +2,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield } from "lucide-react";
-import type { ApplicationType, FundCategory } from "@/types";
-import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES } from "@/types";
+import type { ApplicationType } from "@/types";
+import { APPLICATION_TYPE_LABELS, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
-import { fetchPrograms, isProgramActive, type Program, type ApplyPhase } from "@/lib/programs";
+import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from "@/lib/programs";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import HeroClouds from "@/components/home/HeroClouds";
@@ -16,14 +16,6 @@ import { logout } from "@/lib/auth";
 const SIDEBAR_ICONS: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText };
 const FOOTER_ICONS: Record<string, typeof Globe> = { Mail, Phone, MapPin, Globe, Link2, MessageCircle, GraduationCap, BookOpen };
 
-const CATEGORY_ORDER: FundCategory[] = ["labor", "innovation"];
-
-// 본문 상단 신청 카드
-const categoryCard: Record<FundCategory, { icon: string; desc: string; fields: string }> = {
-  labor: { icon: "🛠️", desc: "사업단 프로그램에 근로학생으로 참여 — 근무상황부 기준 근로장학금 지급", fields: "COSS 서포터즈 · 수업 운영 지원(TA) · 학사지원 멘토단 등 사업단 근로 프로그램" },
-  innovation: { icon: "🎯", desc: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 · 자격증 취득", fields: "프로그램 참여지원비 · 진행요원비 · 성적 우수 · 경진대회 입상 · 자격증 취득" },
-  activity: { icon: "🚀", desc: "학술대회 발표·논문 게재 등 학생 학술활동 지원 (혁신인재지원금과 별개)", fields: "학생 자치·동아리 활동 · 학술 행사·학회 참가 · 논문 게재료" },
-};
 
 // 유형 분석 카드 (클릭 시 세부내용 모달)
 const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: string }> = {
@@ -67,23 +59,13 @@ export default function Home() {
   // 관리자가 프로그램을 추가·삭제하면 다음 방문 시 자동 반영된다.
   const [programs, setPrograms] = useState<Program[]>([]);
   useEffect(() => { fetchPrograms().then(setPrograms).catch(() => {}); }, []);
-  const activeNames = (cat: FundCategory, mode: ApplyPhase) =>
-    programs.filter((p) => p.category === cat && isProgramActive(p, undefined, mode)).map((p) => p.name);
-  const fieldsFor = (cat: FundCategory, mode: ApplyPhase): string => {
-    if (cat === "labor") {
-      const names = activeNames("labor", mode);
+  // 유형별 안내: 프로그램 기반(근로·참여지원비·진행요원비)은 활성 프로그램명, 그 외(성적·경진·자격증)는 설명
+  const typeInfo = (type: ApplicationType, mode: ApplyPhase): string => {
+    if (type === "labor" || type === "program" || type === "staff") {
+      const names = filterActiveByType(programs, type, categoryOfType(type), undefined, mode).map((p) => p.name);
       return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
     }
-    // 혁신인재지원금
-    if (mode === "pre") {
-      const names = activeNames("innovation", "pre");
-      return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
-    }
-    // 지원금 신청(활동 후): 프로그램·진행요원은 활성 프로그램이 있을 때만, 성적/경진대회/자격증은 상시
-    const parts: string[] = [];
-    if (activeNames("innovation", "fund").length) parts.push("프로그램 참여지원비", "진행요원비");
-    parts.push("성적 우수", "경진대회 입상", "자격증 취득");
-    return parts.join(" · ");
+    return typeMeta[type].note || typeMeta[type].desc;
   };
 
   // 홈 팝업 공지 (여러 개·기간·닫기 옵션)
@@ -220,7 +202,7 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
-        {/* 본문 상단 신청 카드 — 2행(지원신청 / 지원금 신청) × 3열(근로장학금 · 혁신인재지원금 · 학생활동지원비) */}
+        {/* 본문 상단 신청 카드 — 지원신청 / 지원금 신청 각각 유형별 개별 카드 */}
         <section className="space-y-6">
           {/* 1행: 지원신청 (활동 전) */}
           <div>
@@ -228,14 +210,14 @@ export default function Home() {
               <span className="text-xl">📝</span> 지원신청
             </h2>
             <div className="grid sm:grid-cols-2 gap-6 mt-3">
-              {CATEGORY_ORDER.map((c) => (
-                <div key={c} className="card flex flex-col">
-                  <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
-                  <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
+              {PICK_TYPES_PRE.map((t) => (
+                <div key={t} className="card flex flex-col">
+                  <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
+                  <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {fieldsFor(c, "pre")}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "pre")}</p>
                   </div>
-                  <Link href={`/apply?category=${c}&mode=pre`} className="btn-secondary w-full justify-center">
+                  <Link href={`/apply?type=${t}&mode=pre`} className="btn-secondary w-full justify-center">
                     지원신청하기 <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
@@ -248,15 +230,15 @@ export default function Home() {
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">💸</span> 지원금 신청
             </h2>
-            <div className="grid sm:grid-cols-2 gap-6 mt-3">
-              {CATEGORY_ORDER.map((c) => (
-                <div key={c} className="card flex flex-col">
-                  <div className="text-3xl mb-3">{categoryCard[c].icon}</div>
-                  <h3 className="font-bold text-lg text-gray-800 mb-2">{FUND_CATEGORY_LABELS[c]}</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
+              {PICK_TYPES_FUND.map((t) => (
+                <div key={t} className="card flex flex-col">
+                  <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
+                  <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
                   <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {fieldsFor(c, "fund")}</p>
+                    <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "fund")}</p>
                   </div>
-                  <Link href={`/apply?category=${c}`} className="btn-primary w-full justify-center">
+                  <Link href={`/apply?type=${t}`} className="btn-primary w-full justify-center">
                     지원금 신청하기 <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>

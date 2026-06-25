@@ -4,7 +4,7 @@ import { X, CalendarDays } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType } from "@/types";
 import { fetchTypeContent, type TypeContent } from "@/lib/site-content";
-import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActiveByType, type Program } from "@/lib/programs";
 
 interface Props { type: ApplicationType | null; onClose: () => void; }
 
@@ -23,8 +23,8 @@ export default function FundTypeModal({ type, onClose }: Props) {
     if (!type) return;
     const cat = categoryOfType(type);
     fetchPrograms().then((all) => {
-      setPreProgs(filterActive(all, cat, date, "pre"));
-      setFundProgs(filterActive(all, cat, date, "fund"));
+      setPreProgs(filterActiveByType(all, type, cat, date, "pre"));
+      setFundProgs(filterActiveByType(all, type, cat, date, "fund"));
     });
   }, [type, date]);
 

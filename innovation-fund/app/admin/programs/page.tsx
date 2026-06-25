@@ -106,7 +106,7 @@ export default function ProgramsAdminPage() {
   }, [selectedId, selectedStep, list]);
   const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSelectedId(null); setSaved(false); };
   const add = (category: FundCategory) => {
-    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "" };
+    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(category === "innovation" ? { programType: "program" as const } : {}) };
     setList((l) => [...l, np]);
     setSelectedCat(category);
     setSelectedId(np.id);
@@ -295,6 +295,22 @@ export default function ProgramsAdminPage() {
                 <label className="label">프로그램명</label>
                 <input className="input-field" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })} placeholder="프로그램명" />
               </div>
+
+              {/* 혁신인재지원금 세부 유형 — 지정한 유형에서만 신청 가능 */}
+              {p.category === "innovation" && (
+                <div className="mb-3">
+                  <label className="label">지원 유형 <span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ v: "program", label: "프로그램 참여지원비" }, { v: "staff", label: "진행요원비" }].map((t) => (
+                      <button key={t.v} type="button" onClick={() => update(p.id, { programType: t.v as "program" | "staff" })}
+                        className={`rounded-xl py-2.5 text-sm font-semibold border transition ${(p.programType || "program") === t.v ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-indigo-300"}`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">선택한 유형에서만 이 프로그램을 신청할 수 있습니다.</p>
+                </div>
+              )}
 
               {/* 역할 (공통, 여러 개) */}
               <div className="mb-3">

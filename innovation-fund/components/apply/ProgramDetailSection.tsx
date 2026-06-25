@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { EventLocation } from "@/types";
-import { fetchPrograms, filterActive, type Program } from "@/lib/programs";
+import { fetchPrograms, filterActiveByType, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
 
 interface ProgramDetail {
@@ -35,7 +35,7 @@ function SmartDate({ value, onChange, placeholder }: { value: string; onChange: 
 
 export default function ProgramDetailSection({ values, onChange, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActive(all, "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "program", "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
 
   const set = (patch: Partial<ProgramDetail>) => onChange({ ...values, ...patch });
   const isConference = values.programType === "학회 참석";

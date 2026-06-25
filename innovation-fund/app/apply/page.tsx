@@ -4,13 +4,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowLeft, LogOut, Home as HomeIcon, FileText, ChevronRight, Plus, User } from "lucide-react";
 import type { ApplicationType, FundCategory, ApplicationPhase, Application } from "@/types";
-import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE, categoryOfType } from "@/types";
+import { APPLICATION_TYPE_LABELS, FUND_CATEGORY_LABELS, CATEGORY_TYPES, APPLICATION_PHASE_LABELS, PRE_CATEGORY_TYPE, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { currentUser, logout } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { fromRow } from "@/lib/app-mapper";
 import ApplyForm from "@/components/apply/ApplyForm";
 import SchemaApplyForm from "@/components/apply/SchemaApplyForm";
-import { fetchPrograms, isProgramActive, type Program } from "@/lib/programs";
+import { fetchPrograms, isProgramActive, programMatchesType, type Program } from "@/lib/programs";
 import type { FormSchema } from "@/lib/form-schema";
 
 const typeDescriptions: Record<ApplicationType, string> = {
@@ -59,7 +59,7 @@ function ApplyInner() {
   // 스키마(관리자 폼) 기반 신청 적용 대상: 근로장학금 전체 + 혁신인재지원금의 프로그램 참여지원비(program)·진행요원비(staff)
   // (성적/경진대회/자격증은 기존 고정 양식 유지)
   const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff"));
-  const schemaPrograms = (schemaTypeOk && category ? programs.filter((p) => p.category === category && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
+  const schemaPrograms = (schemaTypeOk && category ? programs.filter((p) => p.category === category && programMatchesType(p, selectedType || "") && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
   const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
   const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;
 
@@ -195,7 +195,6 @@ function ApplyInner() {
   useEffect(() => {
     if (mode !== "fund" || !selectedType || prefill || draftApp || !preChecked) return;
     if (requiresPre(selectedType) && preApps.length === 0 && skipPreChecked && !skipPreAllowed && !isAdmin) { setSelectedType(null); setBlocked(true); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedType, prefill, draftApp, preChecked, preApps.length, skipPreAllowed, skipPreChecked, isAdmin]);
 
   const fmtDate = (s: string) => (s ? new Date(s).toLocaleDateString("ko-KR") : "");
@@ -320,18 +319,22 @@ function ApplyInner() {
               </button>
             </div>
           </>
-        ) : !category ? (
+        ) : !category || !selectedType ? (
           <>
             <div className="mb-8">
               <h1 className="text-3xl font-extrabold holo-text mb-2">{APPLICATION_PHASE_LABELS[mode]} — 종류 선택</h1>
               <p className="text-gray-600">{mode === "pre" ? "활동 시작 전 참여를 신청할 종류를 선택해주세요." : "신청할 지원금 종류를 선택해주세요."}</p>
             </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {CATEGORY_ORDER.map((c) => (
-                <button key={c} onClick={() => setCategory(c)} className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer">
-                  <div className="text-3xl mb-2">{categoryIcons[c]}</div>
-                  <h3 className="font-bold text-gray-800 mb-1">{FUND_CATEGORY_LABELS[c]}</h3>
-                  <p className="text-sm text-gray-500">{categoryDesc[c]}</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(mode === "pre" ? PICK_TYPES_PRE : PICK_TYPES_FUND).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setCategory(categoryOfType(t)); setSelectedType(t); }}
+                  className="card text-left hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
+                >
+                  <div className="text-3xl mb-2">{typeIcons[t]}</div>
+                  <h3 className="font-bold text-gray-800 mb-1">{APPLICATION_TYPE_LABELS[t]}</h3>
+                  <p className="text-sm text-gray-500">{typeDescriptions[t]}</p>
                 </button>
               ))}
             </div>
