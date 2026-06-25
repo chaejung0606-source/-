@@ -6,15 +6,17 @@ import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/pr
 import { supabase } from "@/lib/supabase";
 import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
 import SignaturePad from "./SignaturePad";
+import AiDraftButton from "./AiDraftButton";
 
 interface Props {
   programId?: string;
   phase?: "pre" | "fund";
   value?: ReportEntry[];
   onChange: (v: ReportEntry[]) => void;
+  ai?: { programName?: string; applicantName?: string; department?: string; grade?: string } | null; // 관리자 대리신청 시 AI 초안
 }
 
-export default function ReportSection({ programId, phase = "fund", value, onChange }: Props) {
+export default function ReportSection({ programId, phase = "fund", value, onChange, ai = null }: Props) {
   const [fields, setFields] = useState<ReportField[]>([]);
   const [uploading, setUploading] = useState(false);
   const entries = value || [];
@@ -68,7 +70,10 @@ export default function ReportSection({ programId, phase = "fund", value, onChan
         const en = entryFor(f);
         return (
           <div key={f.id}>
-            <label className="label">{f.label || "항목"} {f.required && <span className="text-red-500">*</span>}</label>
+            <div className="flex items-center justify-between">
+              <label className="label">{f.label || "항목"} {f.required && <span className="text-red-500">*</span>}</label>
+              {ai && f.type === "text" && <AiDraftButton label={f.label || "서술 항목"} context={ai} onText={(t) => setEntry(f, { value: t })} />}
+            </div>
             {f.type === "text" ? (
               <textarea className="input-field h-24 resize-none" value={en.value || ""} onChange={(e) => setEntry(f, { value: e.target.value })} placeholder="내용을 입력해주세요." />
             ) : f.type === "select" ? (

@@ -244,8 +244,18 @@ export default function Home() {
                 <div key={t} className="card flex flex-col">
                   <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
                   <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
-                  <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "fund")}</p>
+                  <div className="mb-5 flex-1 space-y-2">
+                    <p className="text-sm text-gray-600">신청 가능 분야: {typeMeta[t].note || typeMeta[t].desc}</p>
+                    {/* 성과형(성적·경진대회·자격증) 학기별 신청기한 — 관리자 설정값 실시간 반영 */}
+                    {(PERIOD_TYPES as readonly string[]).includes(t) && (
+                      periodLabel(typePeriods[t]) ? (
+                        <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${isTypeOpen(typePeriods[t]) ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                          🗓️ 신청기간 {periodLabel(typePeriods[t])}{isTypeOpen(typePeriods[t]) ? " · 신청 가능" : " · 신청 불가"}
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">🗓️ 상시 신청 가능</div>
+                      )
+                    )}
                   </div>
                   <Link href={`/apply?type=${t}`} className="btn-primary w-full justify-center">
                     지원금 신청하기 <ChevronRight className="w-4 h-4" />

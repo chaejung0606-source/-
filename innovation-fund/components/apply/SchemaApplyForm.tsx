@@ -16,6 +16,7 @@ import ConsentChecklist from "./ConsentChecklist";
 import EventLocationSection from "./EventLocationSection";
 import CostSection from "./CostSection";
 import SignaturePad from "./SignaturePad";
+import AiDraftButton from "./AiDraftButton";
 import { CheckCircle } from "lucide-react";
 
 interface Props {
@@ -481,7 +482,15 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "lodging": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["lodging"]} /></div>;
       case "shortText": return <div key={f.id}>{label}<input className="input-field" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
       case "number": return <div key={f.id}>{label}<input className="input-field" inputMode="numeric" value={answers[f.id] || ""} onChange={(e) => setAns(f.id, e.target.value.replace(/[^\d]/g, ""))} placeholder={f.placeholder || "0"} /></div>;
-      case "longText": return <div key={f.id}>{label}<textarea className="input-field h-24 resize-none" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}</div>;
+      case "longText": return (
+        <div key={f.id}>
+          <div className="flex items-center justify-between">
+            {label}
+            {adminApplicantId && <AiDraftButton label={f.label || "서술 항목"} maxLen={f.maxLen} context={{ programName, applicantName: basicInfo.name, department: basicInfo.department, grade: basicInfo.grade }} onText={(t) => setAns(f.id, t)} />}
+          </div>
+          <textarea className="input-field h-24 resize-none" value={answers[f.id] || ""} maxLength={f.maxLen || undefined} onChange={(e) => setAns(f.id, e.target.value)} placeholder={f.placeholder || ""} />{lenHint(f)}
+        </div>
+      );
       case "date": {
         const v = answers[f.id] || "";
         if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2"><input type="date" className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }

@@ -658,7 +658,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
       {/* 2단계: 유형별 상세 */}
       {step === 2 && applicationType === "program" && (
-        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre} />
+        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre}
+          ai={adminApplicantId ? { programName: programDetail.programName, applicantName: basicInfo.name, department: basicInfo.department, grade: basicInfo.grade } : null} />
       )}
       {step === 2 && applicationType === "staff" && (
         <StaffDetailSection values={staffDetail} onChange={setStaffDetail} calculatedAmount={getCalculatedAmount()} preOnly={isPre} />
@@ -687,7 +688,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <CostSection value={costDetail} onChange={setCostDetail} />
       )}
       {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity") && (
-        <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries} />
+        <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries}
+          ai={adminApplicantId ? { programName: programDetail.programName || laborDetail.programName || activityDetail.activityName, applicantName: basicInfo.name, department: basicInfo.department, grade: basicInfo.grade } : null} />
       )}
 
       {/* 3단계: 파일 업로드 — 성적·경진대회·자격증은 서류별 개별 업로드 슬롯 */}

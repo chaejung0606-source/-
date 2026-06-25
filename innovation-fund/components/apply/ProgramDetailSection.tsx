@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { EventLocation } from "@/types";
 import { fetchPrograms, filterActiveByType, type Program } from "@/lib/programs";
 import EventLocationSection from "./EventLocationSection";
+import AiDraftButton from "./AiDraftButton";
 
 interface ProgramDetail {
   programName: string; programType: string;
@@ -11,7 +12,7 @@ interface ProgramDetail {
   programId: string; eventLocation?: EventLocation;
 }
 
-interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; preOnly?: boolean; }
+interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; preOnly?: boolean; ai?: { programName?: string; applicantName?: string; department?: string; grade?: string } | null; }
 
 const PROGRAM_TYPES = ["교과", "비교과", "실험실습", "현장실습", "인턴십", "기업체 연계 방문·프로젝트", "학회 참석", "기타"];
 
@@ -33,7 +34,7 @@ function SmartDate({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-export default function ProgramDetailSection({ values, onChange, preOnly = false }: Props) {
+export default function ProgramDetailSection({ values, onChange, preOnly = false, ai = null }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
   useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "program", "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
 
@@ -85,7 +86,10 @@ export default function ProgramDetailSection({ values, onChange, preOnly = false
           <input className="input-field" value={values.supervisorName} onChange={(e) => set({ supervisorName: e.target.value })} placeholder="홍길동 교수" />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">참여 내용</label>
+          <div className="flex items-center justify-between">
+            <label className="label">참여 내용</label>
+            {ai && <AiDraftButton label="참여 내용 (활동계획·기대성과 등)" context={{ ...ai, programName: ai.programName || values.programName }} onText={(t) => set({ participationContent: t })} />}
+          </div>
           <textarea className="input-field h-24 resize-none" value={values.participationContent} onChange={(e) => set({ participationContent: e.target.value })} placeholder="참여 내용을 상세히 기술해주세요." />
         </div>
       </div>
