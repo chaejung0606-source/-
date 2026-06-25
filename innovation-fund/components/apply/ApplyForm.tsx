@@ -28,6 +28,7 @@ import FileUploadSection from "./FileUploadSection";
 import DocumentSlotsSection, { type DocSlot } from "./DocumentSlotsSection";
 import ConsentSection from "./ConsentSection";
 import ConsentChecklist from "./ConsentChecklist";
+import InquiryButtons from "./InquiryButtons";
 
 // 성적·경진대회: 같은 화면에서 서류별로 따로 업로드(필수)
 const GRADE_SLOTS: DocSlot[] = [
@@ -591,7 +592,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
             {periodLabel(typePeriod || undefined) ? <><br />신청 가능 기간: <strong>{periodLabel(typePeriod || undefined)}</strong></> : null}
             <br />기간 내에 다시 신청해주세요.
           </p>
-          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+          <InquiryButtons onBack={onBack} />
         </div>
       </div>
     );
@@ -609,7 +610,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           <div className="text-4xl mb-3">🔒</div>
           <h2 className="text-lg font-bold text-gray-800 mb-2">미래융합가상학과 학생만 신청할 수 있습니다</h2>
           <p className="text-sm text-gray-500">이 지원 유형은 미래융합가상학과 재학생 명단에 등록된 학생만 신청 가능합니다.<br />본인이 가상학과 학생인데도 신청이 제한된다면 사업단에 문의해주세요.</p>
-          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+          <InquiryButtons onBack={onBack} />
         </div>
       </div>
     );
@@ -717,7 +718,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
       {/* 임시저장 안내 */}
       {draftSavedAt && (
-        <p className="text-xs text-emerald-600 text-right -mb-2">임시저장됨 · {draftSavedAt} (마이페이지에서 이어서 작성할 수 있습니다)</p>
+        <p className="text-xs text-amber-600 font-medium text-right -mb-2">임시저장됨 · {draftSavedAt} · <strong>아직 접수되지 않았습니다.</strong> ‘신청 제출’까지 완료해야 접수됩니다. (마이페이지에서 이어서 작성 가능)</p>
       )}
 
       {/* 하단 버튼 */}

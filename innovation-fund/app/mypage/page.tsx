@@ -13,6 +13,16 @@ import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 
+// 검토 상태별 '지금 신청자가 할 일' — 상태 badge 툴팁으로 안내
+const REVIEW_TODO: Record<string, string> = {
+  received: "접수되었습니다. 검토 결과를 기다려주세요.",
+  reviewing: "담당자가 검토 중입니다. 기다려주세요.",
+  supplement: "보완이 필요합니다. 아래 안내를 확인하고 수정 후 다시 제출해주세요.",
+  committee: "위원회 심의 대상입니다. 별도 요청이 없으면 기다려주세요.",
+  approved: "승인되었습니다. (지원신청이면 지원금 신청을 진행하세요.)",
+  rejected: "반려되었습니다. 사유를 확인하고 필요하면 사업단에 문의하세요.",
+};
+
 const UNIVERSITIES = ["강원대학교", "한림대학교", "강릉원주대학교", "연세대학교(미래)", "상지대학교", "가톨릭관동대학교", "경동대학교"];
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
 
@@ -316,6 +326,16 @@ export default function MyPage() {
           </div>
         </div>
 
+        {/* 보완요청 알림 배너 — 보완요청 상태 신청이 있으면 상단에 고정 노출 */}
+        {submitted.some((a) => a.reviewStatus === "supplement") && (
+          <div className="rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 flex items-start gap-2.5">
+            <span className="text-lg leading-none mt-0.5">✍️</span>
+            <div className="text-sm text-orange-800">
+              <strong>보완 요청이 있는 신청이 {submitted.filter((a) => a.reviewStatus === "supplement").length}건 있습니다.</strong> 아래 ‘신청 내역’에서 해당 신청의 안내를 확인하고 <strong>수정 후 다시 제출</strong>해주세요.
+            </div>
+          </div>
+        )}
+
         {/* 개인정보 수정 */}
         <div className="card">
           <button
@@ -597,7 +617,7 @@ export default function MyPage() {
                     </div>
                     {!app.canceled && (
                     <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${rm?.badge || "bg-gray-100 text-gray-600"}`}>검토: {rm?.label || app.reviewStatus}</span>
+                      <span title={REVIEW_TODO[app.reviewStatus] || ""} className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-help ${rm?.badge || "bg-gray-100 text-gray-600"}`}>검토: {rm?.label || app.reviewStatus}</span>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${pm?.badge || "bg-gray-100 text-gray-600"}`}>지급: {pm?.label || app.paymentStatus}</span>
                     </div>
                     )}

@@ -41,9 +41,16 @@ function CompleteContent() {
             )}
           </div>
 
-          <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-4 text-left mb-6">
+          <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-4 text-left mb-4">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>허위 신청 또는 부적격 사유 확인 시 지급이 취소되거나 환수될 수 있습니다.</p>
+          </div>
+
+          {/* 지급은 연구통합관리시스템에 등록한 본인 명의 계좌로만 처리됨 — 등록 누락 시 지급 지연/불가 */}
+          <div className="text-sm text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-left mb-6">
+            <p className="font-semibold mb-1">💳 지원금을 받으려면 ‘본인 명의 계좌’ 등록이 필요합니다</p>
+            <p className="text-indigo-700 leading-relaxed">실제 지급은 <strong>연구통합관리시스템(학생용)</strong>에 등록된 본인 명의 계좌로 처리됩니다. 아직 등록하지 않았다면 꼭 등록해주세요. (미등록 시 지급이 지연·불가할 수 있습니다.)</p>
+            <a href="https://knu-icf.kangwon.ac.kr/issue_main2.act" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 font-semibold text-indigo-600 underline">▶ 연구통합관리시스템 본인계좌 등록하러 가기</a>
           </div>
 
           <Link href="/" className="btn-primary w-full block text-center">

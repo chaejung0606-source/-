@@ -131,7 +131,8 @@ export default function BasicInfoSection({ values, onChange, hideAccount = false
       <div className="card">
         <h2 className="section-title">본인 명의 계좌 정보</h2>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700 mb-4">
-          ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.
+          ※ 반드시 본인 명의 계좌로만 지급됩니다. 타인 명의 계좌로는 지급이 불가합니다.<br />
+          실제 지급은 <strong>연구통합관리시스템(학생용)</strong>에 등록된 본인 계좌로 처리되니, <a href="https://knu-icf.kangwon.ac.kr/issue_main2.act" target="_blank" rel="noopener noreferrer" className="underline font-semibold">본인계좌 등록</a>도 꼭 확인하세요.
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
