@@ -6,6 +6,7 @@ import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
 import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from "@/lib/programs";
+import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriods } from "@/lib/type-periods";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import HeroClouds from "@/components/home/HeroClouds";
@@ -59,11 +60,19 @@ export default function Home() {
   // 관리자가 프로그램을 추가·삭제하면 다음 방문 시 자동 반영된다.
   const [programs, setPrograms] = useState<Program[]>([]);
   useEffect(() => { fetchPrograms().then(setPrograms).catch(() => {}); }, []);
+  // 성과형(성적·경진대회·자격증) 학기별 신청기한
+  const [typePeriods, setTypePeriods] = useState<TypePeriods>({});
+  useEffect(() => { fetchTypePeriods().then(setTypePeriods).catch(() => {}); }, []);
   // 유형별 안내: 프로그램 기반(근로·참여지원비·진행요원비)은 활성 프로그램명, 그 외(성적·경진·자격증)는 설명
   const typeInfo = (type: ApplicationType, mode: ApplyPhase): string => {
     if (type === "labor" || type === "program" || type === "staff") {
       const names = filterActiveByType(programs, type, categoryOfType(type), undefined, mode).map((p) => p.name);
       return names.length ? names.join(" · ") : "현재 신청 가능한 프로그램이 없습니다";
+    }
+    // 성과형: 신청기한 표시 (미설정이면 상시)
+    if ((PERIOD_TYPES as readonly string[]).includes(type)) {
+      const lbl = periodLabel(typePeriods[type]);
+      return lbl ? `신청기간 ${lbl}${isTypeOpen(typePeriods[type]) ? "" : " (현재 신청 불가)"}` : "상시 신청 가능";
     }
     return typeMeta[type].note || typeMeta[type].desc;
   };
@@ -209,7 +218,7 @@ export default function Home() {
             <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
               <span className="text-xl">📝</span> 지원신청
             </h2>
-            <div className="grid sm:grid-cols-2 gap-6 mt-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
               {PICK_TYPES_PRE.map((t) => (
                 <div key={t} className="card flex flex-col">
                   <div className="text-3xl mb-3">{typeMeta[t].icon}</div>

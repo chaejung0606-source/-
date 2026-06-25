@@ -10,11 +10,11 @@ interface StaffDetail {
   workLog: WorkLogEntry[];
 }
 
-interface Props { values: StaffDetail; onChange: (v: StaffDetail) => void; calculatedAmount: number; }
+interface Props { values: StaffDetail; onChange: (v: StaffDetail) => void; calculatedAmount: number; preOnly?: boolean; }
 
-export default function StaffDetailSection({ values, onChange, calculatedAmount }: Props) {
+export default function StaffDetailSection({ values, onChange, calculatedAmount, preOnly = false }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "staff", "innovation"))); }, []);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "staff", "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
 
   const set = (k: keyof StaffDetail, v: string | number) => onChange({ ...values, [k]: v });
 
@@ -56,17 +56,25 @@ export default function StaffDetailSection({ values, onChange, calculatedAmount 
         </div>
       </div>
 
-      <WorkLogEditor entries={values.workLog} onChange={onLogChange} hint="근로시간은 수업시간과 겹치지 않아야 하며, 평일 09:00~18:00 사이를 권장합니다." />
+      {preOnly ? (
+        <p className="text-xs text-gray-500">※ 지원신청(활동 전) 단계에서는 근무상황부·금액 입력 없이 참여 신청만 합니다. 근무 기록은 활동 후 지원금 신청 단계에서 작성합니다.</p>
+      ) : (
+        <>
+          <WorkLogEditor entries={values.workLog} onChange={onLogChange} hint="근로시간은 수업시간과 겹치지 않아야 하며, 평일 09:00~18:00 사이를 권장합니다." />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">총 근무 시간 (자동 합산)</label>
+              <div className="input-field bg-gray-50 font-bold flex items-center">{values.totalHours || 0}시간</div>
+            </div>
+            <div>
+              <label className="label">지급 예정액 (자동 계산)</label>
+              <div className="input-field bg-gray-50 text-primary-700 font-bold flex items-center">{calculatedAmount.toLocaleString()}원</div>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-4">
-        <div>
-          <label className="label">총 근무 시간 (자동 합산)</label>
-          <div className="input-field bg-gray-50 font-bold flex items-center">{values.totalHours || 0}시간</div>
-        </div>
-        <div>
-          <label className="label">지급 예정액 (자동 계산)</label>
-          <div className="input-field bg-gray-50 text-primary-700 font-bold flex items-center">{calculatedAmount.toLocaleString()}원</div>
-        </div>
         <div className="sm:col-span-2">
           <label className="label">담당 업무</label>
           <textarea className="input-field h-20 resize-none" value={values.taskDescription} onChange={(e) => set("taskDescription", e.target.value)} placeholder="담당 업무를 상세히 기술해주세요." />

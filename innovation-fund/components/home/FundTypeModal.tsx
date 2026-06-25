@@ -5,6 +5,7 @@ import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType } from "@/types";
 import { fetchTypeContent, type TypeContent } from "@/lib/site-content";
 import { fetchPrograms, filterActiveByType, type Program } from "@/lib/programs";
+import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriod } from "@/lib/type-periods";
 
 interface Props { type: ApplicationType | null; onClose: () => void; }
 
@@ -13,10 +14,14 @@ export default function FundTypeModal({ type, onClose }: Props) {
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [preProgs, setPreProgs] = useState<Program[]>([]);
   const [fundProgs, setFundProgs] = useState<Program[]>([]);
+  const [period, setPeriod] = useState<TypePeriod | undefined>(undefined);
 
   useEffect(() => {
     if (!type) return;
     fetchTypeContent(type).then(setContent);
+    if ((PERIOD_TYPES as readonly string[]).includes(type)) {
+      fetchTypePeriods().then((p) => setPeriod(p[type])).catch(() => {});
+    } else setPeriod(undefined);
   }, [type]);
 
   useEffect(() => {
@@ -37,6 +42,14 @@ export default function FundTypeModal({ type, onClose }: Props) {
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
         <h2 className="text-xl font-bold holo-text mb-2 pr-8">{APPLICATION_TYPE_LABELS[type]}</h2>
         {!content.html && <p className="text-sm text-gray-600 mb-5">{content.intro}</p>}
+
+        {/* 성과형 학기별 신청기한 */}
+        {type && (PERIOD_TYPES as readonly string[]).includes(type) && (
+          <div className={`mb-5 rounded-xl p-3 text-sm border ${isTypeOpen(period) ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+            🗓️ 신청기간: <strong>{periodLabel(period) || "상시 신청 가능"}</strong>
+            {periodLabel(period) ? (isTypeOpen(period) ? " · 현재 신청 가능" : " · 현재 신청 불가") : ""}
+          </div>
+        )}
 
         {content.showPrograms && (
           <div className="mb-5 rounded-2xl p-4 bg-indigo-50/60 border border-indigo-100">

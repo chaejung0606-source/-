@@ -20,7 +20,10 @@ export default function ProgramsAdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
   const [progSearch, setProgSearch] = useState("");
-  const [tab, setTab] = useState<"edit" | "search" | "templates">("edit");
+  const [tab, setTab] = useState<"edit" | "search" | "templates" | "periods">("edit");
+  // 성과형(성적·경진대회·자격증) 학기별 신청기한
+  const [periods, setPeriods] = useState<Record<string, { start: string; end: string }>>({ grade: { start: "", end: "" }, contest: { start: "", end: "" }, certificate: { start: "", end: "" } });
+  const [periodsSaved, setPeriodsSaved] = useState(false);
   const [searchStart, setSearchStart] = useState("");
   const [searchEnd, setSearchEnd] = useState("");
   const [tplSearch, setTplSearch] = useState("");
@@ -33,7 +36,9 @@ export default function ProgramsAdminPage() {
       fetchPrograms(),
       fetch("/api/admin/program-forms").then((r) => r.json()).catch(() => ({})),
       fetch("/api/admin/form-templates").then((r) => r.json()).catch(() => ({ templates: [] })),
-    ]).then(([l, forms, tpl]) => {
+      fetch("/api/type-periods").then((r) => r.json()).catch(() => ({ periods: {} })),
+    ]).then(([l, forms, tpl, per]) => {
+      if (per?.periods) setPeriods((prev) => ({ ...prev, ...per.periods }));
       const base = l.length ? l : SEED;
       const fm = (forms || {}) as Record<string, { pre?: FormSchema; fund?: FormSchema }>;
       setList(base.map((p) => ({
@@ -105,6 +110,14 @@ export default function ProgramsAdminPage() {
     }
   }, [selectedId, selectedStep, list]);
   const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSelectedId(null); setSaved(false); };
+
+  // 성과형 신청기한 저장
+  const setPeriod = (t: string, k: "start" | "end", v: string) => { setPeriods((p) => ({ ...p, [t]: { ...p[t], [k]: v } })); setPeriodsSaved(false); };
+  const savePeriods = async () => {
+    const res = await fetch("/api/type-periods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ periods }) });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (j.ok) { setPeriodsSaved(true); } else { alert("저장 실패: " + (j.error || "알 수 없는 오류")); }
+  };
   const add = (category: FundCategory) => {
     const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(category === "innovation" ? { programType: "program" as const } : {}) };
     setList((l) => [...l, np]);
@@ -154,7 +167,7 @@ export default function ProgramsAdminPage() {
 
       {/* 하위 메뉴 */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {([["edit", "프로그램 신청 내용"], ["search", "프로그램 검색"], ["templates", "템플릿 설정"]] as const).map(([key, label]) => (
+        {([["edit", "프로그램 신청 내용"], ["search", "프로그램 검색"], ["templates", "템플릿 설정"], ["periods", "성과형 신청기한"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${tab === key ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600 hover:text-indigo-600"}`}>{label}</button>
         ))}
       </div>
@@ -503,6 +516,35 @@ export default function ProgramsAdminPage() {
         >
           <Save className="w-4 h-4" /> 저장{saved ? "됨 ✓" : ""}
         </button>
+      )}
+
+      {/* 성과형 신청기한 탭 — 프로그램이 없는 성적·경진대회·자격증의 학기별 신청기한 */}
+      {tab === "periods" && (
+        <div className="card max-w-2xl space-y-4">
+          <div>
+            <h2 className="section-title mb-1">성과형 지원금 신청기한 (학기별)</h2>
+            <p className="text-sm text-gray-500">성적 우수·경진대회 입상·자격증 취득 지원금은 프로그램이 없으므로 여기서 신청 가능 기간을 직접 설정합니다. 기간을 비워두면 <strong>상시 신청 가능</strong>합니다. 기간 밖에는 신청이 차단됩니다.</p>
+          </div>
+          {([["grade", "성적 우수 지원금"], ["contest", "경진대회 입상 우수성과 지원금"], ["certificate", "자격증 취득 우수성과 지원금"]] as const).map(([t, label]) => (
+            <div key={t} className="rounded-xl border border-gray-200 p-3">
+              <div className="font-semibold text-gray-800 mb-2">{label}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">신청 시작일</label>
+                  <input type="date" className="input-field" value={periods[t]?.start || ""} onChange={(e) => setPeriod(t, "start", e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">신청 마감일</label>
+                  <input type="date" className="input-field" value={periods[t]?.end || ""} onChange={(e) => setPeriod(t, "end", e.target.value)} />
+                </div>
+              </div>
+              {!periods[t]?.start && !periods[t]?.end && <p className="text-[11px] text-gray-400 mt-1.5">※ 미설정 — 현재 상시 신청 가능</p>}
+            </div>
+          ))}
+          <button onClick={savePeriods} className="btn-primary flex items-center gap-1.5">
+            <Save className="w-4 h-4" /> 신청기한 저장{periodsSaved ? "됨 ✓" : ""}
+          </button>
+        </div>
       )}
     </AdminLayout>
   );

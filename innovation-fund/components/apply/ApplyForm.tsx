@@ -9,6 +9,7 @@ import {
 } from "@/lib/amount-calculator";
 import { getProgramById, validateMD, type GradeValue } from "@/lib/md-courses";
 import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/programs";
+import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES } from "@/lib/type-periods";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
@@ -161,6 +162,15 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       }
     })();
   }, []);
+
+  // 성과형(성적·경진대회·자격증) 학기별 신청기한 — 지원금 신청 시 기간 밖이면 차단
+  const [typePeriod, setTypePeriod] = useState<{ start: string; end: string } | null | undefined>(undefined);
+  const periodApplies = mode === "fund" && (PERIOD_TYPES as readonly string[]).includes(applicationType);
+  useEffect(() => {
+    if (!periodApplies) { setTypePeriod(null); return; }
+    fetchTypePeriods().then((p) => setTypePeriod(p[applicationType] || { start: "", end: "" })).catch(() => setTypePeriod({ start: "", end: "" }));
+  }, [applicationType, mode, periodApplies]);
+  const periodBlocked = !isAdmin && periodApplies && !!typePeriod && !isTypeOpen(typePeriod);
 
   // 미래융합가상학과 전용 유형 자격 검사 (명단에 없으면 신청 차단)
   const [vdeptBlocked, setVdeptBlocked] = useState<boolean | null>(null);
@@ -372,7 +382,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     if (applicationType === "staff") {
       if (!staffDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
-      if (staffDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
+      // 지원신청(pre)은 근무상황부 없이 참여 신청만 (근무 기록은 활동 후 지원금 신청에서 작성)
+      if (!isPre && staffDetail.workLog.length === 0) e.push("• 근무상황부에 근무 기록을 1건 이상 등록해주세요.");
     }
     if (applicationType === "labor") {
       if (!laborDetail.programId) e.push("• 신청 가능한 근로 프로그램을 선택해주세요.");
@@ -536,6 +547,28 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
   };
 
+  // 성과형 지원금: 신청기한 밖이면 차단
+  if (periodBlocked) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-gray-500 hover:text-gray-700"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="text-xl font-bold text-gray-800">{APPLICATION_TYPE_LABELS[applicationType]}</h1>
+        </div>
+        <div className="card text-center py-14">
+          <div className="text-4xl mb-3">🗓️</div>
+          <h2 className="text-lg font-bold text-gray-800 mb-2">현재 신청 기간이 아닙니다</h2>
+          <p className="text-sm text-gray-500">
+            {APPLICATION_TYPE_LABELS[applicationType]}은(는) 학기별로 신청을 받습니다.
+            {periodLabel(typePeriod || undefined) ? <><br />신청 가능 기간: <strong>{periodLabel(typePeriod || undefined)}</strong></> : null}
+            <br />기간 내에 다시 신청해주세요.
+          </p>
+          <button onClick={onBack} className="btn-secondary mt-5">뒤로 가기</button>
+        </div>
+      </div>
+    );
+  }
+
   // 가상학과 전용 유형인데 명단에 없는 경우 신청 차단
   if (vdeptBlocked === true) {
     return (
@@ -600,7 +633,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre} />
       )}
       {step === 2 && applicationType === "staff" && (
-        <StaffDetailSection values={staffDetail} onChange={setStaffDetail} calculatedAmount={getCalculatedAmount()} />
+        <StaffDetailSection values={staffDetail} onChange={setStaffDetail} calculatedAmount={getCalculatedAmount()} preOnly={isPre} />
       )}
       {step === 2 && applicationType === "grade" && (
         <GradeDetailSection values={gradeDetail} onChange={setGradeDetail} calculatedAmount={getCalculatedAmount()} />

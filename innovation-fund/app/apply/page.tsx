@@ -175,7 +175,8 @@ function ApplyInner() {
   // (지원금 신청은 지원신청 내역 확인 후, 내역이 없거나 '새로 작성' 선택 시에만 진행)
   useEffect(() => {
     if (!category) return;
-    if (mode === "pre") { setSelectedType(PRE_CATEGORY_TYPE[category]); return; }
+    // 지원신청(pre): 유형을 직접 고른 경우(예: 진행요원비) 그 유형을 유지, 미지정 시에만 카테고리 기본 유형으로
+    if (mode === "pre") { if (!selectedType) setSelectedType(PRE_CATEGORY_TYPE[category]); return; }
     // 임시저장 이어쓰기·지원신청 연계 진입은 이미 자격이 확정된 건이므로 차단 판정 생략
     if (draftApp || prefill) return;
     if (!preChecked) return;
@@ -186,7 +187,7 @@ function ApplyInner() {
       if (requiresPre(only) && preApps.length === 0 && skipPreChecked && !skipPreAllowed && !isAdmin) { setBlocked(true); return; }
       setSelectedType(only);
     }
-  }, [category, mode, preChecked, preApps.length, skipPre, skipPreAllowed, skipPreChecked, isAdmin, draftApp, prefill]);
+  }, [category, mode, selectedType, preChecked, preApps.length, skipPre, skipPreAllowed, skipPreChecked, isAdmin, draftApp, prefill]);
 
   // ?type= 로 바로 진입한 경우 카테고리 유추(지원신청 승인 확인용)
   useEffect(() => { if (selectedType && !category) setCategory(categoryOfType(selectedType)); }, [selectedType, category]);
