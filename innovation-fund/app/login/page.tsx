@@ -208,8 +208,9 @@ function LoginInner() {
               {/* 개인정보 수집·이용 동의 (수집 시점 고지) */}
               <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 leading-relaxed border border-gray-100">
                 <p className="font-semibold text-gray-800 mb-1">개인정보 수집·이용 안내</p>
-                <p>· 수집 항목: 학번, 이름, 학과, 연락처, 이메일</p>
-                <p>· 수집 목적: 회원 식별 및 지원금 신청·관리</p>
+                <p>· 수집 항목(회원가입): 학번, 이름, 학적유형(대학생·대학원생), 소속(대학·캠퍼스·단과대학·학과·전공), 연락처, 이메일, 본인 명의 계좌정보(은행·예금주·계좌번호)</p>
+                <p>· 지원금 신청 시 추가 수집: 신청 내용, 증빙 서류(통장 사본·신분증 사본·재학증명서·성적/수상/자격증 등), 서명, 지급 처리를 위한 계좌 및 주민등록번호</p>
+                <p>· 수집 목적: 회원 식별, 지원금 신청·검토·지급 및 정산 관리</p>
                 <p>· 보유 기간: 회원 탈퇴 또는 지원금 지급 완료 후 5년</p>
                 <p className="mt-1">· 동의를 거부할 수 있으나, 미동의 시 회원가입 및 신청이 불가합니다. 자세한 내용은 <Link href="/privacy" className="text-indigo-600 underline">개인정보 처리방침</Link>을 확인하세요.</p>
               </div>
