@@ -60,6 +60,8 @@ export default function VirtualStudentsPage() {
   const [adding, setAdding] = useState(false);
   const [newStu, setNewStu] = useState<VStudent>({ student_id: "", name: "", vdept: "", department: "" });
 
+  // 회원가입한 학생의 학번 집합 — 명단의 학생이 실제 가입했는지 표시용
+  const [registered, setRegistered] = useState<Set<string>>(new Set());
   const load = () => {
     setLoading(true);
     fetch("/api/admin/virtual-students").then((r) => r.json()).then((d) => { setList(Array.isArray(d) ? d : []); setLoading(false); });
@@ -68,6 +70,10 @@ export default function VirtualStudentsPage() {
     if (!unlocked) return;
     load();
     fetch("/api/vdept-config").then((r) => r.json()).then((d) => setRequiredTypes(d.requiredTypes || []));
+    fetch("/api/admin/applicants").then((r) => r.json()).then((d) => {
+      const ids = (Array.isArray(d) ? d : []).map((x: { student_id?: string }) => String(x.student_id || "").trim()).filter(Boolean);
+      setRegistered(new Set(ids));
+    }).catch(() => {});
   }, [unlocked]);
 
   const filtered = useMemo(() => list.filter((s) => matchTerms(s, search)), [list, search]);
@@ -190,13 +196,15 @@ export default function VirtualStudentsPage() {
         <div className="text-center py-20 text-gray-400">로딩 중...</div>
       ) : (
         <>
-          <p className="text-xs text-gray-400 mb-2">총 {list.length}명 · 검색 {filtered.length}명</p>
+          <p className="text-xs text-gray-400 mb-2">총 {list.length}명 · 검색 {filtered.length}명 · 가입 {filtered.filter((s) => registered.has(s.student_id)).length}명</p>
           <div className="overflow-x-auto rounded-[32px]">
             <table className="table-glass text-sm">
               <thead>
                 <tr>
+                  <th className="text-center whitespace-nowrap">연번</th>
                   <th className="whitespace-nowrap">학번</th>
                   <th className="whitespace-nowrap">성명</th>
+                  <th className="text-center whitespace-nowrap">회원가입</th>
                   <th className="whitespace-nowrap">가상학과</th>
                   <th className="whitespace-nowrap">본소속학과</th>
                   <th className="whitespace-nowrap">학년</th>
@@ -207,11 +215,19 @@ export default function VirtualStudentsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">명단이 없습니다. 엑셀을 업로드하거나 학생을 추가해주세요.</td></tr>
-                ) : filtered.map((s) => (
+                  <tr><td colSpan={10} className="text-center py-12 text-gray-400">명단이 없습니다. 엑셀을 업로드하거나 학생을 추가해주세요.</td></tr>
+                ) : filtered.map((s, i) => {
+                  const joined = registered.has(s.student_id);
+                  return (
                   <tr key={s.student_id}>
+                    <td className="text-center text-gray-400 text-xs">{i + 1}</td>
                     <td className="font-mono text-xs">{s.student_id}</td>
                     <td className="font-medium whitespace-nowrap">{s.name || "-"}</td>
+                    <td className="text-center">
+                      {joined
+                        ? <span className="badge bg-emerald-100 text-emerald-700">가입</span>
+                        : <span className="badge bg-gray-200 text-gray-500">미가입</span>}
+                    </td>
                     <td className="text-gray-600 whitespace-nowrap">{s.vdept || "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{s.department || "-"}</td>
                     <td className="text-gray-600">{s.grade || "-"}</td>
@@ -219,7 +235,8 @@ export default function VirtualStudentsPage() {
                     <td className="text-right">{s.credits ?? "-"}</td>
                     <td className="text-center"><button onClick={() => removeStudent(s.student_id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button></td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
