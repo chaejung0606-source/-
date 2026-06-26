@@ -112,7 +112,7 @@ export default function ApplicationsPage() {
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
 
-  // 프로그램별 신청 건수 (취소 제외) — 대시보드 표시용, 건수 많은 순
+  // 프로그램별 신청 건수 (취소 제외) — 프로그램 관리자: 본인 담당 건 / 지출관리자: 아래 pendingByProgram 사용
   const programCounts = useMemo(() => {
     const m: Record<string, number> = {};
     visibleApps.filter((a) => !a.canceled).forEach((a) => {
@@ -121,6 +121,20 @@ export default function ApplicationsPage() {
     });
     return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
   }, [visibleApps]);
+
+  // 지출관리자용: 프로그램별 '아직 지출관리자에게 전달되지 않은(프로그램 관리자 검토중)' 신청 건수.
+  // 프로그램 관리자가 배정된 프로그램만 대상 — 전달 전 적체 현황 확인용.
+  const pendingByProgram = useMemo(() => {
+    const m: Record<string, number> = {};
+    apps.filter((a) => !a.canceled && !a.isDraft && effStage(a) === "program").forEach((a) => {
+      const pid = ownerProgramId(a);
+      if (!pid || !allAssigned.has(pid)) return; // 담당 프로그램 관리자가 있는 프로그램만
+      const n = progNameOf(a) || "(프로그램 미지정)";
+      m[n] = (m[n] || 0) + 1;
+    });
+    return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apps, me, nameToId, allAssigned]);
 
   const filtered = useMemo(() => {
     return apps.filter((a) => {
@@ -283,19 +297,36 @@ export default function ApplicationsPage() {
               ))}
             </div>
           </>); })()}
-          <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별</div>
-          <div className="flex flex-wrap gap-2">
-            {programCounts.length === 0 ? <span className="text-xs text-gray-400 pt-1">집계할 신청이 없습니다.</span> : programCounts.map(([name, cnt]) => {
-              const active = progFilter === name;
-              return (
-                <button key={name} type="button" onClick={() => setProgFilter(active ? "" : name)} title={active ? "필터 해제" : "이 프로그램만 보기"}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border transition ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"}`}>
-                  <span className="max-w-[180px] truncate">{name}</span>
-                  <span className="font-bold">{cnt}</span>
-                </button>
-              );
-            })}
-          </div>
+          {me?.role === "expense" ? (
+            <>
+              <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별 미전달<span className="block text-[10px] font-normal text-gray-400">(프로그램 관리자 검토중)</span></div>
+              <div className="flex flex-wrap gap-2">
+                {pendingByProgram.length === 0 ? <span className="text-xs text-gray-400 pt-1">프로그램 관리자가 검토중인(미전달) 신청이 없습니다.</span> : pendingByProgram.map(([name, cnt]) => (
+                  <span key={name} title="해당 프로그램 관리자가 아직 지출관리자에게 전달하지 않은 신청 건수"
+                    className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border bg-amber-50 text-amber-700 border-amber-100">
+                    <span className="max-w-[180px] truncate">{name}</span>
+                    <span className="font-bold">{cnt}</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별</div>
+              <div className="flex flex-wrap gap-2">
+                {programCounts.length === 0 ? <span className="text-xs text-gray-400 pt-1">집계할 신청이 없습니다.</span> : programCounts.map(([name, cnt]) => {
+                  const active = progFilter === name;
+                  return (
+                    <button key={name} type="button" onClick={() => setProgFilter(active ? "" : name)} title={active ? "필터 해제" : "이 프로그램만 보기"}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border transition ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"}`}>
+                      <span className="max-w-[180px] truncate">{name}</span>
+                      <span className="font-bold">{cnt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
