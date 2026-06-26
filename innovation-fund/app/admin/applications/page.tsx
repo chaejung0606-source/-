@@ -133,7 +133,6 @@ export default function ApplicationsPage() {
       m[n] = (m[n] || 0) + 1;
     });
     return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apps, me, nameToId, allAssigned]);
 
   const filtered = useMemo(() => {
