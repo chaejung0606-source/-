@@ -8,6 +8,7 @@ export interface SiteLink {
   iconName: string;  // Globe | BookOpen | GraduationCap | MessageCircle | Mail | Phone | Award | FileText | Link
   color: string;
   isKakao?: boolean;
+  fileName?: string; // 업로드한 파일(PDF·이미지)명 — href가 업로드 파일을 가리킬 때 표시·식별용
 }
 
 // 푸터 연락처 항목 (사이드바 링크처럼 추가·수정·삭제 가능)
