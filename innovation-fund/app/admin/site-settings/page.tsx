@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Save, Plus, Trash2, ChevronUp, ChevronDown, Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText, Link as LinkIcon } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
 import type { PopupItem } from "@/app/api/popup/route";
 
 const TABS = ["푸터 설정", "사이드바 링크", "팝업 공지"] as const;
 type Tab = typeof TABS[number];
-const ICONS = ["Globe", "BookOpen", "GraduationCap", "MessageCircle", "Mail", "Phone", "Award", "FileText", "Link"];
+const ICON_MAP: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText, Link: LinkIcon };
+const ICONS = Object.keys(ICON_MAP);
 const FOOTER_ICONS = ["Mail", "Phone", "MapPin", "Globe", "Link2", "MessageCircle", "GraduationCap", "BookOpen"];
 const FOOTER_TYPES: { v: FooterItem["type"]; label: string }[] = [
   { v: "email", label: "이메일(클릭 복사)" },
@@ -153,8 +154,25 @@ export default function SiteSettingsPage() {
                   {l.fileName && <span className="text-[11px] text-emerald-600 truncate max-w-[160px]" title={l.fileName}>✓ {l.fileName}</span>}
                 </div>
               </div>
-              <div className="sm:col-span-2"><label className="label">아이콘</label><select className="input-field" value={l.iconName} onChange={(e) => updateLink(l.id, { iconName: e.target.value })}>{ICONS.map((i) => <option key={i}>{i}</option>)}</select></div>
-              <div className="sm:col-span-2"><label className="label">색상</label><input type="color" className="input-field h-[52px] p-1" value={l.color} onChange={(e) => updateLink(l.id, { color: e.target.value })} /></div>
+              <div className="sm:col-span-3">
+                <label className="label">아이콘 (모양 선택)</label>
+                <div className="flex flex-wrap gap-1">
+                  {ICONS.map((name) => {
+                    const Ic = ICON_MAP[name];
+                    const on = l.iconName === name;
+                    return (
+                      <button key={name} type="button" title={name} onClick={() => updateLink(l.id, { iconName: name })}
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center border transition ${on ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-300" : "border-gray-200 bg-white hover:border-indigo-300"}`}>
+                        <Ic className="w-5 h-5" style={{ color: l.color }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="sm:col-span-1">
+                <label className="label">색상(아이콘 선)</label>
+                <input type="color" className="input-field h-[44px] p-1 w-full" value={l.color} onChange={(e) => updateLink(l.id, { color: e.target.value })} title="아이콘 선 색상" />
+              </div>
               <div className="sm:col-span-1 flex justify-end items-center gap-1">
                 <button onClick={() => moveLink(l.id, -1)} className="text-gray-300 hover:text-indigo-500" title="위로"><ChevronUp className="w-4 h-4" /></button>
                 <button onClick={() => moveLink(l.id, 1)} className="text-gray-300 hover:text-indigo-500" title="아래로"><ChevronDown className="w-4 h-4" /></button>
