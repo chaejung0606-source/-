@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { normalizeAdminAccounts } from "@/lib/admin-accounts";
+import { normalizeAdminAccounts, verifyAdminPassword } from "@/lib/admin-accounts";
 import { signAdminToken, ADMIN_SESSION_COOKIE } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +30,15 @@ export async function POST(req: NextRequest) {
 
   let role: "expense" | "program" | null = null;
   let id = "";
+  // 지출관리자 비밀번호 검증(해시/레거시 평문 호환). 저장값이 비어 있으면(미설정) 항상 실패(fail-closed).
+  const expenseOk = verifyAdminPassword(password, expense.password);
   // 비밀번호만 보낸 경우(아이디 생략): 가상학과 접근 게이트 등 — 지출관리자 비밀번호(또는 레거시 ADMIN_PASSWORD) 허용
-  if ((loginId === expense.loginId && password === expense.password)
-    || (!loginId && password && password === expense.password)
+  if ((loginId === expense.loginId && expenseOk)
+    || (!loginId && expenseOk)
     || (!loginId && legacyPw && password === legacyPw)) {
     role = "expense"; id = expense.loginId;
   } else if (loginId) {
-    const match = accounts.find((a) => a.loginId === loginId && a.password === password);
+    const match = accounts.find((a) => a.loginId === loginId && verifyAdminPassword(password, a.password));
     if (match) { role = "program"; id = match.loginId; }
   }
 

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
 
-// Google Drive(사용자 Apps Script 웹훅) 동기화.
-// ⚠️ 민감 항목은 절대 전송하지 않음: 이름·학번·계좌·연락처·이메일, 신분증·통장 사본 파일.
+// Google Drive(사용자 Apps Script 웹훅) 동기화. ⚠️ 개인정보 처리 위탁(데이터 국외 이전 가능)에 해당 — 처리방침 제5조 고지.
+// 요약 시트에는 식별정보(이름·학번·계좌·연락처·이메일)를 보내지 않는다.
+// 첨부 중 신분증·통장 사본은 전송하지 않으나, 그 외 서류(재학증명서·성적증명서·자격증/수상 증빙 등)는
+// 그 내용에 이름·학번 등 식별정보가 포함될 수 있음에 유의(접수번호 폴더로 분리 전송).
 const SENSITIVE_FILE_TYPES = ["id_card", "bankbook"];
 
 // 진단용: GET /api/drive-sync → 환경변수 설정 여부 확인

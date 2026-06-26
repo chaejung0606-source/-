@@ -5,13 +5,19 @@ import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "./supabase-admin";
 import { normalizeAdminAccounts, type AdminRole } from "./admin-accounts";
 
-const SECRET = process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "dev-insecure-admin-secret";
+// 세션 서명 키: ADMIN_SESSION_SECRET 우선, 없으면 SUPABASE_SERVICE_ROLE_KEY.
+// 하드코딩 폴백 금지 — 둘 다 없으면 예외(fail-closed).
+function getSecret(): string {
+  const s = process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!s) throw new Error("관리자 세션 서명 키 미설정: ADMIN_SESSION_SECRET(권장) 또는 SUPABASE_SERVICE_ROLE_KEY 필요");
+  return s;
+}
 
 export const ADMIN_SESSION_COOKIE = "admin_sess";
 
 // 로그인 시 발급할 서명 토큰: base64url(id).hmac
 export function signAdminToken(id: string): string {
-  const mac = crypto.createHmac("sha256", SECRET).update(id).digest("base64url");
+  const mac = crypto.createHmac("sha256", getSecret()).update(id).digest("base64url");
   return `${Buffer.from(id).toString("base64url")}.${mac}`;
 }
 
@@ -21,7 +27,7 @@ function verifyAdminToken(token: string | undefined): string | null {
   if (!idB64 || !mac) return null;
   let id: string;
   try { id = Buffer.from(idB64, "base64url").toString("utf8"); } catch { return null; }
-  const expected = crypto.createHmac("sha256", SECRET).update(id).digest("base64url");
+  const expected = crypto.createHmac("sha256", getSecret()).update(id).digest("base64url");
   const a = Buffer.from(mac); const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   return id;

@@ -7,8 +7,8 @@ import { FUND_CATEGORY_LABELS } from "@/types";
 import type { AdminAccount, ExpenseAdmin } from "@/lib/admin-accounts";
 
 export default function AdminsPage() {
-  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
-  const [expense, setExpense] = useState<ExpenseAdmin>({ loginId: "", password: "" });
+  const [accounts, setAccounts] = useState<(AdminAccount & { hasPassword?: boolean })[]>([]);
+  const [expense, setExpense] = useState<ExpenseAdmin & { hasPassword?: boolean }>({ loginId: "", password: "" });
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -18,8 +18,9 @@ export default function AdminsPage() {
     fetch("/api/admin/status").then((r) => r.json()).then((d) => {
       if (!d?.admin || d.role !== "expense") { setDenied(true); setLoading(false); return; }
       fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
-        setAccounts(Array.isArray(j?.accounts) ? j.accounts : []);
-        if (j?.expense) setExpense({ loginId: j.expense.loginId || "", password: j.expense.password || "" });
+        // 보안: 서버는 비밀번호를 내려주지 않음(hasPassword만). 비밀번호 칸은 비워두고 '변경 시에만' 입력.
+        setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], hasPassword: !!a.hasPassword })) : []);
+        if (j?.expense) setExpense({ loginId: j.expense.loginId || "", password: "", hasPassword: !!j.expense.hasPassword });
         setLoading(false);
       });
     });
@@ -27,7 +28,7 @@ export default function AdminsPage() {
   }, []);
 
   const dirty = () => setSaved(false);
-  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [] }]); dirty(); };
+  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [], hasPassword: false }]); dirty(); };
   const upd = (i: number, patch: Partial<AdminAccount>) => { setAccounts((a) => a.map((x, idx) => idx === i ? { ...x, ...patch } : x)); dirty(); };
   const remove = (i: number) => { setAccounts((a) => a.filter((_, idx) => idx !== i)); dirty(); };
   const toggleProgram = (i: number, pid: string) => {
@@ -36,15 +37,22 @@ export default function AdminsPage() {
   };
 
   const save = async () => {
-    if (!expense.loginId.trim() || !expense.password.trim()) { alert("지출관리자 아이디와 비밀번호를 입력해주세요."); return; }
+    if (!expense.loginId.trim()) { alert("지출관리자 아이디를 입력해주세요."); return; }
+    if (!expense.hasPassword && !expense.password.trim()) { alert("지출관리자 비밀번호를 입력해주세요."); return; }
     for (const a of accounts) {
-      if (!a.loginId.trim() || !a.password.trim()) { alert("모든 관리자의 아이디와 비밀번호를 입력해주세요."); return; }
+      if (!a.loginId.trim()) { alert("모든 관리자의 아이디를 입력해주세요."); return; }
+      if (!a.hasPassword && !a.password.trim()) { alert("새로 추가한 관리자의 비밀번호를 입력해주세요."); return; }
     }
     const ids = [expense.loginId.trim(), ...accounts.map((a) => a.loginId.trim())];
     if (new Set(ids).size !== ids.length) { alert("아이디가 중복됩니다. (지출관리자 포함)"); return; }
     const res = await fetch("/api/admin/admins", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expense, accounts }) });
     const j = await res.json().catch(() => ({}));
-    if (j.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); } else alert("저장 실패: " + (j.error || res.status));
+    if (j.ok) {
+      // 저장 후 비밀번호 칸 비우고 '설정됨' 표시로 전환 (서버는 해시만 보관)
+      setExpense((x) => ({ ...x, password: "", hasPassword: x.hasPassword || !!x.password.trim() }));
+      setAccounts((arr) => arr.map((a) => ({ ...a, password: "", hasPassword: a.hasPassword || !!a.password.trim() })));
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } else alert("저장 실패: " + (j.error || res.status));
   };
 
   const byCat: Record<string, Program[]> = {};
@@ -75,7 +83,7 @@ export default function AdminsPage() {
           </div>
           <div>
             <label className="label text-xs mb-0.5">비밀번호</label>
-            <input className="input-field" value={expense.password} onChange={(e) => { setExpense((x) => ({ ...x, password: e.target.value })); setSaved(false); }} placeholder="지출관리자 비밀번호" />
+            <input type="password" autoComplete="new-password" className="input-field" value={expense.password} onChange={(e) => { setExpense((x) => ({ ...x, password: e.target.value })); setSaved(false); }} placeholder={expense.hasPassword ? "변경 시에만 입력 (비우면 유지)" : "지출관리자 비밀번호"} />
           </div>
         </div>
         <p className="text-[11px] text-amber-600 mt-2">※ 여기서 설정한 아이디·비밀번호로 지출관리자 로그인 및 모든 비밀번호 확인이 동작합니다. 변경 후 분실에 주의하세요.</p>
@@ -95,7 +103,7 @@ export default function AdminsPage() {
                 </div>
                 <div>
                   <label className="label text-xs mb-0.5">비밀번호</label>
-                  <input className="input-field" value={a.password} onChange={(e) => upd(i, { password: e.target.value })} placeholder="비밀번호" />
+                  <input type="password" autoComplete="new-password" className="input-field" value={a.password} onChange={(e) => upd(i, { password: e.target.value })} placeholder={a.hasPassword ? "변경 시에만 입력 (비우면 유지)" : "비밀번호"} />
                 </div>
                 <div>
                   <label className="label text-xs mb-0.5">이름/메모</label>
