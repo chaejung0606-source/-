@@ -199,19 +199,6 @@ export default function ApplicationsPage() {
     else alert("삭제 실패");
   };
 
-  // ⚠️ 전체 신청 기록 삭제 (지출관리자 전용, 2단계 확인) — 되돌릴 수 없음
-  const purgeAll = async () => {
-    if (!confirm("정말로 모든 신청 기록(임시저장·취소 포함)과 업로드 파일을 영구 삭제할까요?\n\n되돌릴 수 없습니다.")) return;
-    const typed = window.prompt("확인을 위해 아래 문구를 정확히 입력하세요:\n\n전체삭제");
-    if (typed !== "전체삭제") { if (typed !== null) alert("확인 문구가 일치하지 않아 취소되었습니다."); return; }
-    const res = await fetch("/api/admin/applications/purge-all", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "전체삭제" }),
-    });
-    const j = await res.json().catch(() => ({ ok: false }));
-    if (j.ok) { setApps([]); setSelected(new Set()); alert(`삭제 완료\n\n신청 기록 ${j.deletedApplications}건, 파일 ${j.deletedFiles}개를 삭제했습니다.`); }
-    else alert("삭제 실패: " + (j.error || res.status));
-  };
-
   if (!unlocked) return (
     <AdminLayout>
       <div className="max-w-sm mx-auto mt-16 card text-center">
@@ -308,11 +295,6 @@ export default function ApplicationsPage() {
           <button onClick={exportSelected} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" /> 선택 목록 다운로드{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
-          {me?.role === "expense" && (
-            <button onClick={purgeAll} className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl font-semibold text-white bg-rose-500 hover:bg-rose-600" title="모든 신청 기록과 업로드 파일을 영구 삭제합니다(되돌릴 수 없음)">
-              ⚠ 전체 기록 삭제
-            </button>
-          )}
         </div>
       </div>
 
