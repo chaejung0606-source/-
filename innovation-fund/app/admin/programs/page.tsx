@@ -498,6 +498,7 @@ export default function ProgramsAdminPage() {
                 <p className="text-xs text-gray-400 mb-2">전체 {list.length}개 중 {hits.length}개 표시</p>
                 <table className="table-glass text-sm">
                   <thead><tr>
+                    <th className="text-center whitespace-nowrap">연번</th>
                     <th className="whitespace-nowrap">종류</th>
                     <th className="whitespace-nowrap">프로그램명</th>
                     <th className="whitespace-nowrap">지원신청 기간</th>
@@ -507,8 +508,9 @@ export default function ProgramsAdminPage() {
                   <tbody>
                     {hits.length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-8 text-gray-400">검색 결과가 없습니다.</td></tr>
-                    ) : hits.map((p) => (
+                    ) : hits.map((p, i) => (
                       <tr key={p.id}>
+                        <td className="text-center text-gray-400 text-xs">{i + 1}</td>
                         <td className="text-xs whitespace-nowrap text-gray-600">{KIND_LABELS[kindOf(p)]}</td>
                         <td className="font-medium">{p.name || "(이름 없음)"}</td>
                         <td className="text-xs text-gray-500 whitespace-nowrap">{(p.preApplyStart || p.applyStart || "-")} ~ {(p.preApplyEnd || p.applyEnd || "-")}</td>

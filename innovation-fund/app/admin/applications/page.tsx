@@ -394,6 +394,7 @@ export default function ApplicationsPage() {
               <th className="w-10">
                 <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} className="accent-[#4f8cff]" />
               </th>
+              <th className="text-center whitespace-nowrap">연번</th>
               <th className="whitespace-nowrap">접수번호</th>
               <th className="whitespace-nowrap">신청일</th>
               <th className="whitespace-nowrap">이름</th>
@@ -413,16 +414,17 @@ export default function ApplicationsPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={view === "canceled" ? 15 : 14} className="text-center py-12 text-gray-400">
+                <td colSpan={view === "canceled" ? 16 : 15} className="text-center py-12 text-gray-400">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   검색 결과가 없습니다.
                 </td>
               </tr>
-            ) : filtered.map((app) => (
+            ) : filtered.map((app, idx) => (
               <tr key={app.id} style={selected.has(app.id) ? { background: "rgba(79,140,255,0.08)" } : undefined}>
                 <td>
                   <input type="checkbox" checked={selected.has(app.id)} onChange={() => toggleSelect(app.id)} className="accent-[#4f8cff]" />
                 </td>
+                <td className="text-center text-gray-400 text-xs">{idx + 1}</td>
                 <td className="font-mono text-xs">{app.receiptNumber}</td>
                 <td className="whitespace-nowrap">{app.applicationDate}</td>
                 <td className="font-medium whitespace-nowrap">

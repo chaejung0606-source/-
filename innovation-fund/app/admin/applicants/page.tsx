@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus } from "lucide-react";
+import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
 import { fetchPrograms, audienceOf, type Program } from "@/lib/programs";
 
 // 지정 키: "프로그램id::단계(pre|fund)" — 단계별로 따로 지정
@@ -64,6 +64,7 @@ export default function ApplicantsPage() {
   const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible">("students");
   const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
+  const [infoModal, setInfoModal] = useState<Applicant | null>(null);
   // 신청자 등록(회원가입 처리)
   const [regOpen, setRegOpen] = useState(false);
   const [regBusy, setRegBusy] = useState(false);
@@ -79,6 +80,19 @@ export default function ApplicantsPage() {
 
   const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
   const progNameById = useMemo(() => Object.fromEntries(programs.map((p) => [p.id, p.name])), [programs]);
+
+  // 학번 기준으로 신청 내역 묶기 (학번 변경 이력 포함) — 학생별 '신청정보' 표시용
+  const appsByStudent = useMemo(() => {
+    const m: Record<string, Application[]> = {};
+    apps.forEach((app) => { const sid = app.studentId || ""; if (!sid) return; (m[sid] ||= []).push(app); });
+    return m;
+  }, [apps]);
+  const appsOf = (a: Applicant): Application[] => {
+    const ids = [a.student_id, ...(a.previous_student_ids || [])].filter(Boolean);
+    const seen = new Set<string>(); const out: Application[] = [];
+    ids.forEach((sid) => (appsByStudent[sid] || []).forEach((app) => { if (!seen.has(app.id)) { seen.add(app.id); out.push(app); } }));
+    return out.sort((x, y) => String(y.createdAt || y.applicationDate || "").localeCompare(String(x.createdAt || x.applicationDate || "")));
+  };
 
   // 프로그램별 신청 가능 학생 = 승인 신청(미취소) + '지정학생만' 단계에 지정된 학생(학생 검색에서 지정)
   const eligibleRows = useMemo<EligRow[]>(() => {
@@ -221,6 +235,7 @@ export default function ApplicantsPage() {
             <table className="table-glass text-sm">
               <thead>
                 <tr>
+                  <th className="text-center whitespace-nowrap">연번</th>
                   <th className="whitespace-nowrap">학번</th>
                   <th className="whitespace-nowrap">이름</th>
                   <th className="whitespace-nowrap">학적상태</th>
@@ -228,6 +243,7 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
                   <th className="whitespace-nowrap">비밀번호</th>
+                  <th className="text-center whitespace-nowrap">신청정보</th>
                   <th className="text-center whitespace-nowrap">지정 프로그램</th>
                   <th className="text-center whitespace-nowrap">대리 신청 (참여지원비)</th>
                   <th className="text-center whitespace-nowrap">관리</th>
@@ -235,9 +251,10 @@ export default function ApplicantsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
-                ) : filtered.map((a) => (
+                  <tr><td colSpan={12} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                ) : filtered.map((a, idx) => (
                   <tr key={a.id}>
+                    <td className="text-center text-gray-400 text-xs">{idx + 1}</td>
                     <td className="font-mono text-xs">
                       {a.student_id}
                       {(a.previous_student_ids?.length || 0) > 0 && (
@@ -250,6 +267,14 @@ export default function ApplicantsPage() {
                     <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
                     <td className="text-gray-400">•••••• (비공개)</td>
+                    <td className="text-center">
+                      {(() => { const n = appsOf(a).length; return (
+                        <button onClick={() => setInfoModal(a)} title="이 학생의 신청 내역 보기"
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-white/70 text-indigo-600 border-indigo-100 hover:bg-indigo-50 inline-flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5" /> 신청정보{n > 0 ? ` ${n}` : ""}
+                        </button>
+                      ); })()}
+                    </td>
                     <td className="text-center">
                       <button
                         onClick={() => setDesignateModal(a)}
@@ -307,6 +332,7 @@ export default function ApplicantsPage() {
               <div className="overflow-x-auto">
                 <table className="table-glass text-sm">
                   <thead><tr>
+                    <th className="text-center whitespace-nowrap">연번</th>
                     <th className="whitespace-nowrap">학번</th>
                     <th className="whitespace-nowrap">이름</th>
                     <th className="whitespace-nowrap">학과</th>
@@ -317,6 +343,7 @@ export default function ApplicantsPage() {
                   <tbody>
                     {rows.map((r, i) => (
                       <tr key={i}>
+                        <td className="text-center text-gray-400 text-xs">{i + 1}</td>
                         <td className="font-mono text-xs">{r.studentId || "-"}</td>
                         <td className="font-medium whitespace-nowrap">{r.name || "-"}</td>
                         <td className="text-gray-600 max-w-[160px] truncate">{r.department || "-"}</td>
@@ -345,6 +372,56 @@ export default function ApplicantsPage() {
           onSave={(ids) => saveDesignatedPrograms(designateModal, ids)}
         />
       )}
+
+      {/* 학생별 신청정보 한눈에 보기 */}
+      {infoModal && (() => {
+        const rows = appsOf(infoModal);
+        const progNameOfApp = (app: Application) => app.programDetail?.programName || app.laborDetail?.programName || app.activityDetail?.activityName || app.staffDetail?.programName || "-";
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="modal-backdrop absolute inset-0" onClick={() => setInfoModal(null)} />
+            <div className="modal relative w-full max-w-3xl max-h-[88vh] overflow-y-auto p-6">
+              <button onClick={() => setInfoModal(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+              <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">{infoModal.name}({infoModal.student_id}) 신청정보</h2>
+              <p className="text-sm text-gray-500 mb-4">총 {rows.length}건 (임시저장·취소 포함){(infoModal.previous_student_ids?.length || 0) > 0 ? ` · 이전 학번 ${infoModal.previous_student_ids!.join(", ")} 포함` : ""}</p>
+              {rows.length === 0 ? (
+                <p className="text-sm text-gray-400 py-8 text-center">신청 내역이 없습니다.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="table-glass text-sm">
+                    <thead><tr>
+                      <th className="text-center whitespace-nowrap">연번</th>
+                      <th className="whitespace-nowrap">접수번호</th>
+                      <th className="whitespace-nowrap">단계</th>
+                      <th className="whitespace-nowrap">유형</th>
+                      <th className="whitespace-nowrap">프로그램</th>
+                      <th className="whitespace-nowrap">검토</th>
+                      <th className="whitespace-nowrap">지급</th>
+                      <th className="whitespace-nowrap">신청일</th>
+                      <th className="text-center whitespace-nowrap">보기</th>
+                    </tr></thead>
+                    <tbody>
+                      {rows.map((app, i) => (
+                        <tr key={app.id}>
+                          <td className="text-center text-gray-400 text-xs">{i + 1}</td>
+                          <td className="font-mono text-xs whitespace-nowrap">{app.receiptNumber || (app.isDraft ? "임시저장" : "-")}</td>
+                          <td className="whitespace-nowrap"><span className="badge bg-indigo-50 text-indigo-600">{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span></td>
+                          <td className="whitespace-nowrap">{APPLICATION_TYPE_LABELS[app.applicationType]}</td>
+                          <td className="max-w-[160px] truncate text-gray-600">{progNameOfApp(app)}</td>
+                          <td className="whitespace-nowrap text-xs">{app.canceled ? <span className="badge bg-rose-100 text-rose-700">취소됨</span> : (app.isDraft ? <span className="badge bg-gray-100 text-gray-500">작성 중</span> : (REVIEW_STATUS_LABELS[app.reviewStatus] || app.reviewStatus))}</td>
+                          <td className="whitespace-nowrap text-xs">{app.canceled || app.isDraft ? "-" : (PAYMENT_STATUS_LABELS[app.paymentStatus] || app.paymentStatus)}</td>
+                          <td className="whitespace-nowrap text-gray-500">{app.applicationDate || "-"}</td>
+                          <td className="text-center">{app.isDraft ? <span className="text-xs text-gray-300">-</span> : <Link href={`/admin/applications/${app.id}`} className="text-indigo-600 hover:underline text-xs">상세</Link>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 신청자 등록 모달 */}
       {regOpen && (
