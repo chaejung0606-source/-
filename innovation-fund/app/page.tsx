@@ -34,13 +34,12 @@ const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "con
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
 
 const eligibleList = [
-  "강원대학교 재학생",
-  "대학원생",
-  "대학원 수료생(수료 후 2년 이내)",
+  "강원대학교 재학생(학부)",
   "자격증 지원금은 미래융합가상학과 학생에 한함",
 ];
 
 const ineligibleList = [
+  "대학원생 · 대학원 수료생 · 연구과정 참여학생",
   "휴학생·졸업생·졸업유예생",
   "학기 미등록자",
   "징계 처분 중인 자",
