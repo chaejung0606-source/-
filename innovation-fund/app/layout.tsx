@@ -19,8 +19,8 @@ const bubble = Black_Han_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "혁신인재지원금 신청 플랫폼 | 강원대학교 데이터보안·활용 혁신융합대학사업단",
-  description: "강원대학교 데이터보안·활용 혁신융합대학사업단 혁신인재지원금 신청 및 관리 플랫폼",
+  title: "학생 지원금 신청 플랫폼 / 강원대학교 데이터보안·활용 혁신융합대학사업단",
+  description: "강원대학교 데이터보안·활용 혁신융합대학사업단 학생 지원금 신청 및 관리 플랫폼",
 };
 
 export const viewport: Viewport = {

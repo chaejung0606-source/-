@@ -8,6 +8,7 @@ import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/sit
 import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from "@/lib/programs";
 import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriods } from "@/lib/type-periods";
 import FundTypeModal from "@/components/home/FundTypeModal";
+import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import HeroClouds from "@/components/home/HeroClouds";
 import CertList from "@/components/home/CertList";
@@ -50,6 +51,8 @@ const ineligibleList = [
 
 export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
+  // 사이드바 첨부파일을 크기조절·이동 가능한 작은 창으로 미리보기
+  const [fileWin, setFileWin] = useState<{ title: string; href: string; isImage: boolean } | null>(null);
   const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -418,6 +421,19 @@ export default function Home() {
               </a>
             );
           }
+          // 업로드 파일 항목은 새 탭 대신 크기조절·이동 가능한 작은 창으로 미리보기
+          const isFile = !!item.fileName || (item.href || "").startsWith("/api/site-file");
+          if (isFile) {
+            const isImage = /\.(png|jpe?g|webp|gif)$/i.test(item.fileName || item.href || "");
+            return (
+              <button key={item.id} type="button" title={item.label.replace("\n", " ")}
+                onClick={() => setFileWin({ title: (item.fileName || item.label).replace("\n", " "), href: item.href, isImage })}
+                className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform">
+                <Icon className="w-7 h-7" style={{ color: item.color }} />
+                <span className="text-[10px] font-semibold text-gray-700 leading-tight text-center whitespace-pre-line">{item.label}</span>
+              </button>
+            );
+          }
           return (
             <a key={item.id} href={item.href} target="_blank" rel="noopener noreferrer" title={item.label.replace("\n", " ")}
               className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform">
@@ -427,6 +443,18 @@ export default function Home() {
           );
         })}
       </aside>
+
+      {fileWin && (
+        <DraggableWindow title={fileWin.title} onClose={() => setFileWin(null)} initial={{ x: 120, y: 90, w: 560, h: 640 }}>
+          {fileWin.isImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={fileWin.href} alt={fileWin.title} className="max-w-full max-h-full object-contain" />
+          ) : (
+            <iframe src={fileWin.href} title={fileWin.title} className="w-full h-full bg-white" style={{ border: "none" }} />
+          )}
+          <a href={fileWin.href} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-3 text-[11px] text-indigo-600 underline bg-white/80 rounded px-1.5 py-0.5">새 탭에서 열기 ↗</a>
+        </DraggableWindow>
+      )}
 
       <FundTypeModal type={modalType} onClose={() => setModalType(null)} />
     </div>
