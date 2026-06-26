@@ -26,8 +26,8 @@ export default function ConsentChecklist({ values, onChange, isPre = false }: Pr
       <h2 className="section-title">개인정보 수집·이용 및 신청 동의</h2>
       <div className="rounded-2xl p-4 text-xs text-gray-600 mb-4 leading-relaxed" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
         <p className="font-semibold text-gray-800 mb-1">개인정보 수집·이용 안내</p>
-        <p>• 수집 항목: 이름, 학번, 소속, 학과, 연락처, 이메일{isPre ? "" : ", 계좌정보"}</p>
-        <p>• 수집 목적: 지원 신청 접수 및 지급 관리</p>
+        <p>• 수집 항목: 이름, 학번, 학적유형, 소속(대학·캠퍼스·학과·전공), 연락처, 이메일, 신청 내용 및 증빙 서류(재학증명서·신분증·통장 사본·성과/참여 증빙 등), 서명{isPre ? "" : ", 본인 명의 계좌정보(은행·예금주·계좌번호)"}</p>
+        <p>• 수집 목적: 지원 신청 접수, 자격 검토·심의, 지급 및 정산 관리</p>
         <p>• 보유 기간: 지원금 지급 완료 후 5년</p>
         <p className="mt-1">※ 아래 항목에 모두 동의해야 신청을 진행할 수 있습니다.</p>
       </div>

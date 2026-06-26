@@ -56,6 +56,7 @@ export default function ApplicationsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [progFilter, setProgFilter] = useState(""); // 대시보드 '프로그램별'에서 선택한 프로그램으로 목록 필터
 
   // 신청 건의 역할 추출 — 근로는 laborDetail.role, 스키마 폼은 '역할' 항목 답변
   const roleOf = (a: Application): string => {
@@ -111,6 +112,16 @@ export default function ApplicationsPage() {
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
 
+  // 프로그램별 신청 건수 (취소 제외) — 대시보드 표시용, 건수 많은 순
+  const programCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    visibleApps.filter((a) => !a.canceled).forEach((a) => {
+      const n = progNameOf(a) || "(프로그램 미지정)";
+      m[n] = (m[n] || 0) + 1;
+    });
+    return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
+  }, [visibleApps]);
+
   const filtered = useMemo(() => {
     return apps.filter((a) => {
       if (!roleVisible(a)) return false;
@@ -123,9 +134,10 @@ export default function ApplicationsPage() {
       if (dateFrom && a.applicationDate < dateFrom) return false;
       if (dateTo && a.applicationDate > dateTo) return false;
       if (roleFilter && !roleOf(a).includes(roleFilter)) return false;
+      if (progFilter && (progNameOf(a) || "(프로그램 미지정)") !== progFilter) return false;
       return true;
     });
-  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, me, nameToId, allAssigned]);
+  }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, progFilter, me, nameToId, allAssigned]);
 
   // 검색용 역할 목록 (현재 표시 대상 신청 건들에서 추출)
   const roleOptions = useMemo(
@@ -249,23 +261,40 @@ export default function ApplicationsPage() {
           <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}’</span>
         </div>
         <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
-          <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
+          {(() => { const items = statusCfg.review.filter((o) => statCount("reviewStatus", o.key) > 0); return (<>
+            <div className="text-xs font-semibold text-gray-500 pt-1">검토 상태</div>
+            <div className="flex flex-wrap gap-2">
+              {items.length === 0 ? <span className="text-xs text-gray-400 pt-1">집계할 신청이 없습니다.</span> : items.map((o) => (
+                <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                  <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
+                  <div className="text-lg font-bold leading-none">{statCount("reviewStatus", o.key)}</div>
+                </div>
+              ))}
+            </div>
+          </>); })()}
+          {(() => { const items = statusCfg.payment.filter((o) => statCount("paymentStatus", o.key) > 0); return (<>
+            <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
+            <div className="flex flex-wrap gap-2">
+              {items.length === 0 ? <span className="text-xs text-gray-400 pt-1">집계할 신청이 없습니다.</span> : items.map((o) => (
+                <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
+                  <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
+                  <div className="text-lg font-bold leading-none">{statCount("paymentStatus", o.key)}</div>
+                </div>
+              ))}
+            </div>
+          </>); })()}
+          <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별</div>
           <div className="flex flex-wrap gap-2">
-            {statusCfg.review.map((o) => (
-              <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
-                <div className="text-lg font-bold leading-none">{statCount("reviewStatus", o.key)}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-xs font-semibold text-gray-500 pt-1">지급 상태</div>
-          <div className="flex flex-wrap gap-2">
-            {statusCfg.payment.map((o) => (
-              <div key={o.key} className={`grow shrink basis-[68px] rounded-xl p-2 text-center border border-white/80 ring-1 ring-black/5 shadow-sm ${o.badge}`}>
-                <div className="text-[10px] font-semibold leading-tight mb-0.5 whitespace-nowrap">{o.label}</div>
-                <div className="text-lg font-bold leading-none">{statCount("paymentStatus", o.key)}</div>
-              </div>
-            ))}
+            {programCounts.length === 0 ? <span className="text-xs text-gray-400 pt-1">집계할 신청이 없습니다.</span> : programCounts.map(([name, cnt]) => {
+              const active = progFilter === name;
+              return (
+                <button key={name} type="button" onClick={() => setProgFilter(active ? "" : name)} title={active ? "필터 해제" : "이 프로그램만 보기"}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border transition ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"}`}>
+                  <span className="max-w-[180px] truncate">{name}</span>
+                  <span className="font-bold">{cnt}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

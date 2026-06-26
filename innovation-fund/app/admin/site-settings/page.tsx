@@ -71,6 +71,20 @@ export default function SiteSettingsPage() {
   };
   const removeLink = (id: string) => { setConfig((c) => ({ ...c, sidebarLinks: c.sidebarLinks.filter((l) => l.id !== id) })); setSaved(false); };
 
+  // 사이드바 항목에 파일(PDF·이미지) 업로드 → 클릭 시 파일을 여는 링크로 설정
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const uploadLinkFile = async (id: string, file: File) => {
+    setUploadingId(id);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/site-upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("업로드 실패: " + (j.error || res.status)); return; }
+      updateLink(id, { href: `/api/site-file?path=${encodeURIComponent(j.path)}`, fileName: j.name, iconName: "FileText" });
+    } finally { setUploadingId(null); }
+  };
+
   const save = async () => {
     const res = await fetch("/api/site-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(config) });
     const j = await res.json().catch(() => ({}));
@@ -128,7 +142,17 @@ export default function SiteSettingsPage() {
           {config.sidebarLinks.map((l) => (
             <div key={l.id} className="card grid sm:grid-cols-12 gap-3 items-end">
               <div className="sm:col-span-3"><label className="label">라벨 (줄바꿈 \n)</label><input className="input-field" value={l.label.replace(/\n/g, "\\n")} onChange={(e) => updateLink(l.id, { label: e.target.value.replace(/\\n/g, "\n") })} /></div>
-              <div className="sm:col-span-4"><label className="label">링크(URL)</label><input className="input-field" value={l.href} onChange={(e) => updateLink(l.id, { href: e.target.value })} /></div>
+              <div className="sm:col-span-4">
+                <label className="label">링크(URL) 또는 파일</label>
+                <input className="input-field" value={l.href} onChange={(e) => updateLink(l.id, { href: e.target.value, fileName: undefined })} placeholder="https:// 또는 아래에서 파일 업로드" />
+                <div className="flex items-center gap-2 mt-1.5">
+                  <label className={`text-xs px-2.5 py-1.5 rounded-lg border cursor-pointer ${uploadingId === l.id ? "opacity-60 pointer-events-none" : "bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"}`}>
+                    {uploadingId === l.id ? "업로드 중..." : "📎 파일 업로드(PDF·이미지)"}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLinkFile(l.id, f); e.target.value = ""; }} />
+                  </label>
+                  {l.fileName && <span className="text-[11px] text-emerald-600 truncate max-w-[160px]" title={l.fileName}>✓ {l.fileName}</span>}
+                </div>
+              </div>
               <div className="sm:col-span-2"><label className="label">아이콘</label><select className="input-field" value={l.iconName} onChange={(e) => updateLink(l.id, { iconName: e.target.value })}>{ICONS.map((i) => <option key={i}>{i}</option>)}</select></div>
               <div className="sm:col-span-2"><label className="label">색상</label><input type="color" className="input-field h-[52px] p-1" value={l.color} onChange={(e) => updateLink(l.id, { color: e.target.value })} /></div>
               <div className="sm:col-span-1 flex justify-end items-center gap-1">
