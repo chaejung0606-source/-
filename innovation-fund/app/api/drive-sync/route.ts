@@ -71,8 +71,18 @@ export async function POST(req: NextRequest) {
     d.activity_detail?.activityName || d.contest_detail?.contestName || d.certificate_detail?.certName ||
     d.grade_detail?.courseName || "";
 
+  // 신청자 상태(재학생/대학원생/… 또는 탈퇴) — 구글 시트 '신청자 상태' 분류용
+  let applicantStatus = "재학생";
+  if (d.applicant_id) {
+    const { data: prof } = await admin.from("student_profiles").select("academic_status").eq("id", d.applicant_id).maybeSingle();
+    if (prof?.academic_status) applicantStatus = String(prof.academic_status);
+  } else {
+    applicantStatus = "탈퇴"; // 계정이 삭제된(탈퇴) 신청자
+  }
+
   const payload = {
     receiptNumber: d.receipt_number || "",
+    applicantStatus,
     applicationDate: d.application_date || "",
     applicationType: APPLICATION_TYPE_LABELS[d.application_type as keyof typeof APPLICATION_TYPE_LABELS] || d.application_type,
     programName,
