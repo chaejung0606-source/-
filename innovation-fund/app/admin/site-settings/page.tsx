@@ -178,7 +178,10 @@ export default function SiteSettingsPage() {
                 <button onClick={() => moveLink(l.id, 1)} className="text-gray-300 hover:text-indigo-500" title="아래로"><ChevronDown className="w-4 h-4" /></button>
                 <button onClick={() => removeLink(l.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
-              <label className="sm:col-span-12 flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={!!l.isKakao} onChange={(e) => updateLink(l.id, { isKakao: e.target.checked })} /> 카카오 스타일(노란 버튼)</label>
+              <div className="sm:col-span-12 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                <label className="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={!!l.isKakao} onChange={(e) => updateLink(l.id, { isKakao: e.target.checked })} /> 카카오 스타일(노란 버튼)</label>
+                <label className="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={!!l.inWindow} onChange={(e) => updateLink(l.id, { inWindow: e.target.checked })} /> 작은 창으로 보기(새 탭 대신 이동·크기조절 가능한 미리보기 창)</label>
+              </div>
             </div>
           ))}
           <button onClick={addLink} className="btn-secondary text-sm flex items-center gap-1.5"><Plus className="w-4 h-4" /> 링크 추가</button>
