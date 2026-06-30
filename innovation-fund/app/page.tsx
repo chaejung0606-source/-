@@ -49,10 +49,32 @@ const ineligibleList = [
   "사업 목적과 무관한 활동 신청자",
 ];
 
+// 외부 링크(구글 드라이브·문서 등)를 iframe에 넣어도 막히지 않도록 임베드용 주소로 변환
+function toEmbedSrc(href: string): string {
+  try {
+    const u = new URL(href, typeof window !== "undefined" ? window.location.origin : "https://x");
+    const host = u.hostname;
+    // 구글 드라이브 파일: /file/d/ID/view → /file/d/ID/preview
+    if (host.includes("drive.google.com")) {
+      const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+      if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+      const id = u.searchParams.get("id");
+      if (id) return `https://drive.google.com/file/d/${id}/preview`;
+    }
+    // 구글 문서/슬라이드/시트: /edit → /preview (임베드 허용)
+    if (host.includes("docs.google.com")) {
+      return href.replace(/\/edit.*$/, "/preview").replace(/\/pub(\?|$)/, "/embed$1");
+    }
+    return href;
+  } catch {
+    return href;
+  }
+}
+
 export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
   // 사이드바 첨부파일을 크기조절·이동 가능한 작은 창으로 미리보기
-  const [fileWin, setFileWin] = useState<{ title: string; href: string; isImage: boolean } | null>(null);
+  const [fileWin, setFileWin] = useState<{ title: string; href: string; openHref: string; isImage: boolean } | null>(null);
   const [site, setSite] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -421,14 +443,15 @@ export default function Home() {
               </a>
             );
           }
-          // 업로드 파일 항목은 새 탭 대신 크기조절·이동 가능한 작은 창으로 미리보기
+          // 업로드 파일 또는 '작은 창으로 보기' 설정 항목은 새 탭 대신 이동·크기조절 가능한 작은 창으로 미리보기
           const href = item.href || "";
           const isFile = !!item.fileName || href.includes("/api/site-file") || /\.(pdf|png|jpe?g|webp|gif)(\?|#|$)/i.test(href);
-          if (isFile) {
+          const isEmbeddable = /drive\.google\.com|docs\.google\.com/i.test(href); // 구글 드라이브·문서는 임베드 가능 → 자동으로 작은 창
+          if (isFile || item.inWindow || isEmbeddable) {
             const isImage = /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(item.fileName || href);
             return (
               <button key={item.id} type="button" title={item.label.replace("\n", " ")}
-                onClick={() => setFileWin({ title: (item.fileName || item.label).replace("\n", " "), href: item.href, isImage })}
+                onClick={() => setFileWin({ title: (item.fileName || item.label).replace("\n", " "), href: isImage ? item.href : toEmbedSrc(item.href), openHref: item.href, isImage })}
                 className="glass-pill w-[72px] h-[72px] flex flex-col items-center justify-center gap-1 hover:scale-105 transition-transform">
                 <Icon className="w-7 h-7" style={{ color: item.color }} />
                 <span className="text-[10px] font-semibold text-gray-700 leading-tight text-center whitespace-pre-line">{item.label}</span>
@@ -453,7 +476,7 @@ export default function Home() {
           ) : (
             <iframe src={fileWin.href} title={fileWin.title} className="w-full h-full bg-white" style={{ border: "none" }} />
           )}
-          <a href={fileWin.href} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-3 text-[11px] text-indigo-600 underline bg-white/80 rounded px-1.5 py-0.5">새 탭에서 열기 ↗</a>
+          <a href={fileWin.openHref} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-3 text-[11px] text-indigo-600 underline bg-white/80 rounded px-1.5 py-0.5">새 탭에서 열기 ↗</a>
         </DraggableWindow>
       )}
 

@@ -9,6 +9,7 @@ export interface SiteLink {
   color: string;
   isKakao?: boolean;
   fileName?: string; // 업로드한 파일(PDF·이미지)명 — href가 업로드 파일을 가리킬 때 표시·식별용
+  inWindow?: boolean; // 클릭 시 새 탭 대신 크기조절·이동 가능한 작은 창(미리보기)으로 열기 (가이드북 등)
 }
 
 // 푸터 연락처 항목 (사이드바 링크처럼 추가·수정·삭제 가능)
