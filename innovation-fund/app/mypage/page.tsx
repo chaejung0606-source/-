@@ -127,6 +127,28 @@ export default function MyPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // 회원 탈퇴
+  const [wdOpen, setWdOpen] = useState(false);
+  const [wdPw, setWdPw] = useState("");
+  const [wdBusy, setWdBusy] = useState(false);
+  const submitWithdraw = async () => {
+    if (!wdPw) { alert("본인 확인을 위해 현재 비밀번호를 입력해주세요."); return; }
+    if (!confirm("정말 탈퇴하시겠습니까?\n\n지급 완료되지 않은 지원신청 기록은 모두 삭제되며 되돌릴 수 없습니다.")) return;
+    setWdBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/auth/withdraw", {
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ currentPassword: wdPw }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("탈퇴 실패: " + (j.error || res.status)); return; }
+      alert(`탈퇴가 완료되었습니다.\n\n삭제된 지원신청 ${j.deleted}건${j.kept > 0 ? ` · 지급 완료로 보존된 기록 ${j.kept}건` : ""}\n그동안 이용해 주셔서 감사합니다.`);
+      await logout();
+      router.replace("/");
+    } finally { setWdBusy(false); }
+  };
+
   const doLogout = async () => {
     await logout();
     router.push("/");
@@ -750,6 +772,35 @@ export default function MyPage() {
             )}
           </div>
         )}
+
+        {/* 회원 탈퇴 (위험 구역) */}
+        <div className="card border border-rose-200">
+          <button type="button" onClick={() => { setWdOpen((v) => !v); setWdPw(""); }} className="w-full flex items-center justify-between gap-2 text-left">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-rose-500" />
+              <span className="font-semibold text-rose-700">회원 탈퇴</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${wdOpen ? "rotate-180" : ""}`} />
+          </button>
+          {wdOpen && (
+            <div className="mt-4 space-y-4">
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-xs text-rose-700 leading-relaxed">
+                <p className="font-semibold mb-1">탈퇴 시 안내 (되돌릴 수 없습니다)</p>
+                <p>• 작성·제출한 <strong>지원신청 기록은 플랫폼 신청목록에서 모두 삭제</strong>됩니다(임시저장·증빙 파일 포함).</p>
+                <p>• 단, <strong>이미 지급 완료된 건</strong>은 정산·증빙을 위해 기록으로 보존됩니다.</p>
+                <p>• 계정 정보(프로필·계좌·비밀번호)는 삭제되며, 같은 학번으로 다시 가입할 수 있습니다.</p>
+              </div>
+              <div className="max-w-sm">
+                <label className="label">현재 비밀번호</label>
+                <input type="password" className="input-field" value={wdPw} onChange={(e) => setWdPw(e.target.value)} placeholder="본인 확인을 위해 현재 비밀번호 입력" autoComplete="off" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setWdOpen(false); setWdPw(""); }} className="btn-secondary text-sm">취소</button>
+                <button onClick={submitWithdraw} disabled={wdBusy} className="text-sm px-4 py-2 rounded-xl font-semibold text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-60">{wdBusy ? "처리 중..." : "탈퇴하기"}</button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <p className="text-xs text-gray-400 text-center">
           ※ 신청 내역과 진행 상황은 본인 계정에서만 조회됩니다. 처리 상태는 사업단 검토에 따라 갱신됩니다.
