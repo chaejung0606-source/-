@@ -422,9 +422,10 @@ export default function Home() {
             );
           }
           // 업로드 파일 항목은 새 탭 대신 크기조절·이동 가능한 작은 창으로 미리보기
-          const isFile = !!item.fileName || (item.href || "").startsWith("/api/site-file");
+          const href = item.href || "";
+          const isFile = !!item.fileName || href.includes("/api/site-file") || /\.(pdf|png|jpe?g|webp|gif)(\?|#|$)/i.test(href);
           if (isFile) {
-            const isImage = /\.(png|jpe?g|webp|gif)$/i.test(item.fileName || item.href || "");
+            const isImage = /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(item.fileName || href);
             return (
               <button key={item.id} type="button" title={item.label.replace("\n", " ")}
                 onClick={() => setFileWin({ title: (item.fileName || item.label).replace("\n", " "), href: item.href, isImage })}
