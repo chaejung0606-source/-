@@ -5,7 +5,8 @@ export type ApplicationType =
   | "contest"      // 경진대회 입상 우수성과 지원금 (혁신인재지원금)
   | "certificate"  // 자격증 취득 우수성과 지원금 (혁신인재지원금)
   | "labor"        // 근로장학금
-  | "activity";    // 학생활동지원비
+  | "activity"     // 학생활동지원비
+  | "club";        // 첨단 ICT 소학회 활동 지원
 
 // 최상위 지원금 카테고리
 export type FundCategory = "labor" | "innovation" | "activity";
@@ -20,12 +21,12 @@ export const FUND_CATEGORY_LABELS: Record<FundCategory, string> = {
 export const CATEGORY_TYPES: Record<FundCategory, ApplicationType[]> = {
   labor: ["labor"],
   innovation: ["program", "staff", "grade", "contest", "certificate"],
-  activity: ["activity"],
+  activity: ["activity", "club"],
 };
 
 export function categoryOfType(t: ApplicationType): FundCategory {
   if (t === "labor") return "labor";
-  if (t === "activity") return "activity";
+  if (t === "activity" || t === "club") return "activity";
   return "innovation";
 }
 
@@ -43,9 +44,9 @@ export const PRE_CATEGORY_TYPE: Record<FundCategory, ApplicationType> = {
 };
 
 // 지원금 종류 선택(평탄화): 혁신인재지원금 그룹 대신 유형을 개별 카드로 노출
-export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "club"];
 // 지원신청(활동 전) 가능 유형
-export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff"];
+export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff", "club"];
 
 export type GradeSubType = "microdegree" | "minor" | "double";
 export type ContestScale = "A" | "B";
@@ -229,6 +230,43 @@ export interface ActivityDetail {
   reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
 }
 
+// 첨단 ICT 소학회 활동 지원
+export type ClubField = "security" | "privacy" | "cloud" | "blockchain";
+export const CLUB_FIELD_LABELS: Record<ClubField, string> = {
+  security: "사이버 보안",
+  privacy: "개인정보 보호",
+  cloud: "클라우드",
+  blockchain: "블록체인",
+};
+// 소학회 회장 혁신인재지원금 월 지급액 (진행요원비 기준)
+export const CLUB_PRESIDENT_MONTHLY = 240000;
+
+export interface ClubMember {
+  role: string;        // 회장 / 팀원
+  name: string;
+  studentId: string;
+  department: string;
+  isMirae: boolean;    // 미래융합가상학과 소속 여부
+  phone: string;
+}
+
+export interface ClubDetail {
+  clubName: string;              // 소학회명
+  field: ClubField;              // 활동 분야
+  topic: string;                 // 활동 주제
+  advisor: string;               // 지도교수
+  intro?: string;                // 소학회 소개 (200자 이내)
+  achievements?: string;         // 특이사항(수상 경력 등)
+  members: ClubMember[];         // 회장 + 팀원 (최소 6명)
+  goals?: string;                // 활동 목표(정량·정성)
+  plan?: string;                 // 활동 계획
+  expectedOutcome?: string;      // 기대 성과
+  // 지원금 신청(fund) 단계
+  presidentMonths?: number;      // 소학회 회장 혁신인재지원금 신청 개월 수
+  budgetNote?: string;           // 운영비(회의비·재료·학회 참가 등) 사용 계획/비고
+  requestAmount: number;         // 총 신청 금액
+}
+
 // 근무상황부 1회 근무 기록
 export interface WorkLogEntry {
   date: string;       // YYYY-MM-DD
@@ -393,6 +431,7 @@ export interface Application {
   certificateDetail?: CertificateDetail;
   laborDetail?: LaborDetail;
   activityDetail?: ActivityDetail;
+  clubDetail?: ClubDetail;
 
   // 파일
   files: UploadedFile[];
@@ -463,6 +502,7 @@ export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
   certificate: "자격증 취득 우수성과 지원금",
   labor: "근로장학금",
   activity: "학생활동지원비",
+  club: "첨단 ICT 소학회",
 };
 
 export const TRANSPORT_MODE_LABELS: Record<TransportMode, string> = {

@@ -21,10 +21,11 @@ const typeDescriptions: Record<ApplicationType, string> = {
   certificate: "미래융합가상학과 학생 중 자격증을 취득한 학생",
   labor: "사업단 프로그램에 근로학생으로 참여 (근무상황부 기준 지급)",
   activity: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원",
+  club: "첨단 ICT 분야(보안·클라우드·블록체인 등) 소학회(동아리) 활동 지원",
 };
 
 const typeIcons: Record<ApplicationType, string> = {
-  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", activity: "🎒",
+  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", activity: "🎒", club: "🧑‍💻",
 };
 
 const categoryIcons: Record<FundCategory, string> = { labor: "🛠️", innovation: "🚀", activity: "🎒" };

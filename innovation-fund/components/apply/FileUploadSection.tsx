@@ -26,6 +26,7 @@ const TYPE_SPECIFIC: Record<ApplicationType, DocumentType[]> = {
   certificate: ["certificate_copy", "achievement_proof"],
   labor: ["work_log", "achievement_proof"],
   activity: ["participation_proof", "achievement_proof"],
+  club: ["participation_proof", "achievement_proof"],
 };
 
 // 유형별 제출서류 안내 문구
@@ -37,6 +38,7 @@ const DOC_GUIDE: Record<ApplicationType, string[]> = {
   certificate: ["신분증 사본", "통장 사본", "재학증명서", "자격증 사본", "취득 증빙자료"],
   labor: ["신분증 사본", "통장 사본", "재학증명서", "근무상황부 (지도교수·담당자 확인)"],
   activity: ["신분증 사본", "통장 사본", "재학증명서", "활동 계획서/결과보고서", "지출 증빙(영수증 등)"],
+  club: ["소학회 지원 신청서", "학기별 활동 계획서", "구성원 명단", "활동 증빙자료 (해당 시)", "지출 증빙(영수증 등, 지원금 신청 시)"],
 };
 
 const FALLBACK_GUIDE = ["신분증 사본", "통장 사본", "재학증명서"];

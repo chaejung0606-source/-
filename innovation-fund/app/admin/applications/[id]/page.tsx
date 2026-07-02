@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
@@ -283,6 +283,27 @@ export default function ApplicationDetailPage() {
         ...costRows(a.costDetail, a.transport, a.extraCosts),
         ...reportRows(a.reportEntries),
       ];
+    }
+    if (app.clubDetail) {
+      const c = app.clubDetail;
+      const members = (c.members || []).filter((m) => m.name || m.studentId);
+      const rows: [string, string][] = [
+        ["소학회명", c.clubName],
+        ["활동 분야", CLUB_FIELD_LABELS[c.field] || c.field || "-"],
+        ["활동 주제", c.topic],
+        ["지도교수", c.advisor],
+      ];
+      if (c.intro) rows.push(["소학회 소개", c.intro]);
+      if (c.achievements) rows.push(["특이사항", c.achievements]);
+      rows.push(["구성원", members.map((m) => `${m.role} ${m.name}(${m.studentId}${m.isMirae ? "·가상" : ""})`).join(", ") || "-"]);
+      rows.push(["미래융합가상학과 인원", `${members.filter((m) => m.isMirae).length} / ${members.length}명`]);
+      if (c.goals) rows.push(["활동 목표", c.goals]);
+      if (c.plan) rows.push(["활동 계획", c.plan]);
+      if (c.expectedOutcome) rows.push(["기대 성과", c.expectedOutcome]);
+      if (c.presidentMonths) rows.push(["회장 지원금", `${c.presidentMonths}개월 × 240,000원 = ${((c.presidentMonths || 0) * 240000).toLocaleString()}원`]);
+      if (c.budgetNote) rows.push(["운영비 사용 계획", c.budgetNote]);
+      if (c.requestAmount) rows.push(["총 신청 금액", `${(c.requestAmount || 0).toLocaleString()}원`]);
+      return rows;
     }
     return [];
   };

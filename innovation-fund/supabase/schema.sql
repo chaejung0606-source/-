@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS applications (
   certificate_detail JSONB,
   labor_detail JSONB,
   activity_detail JSONB,
+  club_detail JSONB,
 
   -- 파일 메타(실파일은 Storage), 서명
   files JSONB DEFAULT '[]',

@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application, ClassTime } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
+import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application, ClassTime, ClubDetail } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal, CLUB_PRESIDENT_MONTHLY } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
@@ -24,6 +24,7 @@ import ReportSection from "./ReportSection";
 import GradeDetailSection from "./GradeDetailSection";
 import ContestDetailSection from "./ContestDetailSection";
 import CertificateDetailSection from "./CertificateDetailSection";
+import ClubDetailSection from "./ClubDetailSection";
 import FileUploadSection from "./FileUploadSection";
 import DocumentSlotsSection, { type DocSlot } from "./DocumentSlotsSection";
 import ConsentSection from "./ConsentSection";
@@ -250,6 +251,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       }));
       if (d.reportEntries) setReportEntries(d.reportEntries);
     }
+    if (applicationType === "club" && prefill.clubDetail) {
+      const d = prefill.clubDetail;
+      // 지원신청(계획) 내용을 지원금 신청으로 이어받되, 금액 항목은 새로 입력
+      setClubDetail((p) => ({ ...p, ...d, presidentMonths: 0, budgetNote: "", requestAmount: 0 }));
+    }
   }, [prefill, applicationType]);
 
   const [gradeDetail, setGradeDetail] = useState<{
@@ -278,6 +284,14 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   const [certDetail, setCertDetail] = useState({
     certName: "", issuingOrg: "", acquisitionDate: "", certField: "",
     difficulty: "mid" as "high" | "mid" | "low" | "review", isMirae: false,
+  });
+  const [clubDetail, setClubDetail] = useState<ClubDetail>({
+    clubName: "", field: "" as ClubDetail["field"], topic: "", advisor: "",
+    intro: "", achievements: "",
+    members: [{ role: "회장", name: "", studentId: "", department: "", isMirae: false, phone: "" },
+      ...Array.from({ length: 5 }, () => ({ role: "팀원", name: "", studentId: "", department: "", isMirae: false, phone: "" }))],
+    goals: "", plan: "", expectedOutcome: "",
+    presidentMonths: 0, budgetNote: "", requestAmount: 0,
   });
 
   // 파일
@@ -311,6 +325,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (draft.gradeDetail) setGradeDetail((p) => ({ ...p, ...(draft.gradeDetail as any) }));
     if (draft.contestDetail) setContestDetail((p) => ({ ...p, ...(draft.contestDetail as any) }));
     if (draft.certificateDetail) setCertDetail((p) => ({ ...p, ...(draft.certificateDetail as any) }));
+    if (draft.clubDetail) setClubDetail((p) => ({ ...p, ...(draft.clubDetail as any) }));
   }, [draft]);
 
   // 계산 금액 (지원신청은 활동 전이므로 금액 없음)
@@ -326,6 +341,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
     if (applicationType === "certificate") return calcCertAmount(certDetail.difficulty);
     if (applicationType === "activity") return activityDetail.requestAmount;
+    if (applicationType === "club") return (clubDetail.presidentMonths || 0) * CLUB_PRESIDENT_MONTHLY;
     return calcSupportTotal(costDetail);
   };
 
@@ -333,6 +349,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (isPre) return 0;
     if (applicationType === "program") return calcSupportTotal(costDetail);
     if (applicationType === "activity") return activityDetail.requestAmount;
+    if (applicationType === "club") return clubDetail.requestAmount || 0;
     return getCalculatedAmount();
   };
 
@@ -352,6 +369,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     gradeDetail: applicationType === "grade" ? { ...gradeDetail, calculatedAmount: getCalculatedAmount() } : undefined,
     contestDetail: applicationType === "contest" ? { ...contestDetail, calculatedAmount: getCalculatedAmount() } : undefined,
     certificateDetail: applicationType === "certificate" ? { ...certDetail, calculatedAmount: getCalculatedAmount() } : undefined,
+    clubDetail: applicationType === "club" ? { ...clubDetail, requestAmount: getRequestAmount() } : undefined,
     files,
     privacyConsent: consent.privacy,
     truthConsent: consent.truth,
@@ -407,6 +425,20 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     if (applicationType === "activity") {
       if (!activityDetail.activityName.trim()) e.push("• 활동명을 입력해주세요.");
       if (!isPre && !(activityDetail.requestAmount > 0)) e.push("• 신청 금액을 입력해주세요.");
+    }
+    if (applicationType === "club") {
+      if (!clubDetail.clubName.trim()) e.push("• 소학회명을 입력해주세요.");
+      if (!clubDetail.field) e.push("• 활동 분야를 선택해주세요.");
+      if (!clubDetail.topic.trim()) e.push("• 활동 주제를 입력해주세요.");
+      if (!clubDetail.advisor.trim()) e.push("• 지도교수를 입력해주세요.");
+      const filledMembers = clubDetail.members.filter((m) => m.name.trim() && m.studentId.trim());
+      if (filledMembers.length < 6) e.push("• 소학회 구성원(회장 포함)을 최소 6명 입력해주세요. (이름·학번 필수)");
+      if (isPre) {
+        if (!clubDetail.goals?.trim()) e.push("• 활동 목표를 입력해주세요.");
+        if (!clubDetail.plan?.trim()) e.push("• 활동 계획을 입력해주세요.");
+      } else if (!(clubDetail.requestAmount > 0)) {
+        e.push("• 총 신청 금액을 입력해주세요.");
+      }
     }
     if (applicationType === "certificate") {
       if (!certDetail.certName.trim()) e.push("• 자격증명을 입력해주세요.");
@@ -684,6 +716,9 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       )}
       {step === 2 && applicationType === "activity" && (
         <ActivityDetailSection values={activityDetail} onChange={setActivityDetail} preOnly={isPre} />
+      )}
+      {step === 2 && applicationType === "club" && (
+        <ClubDetailSection values={clubDetail} onChange={setClubDetail} preOnly={isPre} />
       )}
       {step === 2 && !isPre && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
         <CostSection value={costDetail} onChange={setCostDetail} />

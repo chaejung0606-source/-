@@ -31,6 +31,7 @@ ALTER TABLE programs ADD COLUMN IF NOT EXISTS pre_apply_end TEXT;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS program_type TEXT;
 
 -- applications
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS club_detail JSONB; -- 첨단 ICT 소학회 활동 지원 상세
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS review_stage TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS handoff_note TEXT;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS form_answers JSONB;

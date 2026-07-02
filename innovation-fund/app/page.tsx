@@ -28,6 +28,7 @@ const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: str
   contest: { icon: "🏆", desc: "사업단 분야 관련 경진대회 입상자", note: "A규모·B규모 / 개인·팀 별 차등 지급" },
   certificate: { icon: "📜", desc: "미래융합가상학과 학생 대상 자격증 취득 지원", note: "난이도 상(70만원) · 중(40만원) · 하(10만원)" },
   activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
+  club: { icon: "🧑‍💻", desc: "첨단 ICT 분야(보안·클라우드·블록체인 등) 소학회(동아리) 활동 지원", note: "소학회별 최소 6명 · 회장 혁신인재지원금" },
 };
 
 const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
