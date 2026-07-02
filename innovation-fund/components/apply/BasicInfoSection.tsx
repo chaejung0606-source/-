@@ -1,4 +1,5 @@
 "use client";
+import type { Dispatch, SetStateAction } from "react";
 import { formatPhone } from "@/lib/validation";
 import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 
@@ -12,7 +13,7 @@ interface BasicInfo {
 
 interface Props {
   values: BasicInfo;
-  onChange: (v: BasicInfo) => void;
+  onChange: Dispatch<SetStateAction<BasicInfo>>;
   hideAccount?: boolean;  // 지원신청(활동 전): 계좌 정보 입력 생략
 }
 
@@ -22,7 +23,9 @@ const STATUSES = ["재학", "수료"];
 const BANKS = ["국민은행", "신한은행", "우리은행", "하나은행", "기업은행", "농협은행", "카카오뱅크", "토스뱅크", "SC제일은행", "대구은행", "부산은행", "기타"];
 
 export default function BasicInfoSection({ values, onChange, hideAccount = false }: Props) {
-  const set = (key: keyof BasicInfo, val: string) => onChange({ ...values, [key]: val });
+  // 함수형 업데이트 — 캠퍼스 변경 시 CampusDeptSelect가 캠퍼스·학과를 연달아 갱신해도
+  // 이전 값 스냅샷을 덮어써 캠퍼스가 되돌아가는 문제를 방지한다.
+  const set = (key: keyof BasicInfo, val: string) => onChange((prev) => ({ ...prev, [key]: val }));
 
   return (
     <div className="space-y-6">
