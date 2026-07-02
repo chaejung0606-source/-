@@ -34,12 +34,12 @@ var PROP_KEY = "SPACE_RENTAL_SHEET_ID"; // 자동 생성한 시트 ID를 기억�
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
-    if (data.action === "create") {
-      var eventId = createEvent_(data);
-      appendRow_(data, eventId);
-      return json_({ ok: true, eventId: eventId });
-    }
-    return json_({ ok: false, error: "unknown action" });
+    if (data.action !== "create") return json_({ ok: false, error: "unknown action" });
+    // 캘린더 등록이 실패(권한 등)해도 시트 기록은 반드시 남기도록 분리 처리
+    var eventId = "", calErr = "";
+    try { eventId = createEvent_(data); } catch (ce) { calErr = String(ce); }
+    appendRow_(data, eventId);
+    return json_({ ok: true, eventId: eventId, calendarError: calErr });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
@@ -122,9 +122,13 @@ function testOnce() {
   var end = new Date(start); end.setHours(11, 0, 0, 0);
   var eventId = "";
   if (cal) {
-    var ev = cal.createEvent("[공간대여] 테스트(삭제하세요)", start, end, { description: "권한/동작 테스트" });
-    eventId = ev.getId();
-    Logger.log("✅ 캘린더 이벤트 생성됨 · ID: " + eventId);
+    try {
+      var ev = cal.createEvent("[공간대여] 테스트(삭제하세요)", start, end, { description: "권한/동작 테스트" });
+      eventId = ev.getId();
+      Logger.log("✅ 캘린더 이벤트 생성됨 · ID: " + eventId);
+    } catch (ce) {
+      Logger.log("⚠️ 캘린더 이벤트 생성 실패(시트 기록은 계속 진행): " + ce + " — 이 캘린더에 '일정 변경' 권한이 있는지 확인하세요.");
+    }
   }
 
   // 시트 기록 테스트 (SHEET_ID 미설정 시 자동으로 시트를 만들고 링크를 로그에 출력)
