@@ -33,10 +33,12 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
     const el = ref.current;
     if (!el) return;
     const EDGE = 6; // 경계 감지 여유(px)
+    const MIN_COL = 30, MIN_ROW = 20;
     let mode: "col" | "row" | null = null;
-    let cell: HTMLTableCellElement | null = null;
+    let table: HTMLTableElement | null = null;
+    let row: HTMLTableRowElement | null = null;
     let colIdx = -1;
-    let startX = 0, startY = 0, startW = 0, startH = 0;
+    let startX = 0, startY = 0, startColW = 0, startTableW = 0, startRowH = 0;
 
     const cellFrom = (node: EventTarget | null): HTMLTableCellElement | null => {
       let n = node as Node | null;
@@ -54,6 +56,19 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
       if (Math.abs(e.clientY - r.bottom) <= EDGE) return "row";
       return null;
     };
+    // 열 너비를 현재 렌더 값으로 고정(table-layout:fixed) — 이후 안/바깥 경계 모두 동일하게 조절
+    const freezeCols = (t: HTMLTableElement): number[] => {
+      const first = t.querySelector("tr");
+      if (!first) return [];
+      const widths = Array.from(first.children).map((c) => Math.round((c as HTMLElement).getBoundingClientRect().width));
+      t.style.tableLayout = "fixed";
+      t.querySelectorAll("tr").forEach((tr) => {
+        Array.from(tr.children).forEach((c, i) => { if (widths[i]) (c as HTMLElement).style.width = `${widths[i]}px`; });
+      });
+      const total = widths.reduce((a, b) => a + b, 0);
+      t.style.width = `${total}px`;
+      return widths;
+    };
 
     const onElMove = (e: MouseEvent) => {
       if (mode) return; // 드래그 중엔 document 핸들러가 처리
@@ -61,22 +76,24 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
       el.style.cursor = h === "col" ? "col-resize" : h === "row" ? "row-resize" : "";
     };
     const onDocMove = (e: MouseEvent) => {
-      if (!mode || !cell) return;
+      if (!mode || !table) return;
       e.preventDefault();
       if (mode === "col") {
-        const w = Math.max(24, Math.round(startW + (e.clientX - startX)));
-        cell.closest("table")?.querySelectorAll("tr").forEach((tr) => {
+        const newW = Math.max(MIN_COL, Math.round(startColW + (e.clientX - startX)));
+        // 해당 열 너비를 조절하고, 표 전체 너비도 delta만큼 함께 변경
+        // → 가장 바깥 선도 안쪽 선과 동일하게 줄었다/늘어남
+        table.querySelectorAll("tr").forEach((tr) => {
           const c = tr.children[colIdx] as HTMLElement | undefined;
-          if (c) c.style.width = `${w}px`;
+          if (c) c.style.width = `${newW}px`;
         });
-      } else {
-        const h = Math.max(20, Math.round(startH + (e.clientY - startY)));
-        (cell.parentElement as HTMLElement).style.height = `${h}px`;
+        table.style.width = `${Math.round(startTableW - startColW + newW)}px`;
+      } else if (row) {
+        row.style.height = `${Math.max(MIN_ROW, Math.round(startRowH + (e.clientY - startY)))}px`;
       }
     };
     const onUp = () => {
       const wasDragging = !!mode;
-      mode = null; cell = null; el.style.cursor = "";
+      mode = null; table = null; row = null; el.style.cursor = "";
       document.removeEventListener("mousemove", onDocMove);
       document.removeEventListener("mouseup", onUp);
       if (wasDragging && ref.current) onChangeRef.current(ref.current.innerHTML);
@@ -86,11 +103,18 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
       if (!h) return;
       const c = cellFrom(e.target)!;
       e.preventDefault(); // 캐럿 이동·텍스트 선택 방지
-      mode = h; cell = c;
-      const r = c.getBoundingClientRect();
-      startX = e.clientX; startY = e.clientY; startW = r.width;
-      startH = (c.parentElement as HTMLElement).getBoundingClientRect().height;
-      colIdx = Array.from(c.parentElement!.children).indexOf(c);
+      table = c.closest("table");
+      if (!table) return;
+      mode = h; startX = e.clientX; startY = e.clientY;
+      if (h === "col") {
+        colIdx = Array.from(c.parentElement!.children).indexOf(c);
+        const widths = freezeCols(table);
+        startColW = widths[colIdx] || Math.round(c.getBoundingClientRect().width);
+        startTableW = widths.reduce((a, b) => a + b, 0);
+      } else {
+        row = c.parentElement as HTMLTableRowElement;
+        startRowH = row.getBoundingClientRect().height;
+      }
       document.addEventListener("mousemove", onDocMove);
       document.addEventListener("mouseup", onUp);
     };
@@ -383,7 +407,7 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
         onInput={emit}
         onCompositionStart={() => { composing.current = true; }}
         onCompositionEnd={() => { composing.current = false; emit(); }}
-        className="rich-content min-h-[220px] p-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-indigo-200"
+        className="rich-content min-h-[220px] p-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-indigo-200 overflow-x-auto"
       />
     </div>
   );
