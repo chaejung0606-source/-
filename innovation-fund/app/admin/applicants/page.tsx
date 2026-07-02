@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText } from "lucide-react";
+import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText, Bell, Send, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
@@ -60,11 +60,14 @@ export default function ApplicantsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [progFilter, setProgFilter] = useState<string>("all");   // 학생 검색을 프로그램별로 필터
   const [eligSearch, setEligSearch] = useState("");
   const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible">("students");
   const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
   const [infoModal, setInfoModal] = useState<Applicant | null>(null);
+  const [notifyOpen, setNotifyOpen] = useState(false);          // 선택 학생에게 알림 보내기 모달
+  const [selected, setSelected] = useState<Set<string>>(new Set()); // 선택된 학생(applicant.id)
   // 신청자 등록(회원가입 처리)
   const [regOpen, setRegOpen] = useState(false);
   const [regBusy, setRegBusy] = useState(false);
@@ -78,7 +81,6 @@ export default function ApplicantsPage() {
     fetchPrograms().then((p) => setPrograms(p)).catch(() => {});
   }, [unlocked]);
 
-  const filtered = useMemo(() => list.filter((a) => matchTerms(a, search)), [list, search]);
   const progNameById = useMemo(() => Object.fromEntries(programs.map((p) => [p.id, p.name])), [programs]);
 
   // 학번 기준으로 신청 내역 묶기 (학번 변경 이력 포함) — 학생별 '신청정보' 표시용
@@ -93,6 +95,39 @@ export default function ApplicantsPage() {
     ids.forEach((sid) => (appsByStudent[sid] || []).forEach((app) => { if (!seen.has(app.id)) { seen.add(app.id); out.push(app); } }));
     return out.sort((x, y) => String(y.createdAt || y.applicationDate || "").localeCompare(String(x.createdAt || x.applicationDate || "")));
   };
+
+  // 한 학생이 관련된 프로그램명 집합 (신청 내역 + 지정 프로그램)
+  const programNamesOf = (a: Applicant): Set<string> => {
+    const names = new Set<string>();
+    appsOf(a).forEach((app) => { const n = progNameOf(app); if (n && n !== "(프로그램 미지정)") names.add(n); });
+    (a.designated_programs || []).forEach((key) => { const nm = progNameById[parseDesigKey(key).programId]; if (nm) names.add(nm); });
+    return names;
+  };
+
+  // 학생 검색: 학번/이름 + 프로그램별 필터
+  const filtered = useMemo(
+    () => list.filter((a) => matchTerms(a, search) && (progFilter === "all" || programNamesOf(a).has(progFilter))),
+    [list, search, progFilter, appsByStudent, progNameById]
+  );
+
+  // 학생 검색용 프로그램 선택지 (프로그램 목록 + 신청 데이터에 등장한 프로그램)
+  const studentProgramOptions = useMemo(() => {
+    const names = new Set<string>();
+    programs.forEach((p) => p.name && names.add(p.name));
+    apps.forEach((a) => { const n = progNameOf(a); if (n && n !== "(프로그램 미지정)") names.add(n); });
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [programs, apps]);
+
+  // 선택된(그리고 현재 목록에 있는) 신청자 = 알림 수신자
+  const recipients = useMemo(() => list.filter((a) => selected.has(a.id)), [list, selected]);
+  const toggleSelect = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selected.has(a.id));
+  const toggleSelectAll = () => setSelected((s) => {
+    const n = new Set(s);
+    if (allFilteredSelected) filtered.forEach((a) => n.delete(a.id));
+    else filtered.forEach((a) => n.add(a.id));
+    return n;
+  });
 
   // 프로그램별 신청 가능 학생 = 승인 신청(미취소) + '지정학생만' 단계에 지정된 학생(학생 검색에서 지정)
   const eligibleRows = useMemo<EligRow[]>(() => {
@@ -218,23 +253,45 @@ export default function ApplicantsPage() {
 
       {view === "students" ? (
         <>
-          <div className="card mb-4 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="card mb-4 space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-end gap-2 flex-wrap">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <select className="input-field !w-auto text-sm" value={progFilter} onChange={(e) => setProgFilter(e.target.value)} title="프로그램별로 학생 검색">
+                  <option value="all">전체 프로그램</option>
+                  {studentProgramOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
               </div>
-              <p className="text-xs text-gray-400 mt-2">{filtered.length}명</p>
+              <button onClick={() => { setRegForm({ studentId: "", name: "", password: "", university: "강원대학교", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" }); setRegOpen(true); }} className="btn-primary text-sm flex items-center gap-1.5">
+                <UserPlus className="w-4 h-4" /> 신청자 등록
+              </button>
             </div>
-            <button onClick={() => { setRegForm({ studentId: "", name: "", password: "", university: "강원대학교", campus: "춘천", department: "", phone: "", email: "", bankName: "", accountNumber: "", accountHolder: "" }); setRegOpen(true); }} className="btn-primary text-sm flex items-center gap-1.5">
-              <UserPlus className="w-4 h-4" /> 신청자 등록
-            </button>
+            {/* 검색 결과 · 선택 학생에게 알림 보내기 */}
+            <div className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-gray-100">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span>{filtered.length}명{progFilter !== "all" ? ` · ${progFilter}` : ""}</span>
+                {selected.size > 0 && <span className="text-indigo-600 font-semibold">선택 {selected.size}명</span>}
+                {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="text-gray-400 hover:text-rose-500">선택 해제</button>}
+              </div>
+              <button
+                onClick={() => setNotifyOpen(true)}
+                disabled={selected.size === 0}
+                className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={selected.size === 0 ? "왼쪽 체크박스로 학생을 선택하세요" : "선택한 학생에게 알림 보내기"}
+              >
+                <Bell className="w-4 h-4" /> 알림 보내기{selected.size > 0 ? ` (${selected.size})` : ""}
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-[32px]">
             <table className="table-glass text-sm">
               <thead>
                 <tr>
+                  <th className="text-center whitespace-nowrap"><input type="checkbox" className="w-4 h-4 align-middle" checked={allFilteredSelected} onChange={toggleSelectAll} title="현재 목록 전체 선택" /></th>
                   <th className="text-center whitespace-nowrap">연번</th>
                   <th className="whitespace-nowrap">학번</th>
                   <th className="whitespace-nowrap">이름</th>
@@ -251,9 +308,10 @@ export default function ApplicantsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={12} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                  <tr><td colSpan={13} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
                 ) : filtered.map((a, idx) => (
-                  <tr key={a.id}>
+                  <tr key={a.id} className={selected.has(a.id) ? "bg-indigo-50/40" : ""}>
+                    <td className="text-center"><input type="checkbox" className="w-4 h-4 align-middle" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} /></td>
                     <td className="text-center text-gray-400 text-xs">{idx + 1}</td>
                     <td className="font-mono text-xs">
                       {a.student_id}
@@ -370,6 +428,15 @@ export default function ApplicantsPage() {
           programs={programs}
           onClose={() => setDesignateModal(null)}
           onSave={(ids) => saveDesignatedPrograms(designateModal, ids)}
+        />
+      )}
+
+      {notifyOpen && (
+        <NotifyModal
+          applicants={recipients}
+          apps={recipients.length === 1 ? appsOf(recipients[0]) : []}
+          onClose={() => setNotifyOpen(false)}
+          onSent={() => setSelected(new Set())}
         />
       )}
 
@@ -519,6 +586,144 @@ function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: A
             <button onClick={() => onSave(sel)} className="btn-primary text-sm">저장 ({sel.length})</button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 선택한 신청자(들)에게 알림(요청 건) 보내기 — 신청자 마이페이지 왼쪽 대시보드 '관리자 요청 건'에 표시된다.
+interface SentNoti {
+  id: string; title: string; body: string; createdAt: string; receiptNumber?: string; readAt?: string | null; doneAt?: string | null;
+}
+function NotifyModal({ applicants, apps, onClose, onSent }: { applicants: Applicant[]; apps: Application[]; onClose: () => void; onSent: () => void }) {
+  const single = applicants.length === 1 ? applicants[0] : null;
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [appId, setAppId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [okMsg, setOkMsg] = useState("");
+  const [sent, setSent] = useState<SentNoti[]>([]);
+  const [loading, setLoading] = useState(!!single);
+
+  // 한 명만 선택한 경우, 그 학생에게 보낸 요청 건 이력을 함께 관리
+  const refresh = () => {
+    if (!single) return;
+    setLoading(true);
+    fetch(`/api/admin/notifications?studentId=${encodeURIComponent(single.student_id)}`)
+      .then((r) => r.json())
+      .then((d) => setSent(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(refresh, [single?.student_id]);
+
+  const send = async () => {
+    if (!applicants.length) { alert("수신 학생을 선택해주세요."); return; }
+    if (!title.trim() && !body.trim()) { alert("제목 또는 내용을 입력해주세요."); return; }
+    setBusy(true); setOkMsg("");
+    try {
+      const linked = apps.find((a) => a.id === appId);
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds: applicants.map((a) => a.student_id),
+          title: title.trim(), body: body.trim(),
+          applicationId: single ? (appId || undefined) : undefined,
+          receiptNumber: single ? (linked?.receiptNumber || undefined) : undefined,
+        }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("전송 실패: " + (j.error || res.status)); return; }
+      setTitle(""); setBody(""); setAppId("");
+      setOkMsg(`${j.count || applicants.length}명에게 알림을 보냈습니다.`);
+      onSent();
+      refresh();
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("이 요청 건을 회수(삭제)하시겠습니까?")) return;
+    setSent((s) => s.filter((n) => n.id !== id));
+    await fetch("/api/admin/notifications", {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="modal-backdrop absolute inset-0" onClick={onClose} />
+      <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8 flex items-center gap-1.5"><Bell className="w-5 h-5 text-indigo-500" /> 알림 보내기</h2>
+        <p className="text-sm text-gray-500 mb-3">선택한 <strong>{applicants.length}명</strong>에게 같은 안내(요청 건)를 보냅니다. 신청자가 로그인하면 마이페이지 왼쪽 <strong>‘관리자 요청 건’</strong>에 표시되어 확인·수행할 수 있습니다.</p>
+
+        {/* 수신자 목록 */}
+        <div className="mb-4 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+          {applicants.map((a) => (
+            <span key={a.id} className="badge bg-indigo-50 text-indigo-700">{a.name || "-"}<span className="text-indigo-400 ml-1">{a.student_id}</span></span>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="label">제목</label>
+            <input className="input-field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예) 통장 사본 재제출 요청" />
+          </div>
+          <div>
+            <label className="label">안내 내용</label>
+            <textarea className="input-field min-h-[96px]" value={body} onChange={(e) => setBody(e.target.value)} placeholder="신청자가 수행할 내용을 안내해주세요." />
+          </div>
+          {single && apps.length > 0 && (
+            <div>
+              <label className="label">연결할 신청 건 (선택)</label>
+              <select className="input-field" value={appId} onChange={(e) => setAppId(e.target.value)}>
+                <option value="">연결 안 함</option>
+                {apps.filter((a) => !a.isDraft).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.receiptNumber || "접수번호 없음"} · {APPLICATION_PHASE_LABELS[a.applicationPhase || "fund"]} {APPLICATION_TYPE_LABELS[a.applicationType]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end items-center gap-3">
+            {okMsg && <span className="text-xs text-green-600 font-medium">✓ {okMsg}</span>}
+            <button onClick={send} disabled={busy} className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-60">
+              <Send className="w-4 h-4" /> {busy ? "보내는 중..." : `${applicants.length}명에게 보내기`}
+            </button>
+          </div>
+        </div>
+
+        {single && (
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 mb-2">{single.name}({single.student_id})님에게 보낸 요청 건 {sent.length > 0 ? `(${sent.length})` : ""}</p>
+            {loading ? (
+              <p className="text-xs text-gray-400 py-2">불러오는 중...</p>
+            ) : sent.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">아직 보낸 요청 건이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                {sent.map((n) => (
+                  <div key={n.id} className="rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        {n.title && <div className="text-sm font-semibold text-gray-800 break-words">{n.title}</div>}
+                        {n.body && <div className="text-xs text-gray-600 whitespace-pre-line break-words mt-0.5">{n.body}</div>}
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {n.receiptNumber ? `접수 ${n.receiptNumber} · ` : ""}
+                          {n.createdAt ? new Date(n.createdAt).toLocaleString("ko-KR") : ""}
+                          {" · "}
+                          {n.doneAt ? <span className="text-emerald-600 font-medium">✔ 확인 완료</span> : n.readAt ? <span className="text-blue-600">읽음</span> : <span className="text-gray-400">미확인</span>}
+                        </div>
+                      </div>
+                      <button onClick={() => remove(n.id)} className="shrink-0 text-gray-400 hover:text-rose-500" title="회수(삭제)"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

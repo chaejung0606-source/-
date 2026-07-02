@@ -71,7 +71,7 @@ export default function ContentAdminPage() {
               initialHtml={htmlFromContent(tc)}
               onChange={(html) => setType(t, { ...tc, html })}
             />
-            <p className="text-[11px] text-gray-400 mt-2">표 삽입·글자색·정렬 등은 위 도구막대를 사용하세요. 저장하면 홈 화면 모달에 그대로 표시됩니다.</p>
+            <p className="text-[11px] text-gray-400 mt-2">표 삽입·표 넓이·셀 색상·글자색·정렬 등은 위 도구막대를 사용하세요. 저장하면 홈 화면 모달에 그대로 표시됩니다.</p>
           </div>
         );
       })()}

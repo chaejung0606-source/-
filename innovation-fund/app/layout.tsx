@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Nanum_Pen_Script, Black_Han_Sans } from "next/font/google";
 import "./globals.css";
 import CursorGlitter from "@/components/common/CursorGlitter";
+import ApplicantDashboard from "@/components/mypage/ApplicantDashboard";
 
 const handwriting = Nanum_Pen_Script({
   weight: "400",
@@ -36,6 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* 마우스 포인터를 따라다니는 반짝이 */}
         <CursorGlitter />
         {children}
+        {/* 신청자 로그인 시 모든 페이지 왼쪽에 뜨는 '내 신청 현황' 대시보드 (관리자 영역 제외) */}
+        <ApplicantDashboard />
       </body>
     </html>
   );
