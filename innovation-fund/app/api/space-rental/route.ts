@@ -42,8 +42,8 @@ export async function GET() {
   let calendarError = false;
   try { calendar = await fetchCalendarSlots(calendarId); } catch { calendarError = true; }
   const booked = [...calendar, ...requestSlots(requests)];
-  // 신청자에게는 이름·수용인원만 노출 (세부정보 비공개)
-  const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity }));
+  // 신청자에게는 이름·수용인원·사진만 노출 (그 외 세부정보 비공개)
+  const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photo: s.photo }));
   return NextResponse.json({ spaces: publicSpaces, booked, calendarError, pledge, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
 }
 

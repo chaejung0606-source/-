@@ -34,6 +34,20 @@ export default function SpaceRentalAdminPage() {
   const setSpace = (i: number, patch: Partial<RentalSpace>) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, ...patch } : x));
   const removeSpace = (i: number) => setSpaces((s) => s.filter((_, idx) => idx !== i));
 
+  // 장소 사진 업로드 (documents 버킷 site/ → /api/site-file 로 노출)
+  const [uploading, setUploading] = useState<number | null>(null);
+  const uploadPhoto = async (i: number, file: File) => {
+    setUploading(i);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/site-upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("사진 업로드 실패: " + (j.error || res.status)); return; }
+      setSpace(i, { photo: `/api/site-file?path=${encodeURIComponent(j.path)}` });
+    } finally { setUploading(null); }
+  };
+
   const saveConfig = async () => {
     const clean = spaces.map((s) => ({ ...s, name: s.name.trim() })).filter((s) => s.name);
     const res = await fetch("/api/admin/space-rental", {
@@ -82,19 +96,31 @@ export default function SpaceRentalAdminPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 px-1">
               <span className="flex-1">공간명 (신청자에게 표시)</span>
-              <span className="w-28">수용 인원(명)</span>
+              <span className="w-24">수용 인원(명)</span>
+              <span className="w-36">장소 사진</span>
               <span className="w-4" />
             </div>
             {spaces.map((s, i) => (
               <div key={s.id} className="flex items-center gap-2">
                 <input className="input-field flex-1" value={s.name} onChange={(e) => setSpace(i, { name: e.target.value })} placeholder="공간명 (예: 데이터라이브러리 · 사이버 워룸)" />
-                <input type="number" min={0} className="input-field w-28" value={s.capacity ?? ""} onChange={(e) => setSpace(i, { capacity: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="예: 30" />
+                <input type="number" min={0} className="input-field w-24" value={s.capacity ?? ""} onChange={(e) => setSpace(i, { capacity: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="예: 30" />
+                <div className="w-36 flex items-center gap-1.5">
+                  {s.photo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.photo} alt="" className="w-9 h-9 rounded object-cover border border-gray-200" />
+                  )}
+                  <label className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 cursor-pointer whitespace-nowrap">
+                    {uploading === i ? "업로드…" : s.photo ? "변경" : "사진 추가"}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(i, f); e.target.value = ""; }} />
+                  </label>
+                  {s.photo && <button onClick={() => setSpace(i, { photo: undefined })} className="text-gray-300 hover:text-rose-500 text-xs" title="사진 삭제">✕</button>}
+                </div>
                 <button onClick={() => removeSpace(i)} className="text-gray-400 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
           </div>
         )}
-        <p className="text-[11px] text-gray-400 mt-2">※ 신청자에게는 <strong>공간명·수용 인원만</strong> 표시됩니다. (서암관·의생명대 도서실은 대여 공간에서 제외)</p>
+        <p className="text-[11px] text-gray-400 mt-2">※ 신청자에게는 <strong>공간명·수용 인원·사진만</strong> 표시됩니다. 신청자가 장소를 클릭하면 사진을 볼 수 있습니다. (서암관·의생명대 도서실은 대여 공간에서 제외)</p>
         <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
           <div>
             <label className="label">구글 캘린더 ID (공개 캘린더 · 홈/공간대여에 보기 전용으로 표시)</label>

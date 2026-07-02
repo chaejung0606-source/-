@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight } from "lucide-react";
+import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight, X, ImageIcon } from "lucide-react";
 import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 
-interface PublicSpace { id: string; name: string; capacity?: number; }
+interface PublicSpace { id: string; name: string; capacity?: number; photo?: string; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
 
 const fmtSlot = (n: number) => {
@@ -20,6 +20,7 @@ export default function SpaceRentalPage() {
   const [pledge, setPledge] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -117,7 +118,7 @@ export default function SpaceRentalPage() {
           )}
         </div>
 
-        {/* 대여 가능한 장소 정보 (공간명·수용 인원) */}
+        {/* 대여 가능한 장소 정보 (공간명·수용 인원) — 클릭 시 장소 사진 보기 */}
         <div className="card mb-6">
           <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><MapPin className="w-5 h-5 text-indigo-500" /> 대여 가능한 장소</h2>
           {loading ? (
@@ -125,14 +126,17 @@ export default function SpaceRentalPage() {
           ) : spaces.length === 0 ? (
             <p className="text-sm text-gray-400">등록된 대여 장소가 없습니다.</p>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {spaces.map((s) => (
-                <button key={s.id} onClick={() => openForm(s.id)} className="text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
-                  <div className="font-semibold text-sm text-gray-800">{s.name}</div>
-                  {s.capacity != null && <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> 수용 인원 {s.capacity}명</div>}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {spaces.map((s) => (
+                  <button key={s.id} onClick={() => setPhotoSpace(s)} className="text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
+                    <div className="font-semibold text-sm text-gray-800 flex items-center gap-1">{s.name}{s.photo && <ImageIcon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}</div>
+                    {s.capacity != null && <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> 수용 인원 {s.capacity}명</div>}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">장소를 클릭하면 사진을 볼 수 있습니다. 신청은 위 ‘신청하기’ 버튼을 눌러주세요.</p>
+            </>
           )}
         </div>
 
@@ -253,6 +257,27 @@ export default function SpaceRentalPage() {
           </div>
         ) : null}
       </div>
+
+      {/* 장소 사진 보기 모달 */}
+      {photoSpace && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="modal-backdrop absolute inset-0" onClick={() => setPhotoSpace(null)} />
+          <div className="modal relative w-full max-w-2xl max-h-[88vh] overflow-y-auto p-5">
+            <button onClick={() => setPhotoSpace(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+            <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">{photoSpace.name}</h2>
+            {photoSpace.capacity != null && <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Users className="w-4 h-4" /> 수용 인원 {photoSpace.capacity}명</p>}
+            {photoSpace.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoSpace.photo} alt={photoSpace.name} className="w-full rounded-xl border border-gray-100" />
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center text-sm text-gray-400 flex flex-col items-center gap-2">
+                <ImageIcon className="w-8 h-8 text-gray-300" />
+                등록된 사진이 없습니다.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

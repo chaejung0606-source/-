@@ -15,7 +15,7 @@ export function calendarEmbedUrl(calendarId: string): string {
   return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=Asia%2FSeoul&mode=MONTH&showTitle=0&showPrint=0&showTabs=1&showCalendars=0`;
 }
 
-export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; }
+export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; photo?: string; }
 
 // 대여 가능 장소 기본값 — 인프라 시트 기준(서암관·의생명대 도서실 제외). 관리자가 수정 가능.
 export const DEFAULT_SPACES: RentalSpace[] = [
@@ -52,7 +52,7 @@ export interface BookedSlot { start: number; end: number; label: string; source:
 export function normalizeSpaces(v: unknown): RentalSpace[] {
   if (!Array.isArray(v)) return [];
   return v.filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
-    .map((s) => ({ id: String(s.id || ""), name: String(s.name || ""), capacity: s.capacity != null && s.capacity !== "" ? Number(s.capacity) || undefined : undefined, note: s.note ? String(s.note) : undefined }))
+    .map((s) => ({ id: String(s.id || ""), name: String(s.name || ""), capacity: s.capacity != null && s.capacity !== "" ? Number(s.capacity) || undefined : undefined, note: s.note ? String(s.note) : undefined, photo: s.photo ? String(s.photo) : undefined }))
     .filter((s) => s.id && s.name);
 }
 export function normalizeRequests(v: unknown): RentalRequest[] {
