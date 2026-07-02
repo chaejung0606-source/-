@@ -238,13 +238,6 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
-        {/* 신청 기능은 상단바 메뉴(지원신청·지원금신청·소학회·공간대여)에서 이용 */}
-        <section>
-          <p className="text-base sm:text-lg font-semibold text-red-600">
-            상단 메뉴에서 <strong>지원신청 · 지원금신청 · 소학회 · 공간대여</strong>를 신청할 수 있습니다. 신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
-          </p>
-        </section>
-
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
