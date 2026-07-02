@@ -85,7 +85,6 @@ export default function ProgramsAdminPage() {
   };
   // 템플릿 설정 탭: 선택한 템플릿 내용(스키마) 편집(로컬) → '템플릿 저장'으로 일괄 반영
   const setTemplateSchemaLocal = (id: string, schema: FormSchema) => { setTemplates((ts) => ts.map((t) => t.id === id ? { ...t, schema } : t)); };
-  const saveAllTemplates = () => persistTemplates(templates);
   const deleteTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
     if (t && !window.confirm(`템플릿 ‘${t.name}’을(를) 삭제할까요?`)) return;
@@ -122,13 +121,8 @@ export default function ProgramsAdminPage() {
   }, [selectedId, selectedStep, list]);
   const remove = (id: string) => { setList((l) => l.filter((p) => p.id !== id)); setSelectedId(null); setSaved(false); };
 
-  // 성과형 신청기한 저장
+  // 성과형 신청기한 — 값 변경(저장은 상단 통합 '저장' 버튼)
   const setPeriod = (t: string, k: "start" | "end", v: string) => { setPeriods((p) => ({ ...p, [t]: { ...p[t], [k]: v } })); setPeriodsSaved(false); };
-  const savePeriods = async () => {
-    const res = await fetch("/api/type-periods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ periods }) });
-    const j = await res.json().catch(() => ({ ok: false }));
-    if (j.ok) { setPeriodsSaved(true); } else { alert("저장 실패: " + (j.error || "알 수 없는 오류")); }
-  };
   const add = (kind: ProgKind) => {
     const category = categoryOfKind(kind);
     const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(kind === "club" ? { programType: "club" as const } : category === "innovation" ? { programType: (kind === "staff" ? "staff" : "program") as "program" | "staff" } : {}) };
@@ -155,6 +149,7 @@ export default function ProgramsAdminPage() {
   const schemaOf = (p: Program): FormSchema | undefined => p[schemaKey];
   const setSchema = (p: Program, schema: FormSchema) => update(p.id, { [schemaKey]: schema });
 
+  // 통합 저장 — 프로그램·폼·성과형 신청기한·템플릿을 한 번에 저장(상단 '저장' 버튼 하나로)
   const save = async () => {
     if (saving) return;
     setSaving(true);
@@ -163,14 +158,16 @@ export default function ProgramsAdminPage() {
       list.forEach((p) => {
         if (p.preFormSchema || p.fundFormSchema) forms[p.id] = { pre: p.preFormSchema, fund: p.fundFormSchema };
       });
-      const [r1, r2] = await Promise.all([
-        fetch("/api/admin/programs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programs: list }) }),
-        fetch("/api/admin/program-forms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ forms }) }),
+      const post = (url: string, body: unknown) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const rs = await Promise.all([
+        post("/api/admin/programs", { programs: list }),
+        post("/api/admin/program-forms", { forms }),
+        post("/api/type-periods", { periods }),
+        post("/api/admin/form-templates", { templates }),
       ]);
-      const j1 = await r1.json().catch(() => ({}));
-      const j2 = await r2.json().catch(() => ({}));
-      if (j1.ok && j2.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
-      else alert("저장 실패: " + (j1.error || j2.error || `${r1.status}/${r2.status}`));
+      const js = await Promise.all(rs.map((r) => r.json().catch(() => ({}))));
+      if (js.every((j) => j.ok)) { setSaved(true); setPeriodsSaved(true); setTimeout(() => setSaved(false), 2500); }
+      else alert("저장 실패: " + (js.find((j) => !j.ok)?.error || "일부 항목이 저장되지 않았습니다."));
     } finally {
       setSaving(false);
     }
@@ -180,7 +177,7 @@ export default function ProgramsAdminPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-800">프로그램 신청 내용</h1>
-        {tab !== "templates" && <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}</button>}
+        <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}</button>
       </div>
 
       {/* 하위 메뉴 */}
@@ -564,27 +561,14 @@ export default function ProgramsAdminPage() {
               <div className="card space-y-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <input className="input-field flex-1 min-w-[200px] font-bold" value={t.name} onChange={(e) => setTemplates((ts) => ts.map((x) => x.id === t.id ? { ...x, name: e.target.value } : x))} placeholder="템플릿 이름" />
-                  <button onClick={saveAllTemplates} className="btn-primary text-sm flex items-center gap-1"><Save className="w-4 h-4" /> 템플릿 저장</button>
                   <button onClick={() => { deleteTemplate(t.id); setTplEditId(null); }} className="btn-secondary text-sm text-rose-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
                 </div>
                 <SchemaForm editable schema={t.schema} accent="#6366f1" onChange={(s) => setTemplateSchemaLocal(t.id, s)} />
-                <p className="text-[11px] text-gray-400">선택한 템플릿의 내용만 수정합니다. ‘템플릿 저장’을 눌러야 반영됩니다.</p>
+                <p className="text-[11px] text-gray-400">선택한 템플릿의 내용을 수정한 뒤 <strong>오른쪽 위 ‘저장’</strong>을 누르면 반영됩니다.</p>
               </div>
             );
           })()}
         </div>
-      )}
-
-      {/* 스크롤을 내려도 따라오는 저장 버튼 (편집·검색 탭) */}
-      {tab !== "templates" && (
-        <button
-          onClick={save}
-          disabled={saving}
-          className="btn-primary fixed bottom-6 right-6 z-40 shadow-xl flex items-center gap-2 disabled:opacity-60"
-          title="변경 내용 저장 (상단 ‘저장’과 동일하게 신청 폼에 반영)"
-        >
-          <Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}
-        </button>
       )}
 
       {/* 성과형 신청기한 탭 — 프로그램이 없는 성적·경진대회·자격증의 학기별 신청기한 */}
@@ -610,9 +594,7 @@ export default function ProgramsAdminPage() {
               {!periods[t]?.start && !periods[t]?.end && <p className="text-[11px] text-gray-400 mt-1.5">※ 미설정 — 현재 상시 신청 가능</p>}
             </div>
           ))}
-          <button onClick={savePeriods} className="btn-primary flex items-center gap-1.5">
-            <Save className="w-4 h-4" /> 신청기한 저장{periodsSaved ? "됨 ✓" : ""}
-          </button>
+          <p className="text-[11px] text-gray-400">오른쪽 위 <strong>‘저장’</strong>을 누르면 신청기한이 함께 저장됩니다.{periodsSaved ? " ✓ 저장됨" : ""}</p>
         </div>
       )}
     </AdminLayout>

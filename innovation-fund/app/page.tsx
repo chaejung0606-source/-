@@ -274,7 +274,17 @@ export default function Home() {
                   <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-1">{APPLICATION_TYPE_LABELS[type]} <ChevronRight className="w-4 h-4 text-gray-300" /></h3>
                   <p className="text-sm text-gray-600 mb-3">{m.desc}</p>
                   {m.note && (
-                    <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl" style={{ background: "rgba(96,165,250,0.12)" }}>{m.note}</p>
+                    <p className="text-xs font-semibold text-sky-600 px-3 py-1.5 rounded-xl mb-2" style={{ background: "rgba(96,165,250,0.12)" }}>{m.note}</p>
+                  )}
+                  {/* 우수성과 지원금(성적·경진대회·자격증): 신청기간 표시 */}
+                  {(PERIOD_TYPES as readonly string[]).includes(type) && (
+                    periodLabel(typePeriods[type]) ? (
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${isTypeOpen(typePeriods[type]) ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        🗓️ 신청기간 {periodLabel(typePeriods[type])}{isTypeOpen(typePeriods[type]) ? " · 신청 가능" : " · 신청 불가"}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">🗓️ 상시 신청 가능</span>
+                    )
                   )}
                 </button>
               );
