@@ -1,27 +1,34 @@
 /**
- * 공간대여 승인 → 구글 캘린더 이벤트 생성 + 구글시트 기록
+ * 공간대여 승인 → 구글 캘린더 이벤트 생성 + 구글시트 자동 기록
  * ────────────────────────────────────────────────────────────
+ * ★ 시트 ID를 몰라도 됩니다.
+ *   SHEET_ID를 비워두면(""), 이 스크립트가 실행 계정(=내 구글 계정)의 드라이브에
+ *   "공간대여 일정 기록" 스프레드시트를 자동으로 새로 만들고, 그 링크를 실행 로그에 찍어줍니다.
+ *   (한 번 만들면 그 시트 ID를 스크립트에 기억해 두고 계속 같은 시트에 기록합니다.)
+ *   → 기존에 "테스트가 안 뜬" 이유는 대부분 SHEET_ID가 실제 시트와 다르거나 편집 권한이 없어서였습니다.
+ *     이 방식은 내가 만든 내 시트라 항상 권한이 있어 확실히 기록됩니다.
+ *
  * 사용 방법
- * 1) https://script.google.com 에서 새 프로젝트를 만들고 이 코드를 붙여넣습니다.
- * 2) 아래 CONFIG 값을 채웁니다.
- *    - CALENDAR_ID : 공간대여 구글 캘린더 ID (기본값 입력해 둠)
- *    - SHEET_ID    : 승인 기록을 남길 구글 스프레드시트 ID
- *                    (URL의 /d/ 와 /edit 사이 문자열. 예: 1DylY5o5QUDG1IqGXNhMEeGi_lTiD_Du77UVS2IO3fbE)
- *    - SHEET_NAME  : 기록할 시트(탭) 이름 (없으면 자동 생성)
- * 3) 프로젝트 설정(⚙️)에서 시간대를 (GMT+09:00) 서울로 지정합니다. (시간 오차 방지)
- * 4) 이 스크립트를 실행하는 구글 계정이 위 캘린더에 "일정 변경" 권한, 시트에 "편집" 권한이 있어야 합니다.
- * 5) 배포 → 새 배포 → 유형: 웹 앱
+ * 1) https://script.google.com → 새 프로젝트 → 이 코드 전체를 붙여넣습니다.
+ * 2) 프로젝트 설정(⚙️)에서 시간대를 (GMT+09:00) 서울로 지정합니다. (시간 오차 방지)
+ * 3) 함수 목록에서 testOnce 를 선택하고 ▶ 실행 → 권한 승인(내 계정) →
+ *    [실행 로그]에 "📄 기록용 구글시트: https://docs.google.com/..." 링크가 뜹니다. 그 링크를 열어 시트를 확인하세요.
+ *    (직접 만든 빈 시트를 쓰고 싶다면, 그 시트를 열어 URL의 /d/ 와 /edit 사이 문자열을 아래 SHEET_ID 에 붙여넣으면 됩니다.)
+ * 4) 배포 → 새 배포 → 유형: 웹 앱
  *    - 실행 계정: 나(Me)
  *    - 액세스 권한: 모든 사용자(Anyone)
  *    배포 후 나오는 웹 앱 URL(.../exec)을 복사합니다.
- * 6) 플랫폼 관리자 → 공간대여 → 대여가능공간 → "승인 시 구글시트·캘린더 자동 반영 웹훅 URL"에 붙여넣고 저장합니다.
+ * 5) 플랫폼 관리자 → 공간대여 → 대여가능공간 →
+ *    "승인 시 구글시트·캘린더 자동 반영 웹훅 URL"에 붙여넣고 저장합니다.
  *    이제 신청을 "승인"하면 이 스크립트가 캘린더 이벤트를 만들고 시트에 한 줄을 기록합니다.
  */
 
 // ── CONFIG ─────────────────────────────────────────────────
 var CALENDAR_ID = "eb8f4a81fedc9b901da25bb794fd0a87dfe45ccd099450880debe57c8b02efd0@group.calendar.google.com";
-var SHEET_ID = "1Ujr7AN2Z1_cV4bH5QUMWrA68rrj3meN9n6EyqYe2-po";   // 공간대여 일정 기록 스프레드시트
-var SHEET_NAME = "공간대여신청";                 // 기록 탭 이름 (없으면 자동 생성)
+var SHEET_ID = "";                 // 비워두면 스크립트가 시트를 자동 생성(권장). 직접 만든 시트를 쓰려면 그 ID를 여기에.
+var SHEET_NAME = "공간대여신청";     // 기록할 시트(탭) 이름 (없으면 자동 생성)
+var HEADERS = ["승인일시", "장소", "사용일", "시작", "종료", "신청자", "학번/소속", "연락처", "이메일", "인원", "사용목적", "접수일시", "캘린더이벤트ID"];
+var PROP_KEY = "SPACE_RENTAL_SHEET_ID"; // 자동 생성한 시트 ID를 기억해 두는 스크립트 속성 키
 // ───────────────────────────────────────────────────────────
 
 function doPost(e) {
@@ -59,15 +66,39 @@ function parseDT_(dateStr, timeStr) {
   return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), Number(t[0] || 0), Number(t[1] || 0), 0);
 }
 
-// 구글시트에 승인 기록 한 줄 추가
-function appendRow_(d, eventId) {
-  if (!SHEET_ID || SHEET_ID === "여기에_스프레드시트_ID_입력") return; // 시트 미설정 시 건너뜀
-  var ss = SpreadsheetApp.openById(SHEET_ID);
+// 기록용 스프레드시트(탭)를 반환. SHEET_ID가 비어 있으면 자동 생성하고 ID를 기억한다.
+function getRecordSheet_() {
+  var ss = null;
+  var configured = SHEET_ID && SHEET_ID.indexOf("여기에") === -1;
+  if (configured) {
+    ss = SpreadsheetApp.openById(SHEET_ID);
+  } else {
+    var props = PropertiesService.getScriptProperties();
+    var savedId = props.getProperty(PROP_KEY);
+    if (savedId) { try { ss = SpreadsheetApp.openById(savedId); } catch (e) { ss = null; } }
+    if (!ss) {
+      ss = SpreadsheetApp.create("공간대여 일정 기록");
+      props.setProperty(PROP_KEY, ss.getId());
+      Logger.log("📄 기록용 구글시트를 새로 만들었습니다: " + ss.getUrl());
+    }
+  }
   var sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
-    sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(["승인일시", "장소", "사용일", "시작", "종료", "신청자", "학번/소속", "연락처", "이메일", "인원", "사용목적", "접수일시", "캘린더이벤트ID"]);
+    var first = ss.getSheets()[0];
+    // 새 시트의 기본 빈 탭이면 이름만 바꿔 사용, 아니면 새 탭 추가
+    if (first && first.getLastRow() === 0 && /^(시트1|Sheet1)$/.test(first.getName())) {
+      sh = first; sh.setName(SHEET_NAME);
+    } else {
+      sh = ss.insertSheet(SHEET_NAME);
+    }
+    sh.appendRow(HEADERS);
   }
+  return sh;
+}
+
+// 구글시트에 승인 기록 한 줄 추가
+function appendRow_(d, eventId) {
+  var sh = getRecordSheet_();
   sh.appendRow([
     new Date(),
     d.spaceName || d.location || "",
@@ -82,25 +113,32 @@ function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// (선택) 배포 전 권한 승인·동작 확인용 테스트 — 실행 후 [실행 로그]와 캘린더(내일 10~11시)를 확인하세요.
+// (선택) 배포 전 권한 승인·동작 확인용 테스트 — 실행 후 [실행 로그]에서 시트 링크와 캘린더(내일 10~11시)를 확인하세요.
 function testOnce() {
   var cal = CalendarApp.getCalendarById(CALENDAR_ID);
   Logger.log(cal ? ("캘린더 찾음: " + cal.getName()) : "❌ 캘린더를 찾지 못함 — CALENDAR_ID 또는 접근 권한을 확인하세요.");
-  if (!cal) return;
 
-  // 내일 10:00~11:00 (현재 달 화면에서 바로 보이도록)
   var start = new Date(); start.setDate(start.getDate() + 1); start.setHours(10, 0, 0, 0);
   var end = new Date(start); end.setHours(11, 0, 0, 0);
-  var ev = cal.createEvent("[공간대여] 테스트(삭제하세요)", start, end, { description: "권한/동작 테스트" });
-  Logger.log("✅ 캘린더 이벤트 생성됨 · ID: " + ev.getId());
-
-  // 시트 기록 테스트
-  try {
-    appendRow_({ spaceName: "테스트공간", date: Utilities.formatDate(start, "Asia/Seoul", "yyyy-MM-dd"), start: "10:00", end: "11:00", applicantName: "테스트", studentId: "-", purpose: "권한 테스트" }, ev.getId());
-    Logger.log("✅ 시트 기록 성공 (SHEET_ID: " + SHEET_ID + ", 탭: " + SHEET_NAME + ")");
-  } catch (err) {
-    Logger.log("⚠️ 시트 기록 실패: " + err + " — SHEET_ID/편집권한 확인");
+  var eventId = "";
+  if (cal) {
+    var ev = cal.createEvent("[공간대여] 테스트(삭제하세요)", start, end, { description: "권한/동작 테스트" });
+    eventId = ev.getId();
+    Logger.log("✅ 캘린더 이벤트 생성됨 · ID: " + eventId);
   }
+
+  // 시트 기록 테스트 (SHEET_ID 미설정 시 자동으로 시트를 만들고 링크를 로그에 출력)
+  try {
+    appendRow_({ spaceName: "테스트공간", date: Utilities.formatDate(start, "Asia/Seoul", "yyyy-MM-dd"), start: "10:00", end: "11:00", applicantName: "테스트", studentId: "-", purpose: "권한 테스트" }, eventId);
+    Logger.log("✅ 시트 기록 성공 → 기록용 구글시트: " + getRecordSheet_().getParent().getUrl());
+  } catch (err) {
+    Logger.log("⚠️ 시트 기록 실패: " + err);
+  }
+}
+
+// 자동 생성/사용 중인 기록 시트의 링크를 확인 (언제든 실행해서 시트 URL 확인 가능)
+function showSheetUrl() {
+  Logger.log("기록용 구글시트: " + getRecordSheet_().getParent().getUrl());
 }
 
 // 접근 가능한 캘린더 목록 확인용 (CALENDAR_ID가 안 맞을 때 이걸로 실제 ID를 찾으세요)
