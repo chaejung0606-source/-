@@ -8,7 +8,6 @@ import { logout, verifyPassword } from "@/lib/auth";
 import { fromRow } from "@/lib/app-mapper";
 import { formatPhone } from "@/lib/validation";
 import TimetableEditor from "@/components/mypage/TimetableEditor";
-import ApplicantDashboard from "@/components/mypage/ApplicantDashboard";
 import CampusDeptSelect from "@/components/common/CampusDeptSelect";
 import type { Application, ClassTime } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
@@ -309,8 +308,6 @@ export default function MyPage() {
 
   return (
     <div className="min-h-screen">
-      {/* 로그인 시 왼쪽에 뜨는 신청 현황 + 관리자 요청 건 대시보드 */}
-      <ApplicantDashboard />
       {/* 헤더 */}
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">

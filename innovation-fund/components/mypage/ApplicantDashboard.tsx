@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { Bell, ChevronLeft, ChevronRight, ClipboardCheck, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { fromRow } from "@/lib/app-mapper";
@@ -10,6 +11,9 @@ import type { AdminNotification } from "@/lib/notifications";
 // 신청자 로그인 시 왼쪽에 뜨는 '조그맣고 간단한' 신청상태 대시보드.
 // 현재 신청 현황 요약 + 관리자 요청 건(알림)을 확인/수행할 수 있다.
 export default function ApplicantDashboard() {
+  const pathname = usePathname();
+  // 관리자 영역에서는 표시하지 않음 (그 외 신청자 플랫폼의 모든 페이지에서 노출)
+  const hidden = pathname?.startsWith("/admin");
   const [ready, setReady] = useState(false);
   const [apps, setApps] = useState<Application[]>([]);
   const [notis, setNotis] = useState<AdminNotification[]>([]);
@@ -37,9 +41,10 @@ export default function ApplicantDashboard() {
   }, []);
 
   useEffect(() => {
+    if (hidden) return;
     fetch("/api/admin/status-config").then((r) => r.json()).then(setCfg).catch(() => {});
     load();
-  }, [load]);
+  }, [load, hidden]);
 
   const ack = async (id: string, action: "read" | "done" | "undone") => {
     setBusy(id);
@@ -73,7 +78,7 @@ export default function ApplicantDashboard() {
     });
   }, [ready, open, notis]);
 
-  if (!ready) return null;
+  if (hidden || !ready) return null;
 
   const submitted = apps.filter((a) => !a.isDraft && !a.canceled);
   const drafts = apps.filter((a) => a.isDraft && !a.canceled);
