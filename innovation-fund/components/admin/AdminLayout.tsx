@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog } from "lucide-react";
+import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog, CalendarClock } from "lucide-react";
 
 // expenseOnly: 지출관리자(전체 권한)만 보이는 메뉴. 프로그램별 관리자는 '신청 목록'만.
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/applicants", label: "신청자 정보", icon: Users, expenseOnly: true },
   { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap, expenseOnly: true },
   { href: "/admin/programs", label: "프로그램 신청 내용", icon: CalendarRange, expenseOnly: true },
+  { href: "/admin/space-rental", label: "공간대여 신청", icon: CalendarClock, expenseOnly: true },
   { href: "/admin/content", label: "유형별 지급 기준", icon: ListChecks, expenseOnly: true },
   { href: "/admin/certificates", label: "자격증 목록", icon: Award, expenseOnly: true },
   { href: "/admin/admins", label: "관리자 설정", icon: UserCog, expenseOnly: true },

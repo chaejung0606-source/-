@@ -295,6 +295,25 @@ export default function Home() {
             </div>
           </div>
 
+          {/* 3행: 공간대여 신청 (지원금과 별개) */}
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
+              <span className="text-xl">🏫</span> 공간대여 신청
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
+              <div className="card flex flex-col">
+                <div className="text-3xl mb-3">🏫</div>
+                <h3 className="font-bold text-lg text-gray-800 mb-2">공간대여 신청</h3>
+                <div className="mb-5 flex-1">
+                  <p className="text-sm text-gray-600">세미나실·실습실 등 사업단 공간을 대여 신청합니다. 이미 예약된 장소·시간은 신청할 수 없습니다.</p>
+                </div>
+                <Link href="/space-rental" className="btn-primary w-full justify-center">
+                  공간대여 신청하기 <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
           <p className="text-base sm:text-lg font-semibold text-red-600">
             신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
           </p>
