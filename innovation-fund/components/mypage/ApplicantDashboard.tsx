@@ -5,7 +5,6 @@ import { Bell, ChevronLeft, ChevronRight, ClipboardCheck, Check, X } from "lucid
 import { supabase } from "@/lib/supabase";
 import { fromRow } from "@/lib/app-mapper";
 import type { Application } from "@/types";
-import { statusMeta, DEFAULT_STATUS_CONFIG, type StatusConfig } from "@/lib/status-config";
 import type { AdminNotification } from "@/lib/notifications";
 
 // 신청자 로그인 시 왼쪽에 뜨는 '조그맣고 간단한' 신청상태 대시보드.
@@ -17,34 +16,36 @@ export default function ApplicantDashboard() {
   const [ready, setReady] = useState(false);
   const [apps, setApps] = useState<Application[]>([]);
   const [notis, setNotis] = useState<AdminNotification[]>([]);
-  const [cfg, setCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    const user = auth.user;
-    if (!user) { setReady(false); return; }
+  // 로그인 세션이 준비되면(어느 페이지에서든) 신청 현황·관리자 요청 건을 불러온다.
+  const loadFor = useCallback(async (userId: string, token: string) => {
     const { data } = await supabase
-      .from("applications").select("*").eq("applicant_id", user.id).order("created_at", { ascending: false });
+      .from("applications").select("*").eq("applicant_id", userId).order("created_at", { ascending: false });
     setApps((data || []).map(fromRow));
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      try {
-        const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${session.access_token}` } });
-        const j = await r.json().catch(() => []);
-        setNotis(Array.isArray(j) ? j : []);
-      } catch { /* noop */ }
-    }
+    try {
+      const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json().catch(() => []);
+      setNotis(Array.isArray(j) ? j : []);
+    } catch { /* noop */ }
     setReady(true);
   }, []);
 
   useEffect(() => {
     if (hidden) return;
-    fetch("/api/admin/status-config").then((r) => r.json()).then(setCfg).catch(() => {});
-    load();
-  }, [load, hidden]);
+    let alive = true;
+    const apply = (session: { user?: { id: string }; access_token?: string } | null | undefined) => {
+      if (!alive) return;
+      if (session?.user?.id && session.access_token) loadFor(session.user.id, session.access_token);
+      else { setReady(false); setApps([]); setNotis([]); }
+    };
+    // 초기 세션(로컬 저장소) — 페이지 첫 로드 시 인증 준비 타이밍 문제 방지
+    supabase.auth.getSession().then(({ data }) => apply(data.session));
+    // 로그인/로그아웃/토큰 갱신 시 즉시 반영
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => apply(session));
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }, [hidden, loadFor]);
 
   const ack = async (id: string, action: "read" | "done" | "undone") => {
     setBusy(id);
