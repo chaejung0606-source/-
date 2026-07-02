@@ -44,9 +44,10 @@ export const PRE_CATEGORY_TYPE: Record<FundCategory, ApplicationType> = {
 };
 
 // 지원금 종류 선택(평탄화): 혁신인재지원금 그룹 대신 유형을 개별 카드로 노출
-export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "club"];
+// (소학회는 독립 메뉴로 분리 — 지원신청/지원금신청 하위 목록에는 포함하지 않음)
+export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
 // 지원신청(활동 전) 가능 유형
-export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff", "club"];
+export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff"];
 
 export type GradeSubType = "microdegree" | "minor" | "double";
 export type ContestScale = "A" | "B";
