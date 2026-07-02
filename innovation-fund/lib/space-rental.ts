@@ -30,7 +30,7 @@ export const DEFAULT_SPACES: RentalSpace[] = [
   { id: "sp-eng5-106-2", name: "공과대학 5호관 (106-2호)", capacity: 6 },
   { id: "sp-eng5-106-3", name: "공과대학 5호관 (106-3호)", capacity: 6 },
 ];
-export type RentalStatus = "pending" | "approved" | "rejected";
+export type RentalStatus = "pending" | "approved" | "rejected" | "supplement";
 export interface RentalRequest {
   id: string;
   spaceId: string; spaceName: string;
@@ -65,7 +65,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       phone: String(r.phone || ""), email: String(r.email || ""),
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
       agree: !!r.agree,
-      status: (["pending", "approved", "rejected"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
+      status: (["pending", "approved", "rejected", "supplement"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,
       calendarEventId: r.calendarEventId ? String(r.calendarEventId) : undefined,

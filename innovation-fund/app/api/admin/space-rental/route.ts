@@ -22,10 +22,15 @@ async function pushToCalendar(webhook: string | undefined, r: RentalRequest): Pr
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "create",
+        // 캘린더 이벤트
         title: `[공간대여] ${r.spaceName} · ${r.applicantName}`,
         location: r.spaceName,
         date: r.date, start: r.start, end: r.end,
         description: `신청자: ${r.applicantName} (${r.studentId})\n인원: ${r.headcount}명\n목적: ${r.purpose}\n연락처: ${r.phone}`,
+        // 구글시트 반영용 상세 필드
+        spaceName: r.spaceName, applicantName: r.applicantName, studentId: r.studentId,
+        phone: r.phone, email: r.email, headcount: r.headcount, purpose: r.purpose,
+        createdAt: r.createdAt,
       }),
     });
     const j = await res.json().catch(() => ({}));
@@ -84,7 +89,7 @@ export async function PATCH(req: NextRequest) {
   const { data } = await admin.from("app_config").select("value").eq("key", REQUESTS_KEY).maybeSingle();
   const list = normalizeRequests(data?.value);
   const target = list.find((r) => r.id === id);
-  const newStatus = ["pending", "approved", "rejected"].includes(String(b.status)) ? String(b.status) : undefined;
+  const newStatus = ["pending", "approved", "rejected", "supplement"].includes(String(b.status)) ? String(b.status) : undefined;
 
   // 대기→승인 전환 시 캘린더에 이벤트 생성(웹훅 설정된 경우)
   let eventId: string | undefined;
