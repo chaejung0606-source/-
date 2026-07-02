@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useEffect, useState } from "react";
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Table as TableIcon, Type, Highlighter, Link as LinkIcon, Rows, Columns, Trash2 } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, Table as TableIcon, Type, Highlighter, Link as LinkIcon, Rows, Columns, Trash2, PaintBucket, MoveHorizontal } from "lucide-react";
 
 // 한글(HWP) 작업용 리치 텍스트 에디터 — 글자크기·색·배경색·링크·표(삽입/행열 편집)
 interface Props {
@@ -132,6 +132,59 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
     emit();
   };
 
+  // 현재 표
+  const currentTable = (): HTMLTableElement | null => currentCell()?.closest("table") ?? null;
+
+  // 선택 영역에 걸친 셀들(여러 셀 선택 시 모두) — 없으면 현재 커서 셀 하나
+  const selectedCells = (): HTMLTableCellElement[] => {
+    const table = currentTable();
+    if (!table) return [];
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const hit = (Array.from(table.querySelectorAll("td,th")) as HTMLTableCellElement[])
+        .filter((td) => range.intersectsNode(td));
+      if (hit.length) return hit;
+    }
+    const c = currentCell();
+    return c ? [c] : [];
+  };
+
+  // 셀 배경색 지정 / 지우기
+  const applyCellColor = (color: string) => {
+    const cells = selectedCells();
+    if (!cells.length) { alert("표 안의 셀에 커서를 두거나 셀을 드래그해 선택하세요."); return; }
+    cells.forEach((c) => { c.style.backgroundColor = color; });
+    emit();
+  };
+  const clearCellColor = () => {
+    const cells = selectedCells();
+    if (!cells.length) { alert("표 안의 셀에 커서를 두거나 셀을 드래그해 선택하세요."); return; }
+    cells.forEach((c) => { c.style.backgroundColor = ""; });
+    emit();
+  };
+
+  // 표 전체 넓이 조절 (% 또는 auto)
+  const setTableWidth = (w: string) => {
+    const table = currentTable();
+    if (!table) { alert("표 안에 커서를 두고 사용하세요."); return; }
+    table.style.width = w;
+    emit();
+  };
+
+  // 현재 열 넓이 조절 (px) — 빈 값이면 자동
+  const setColWidth = (px: string) => {
+    const cell = currentCell();
+    if (!cell) { alert("표 안에 커서를 두고 사용하세요."); return; }
+    const idx = Array.from(cell.parentElement!.children).indexOf(cell);
+    const value = px ? `${px}px` : "";
+    cell.closest("table")?.querySelectorAll("tr").forEach((tr) => {
+      const c = tr.children[idx] as HTMLElement | undefined;
+      if (c) c.style.width = value;
+    });
+    emit();
+  };
+
   const Btn = ({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) => (
     <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={onClick}
       className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-indigo-50 hover:text-indigo-600">
@@ -200,7 +253,44 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
                   <button type="button" onClick={delCol} className="flex items-center gap-1 text-xs text-rose-600 hover:bg-rose-50 px-1.5 py-1 rounded"><Trash2 className="w-3.5 h-3.5" /> 열 삭제</button>
                   <button type="button" onClick={delTable} className="col-span-2 flex items-center justify-center gap-1 text-xs text-rose-600 hover:bg-rose-50 px-1.5 py-1 rounded"><Trash2 className="w-3.5 h-3.5" /> 표 전체 삭제</button>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5">행·열 편집은 표 안에 커서를 두고 사용하세요.</p>
+
+                {/* 표 넓이 조절 */}
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><MoveHorizontal className="w-3.5 h-3.5" /> 표 넓이</p>
+                  <div className="flex flex-wrap gap-1">
+                    {["100%", "75%", "50%", "auto"].map((w) => (
+                      <button key={w} type="button" onClick={() => setTableWidth(w)}
+                        className="text-xs text-gray-700 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 px-2 py-1 rounded">
+                        {w === "auto" ? "자동" : w}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <span className="text-[11px] text-gray-500">현재 열 넓이</span>
+                    <input type="number" min={20} placeholder="px" onMouseDown={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => { if (e.key === "Enter") { setColWidth((e.target as HTMLInputElement).value); } }}
+                      onBlur={(e) => setColWidth(e.target.value)}
+                      className="w-16 h-7 rounded-lg border border-gray-200 text-xs px-1.5 text-gray-600" />
+                    <span className="text-[11px] text-gray-400">px (Enter)</span>
+                  </div>
+                </div>
+
+                {/* 셀 색상 지정 */}
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><PaintBucket className="w-3.5 h-3.5" /> 셀 색상</p>
+                  <div className="flex items-center gap-1.5">
+                    <label className="flex items-center gap-1 text-xs text-gray-700 border border-gray-200 hover:border-indigo-300 px-2 py-1 rounded cursor-pointer relative">
+                      <span className="w-4 h-4 rounded border border-gray-300 bg-gradient-to-br from-rose-300 to-indigo-300" />
+                      색 채우기
+                      <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => applyCellColor(e.target.value)} />
+                    </label>
+                    <button type="button" onClick={clearCellColor}
+                      className="text-xs text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 px-2 py-1 rounded">지우기</button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">셀을 드래그해 여러 칸을 함께 칠할 수 있어요.</p>
+                </div>
+
+                <p className="text-[10px] text-gray-400 mt-1.5">행·열 편집·넓이·색상은 표 안에 커서를 두고 사용하세요.</p>
               </div>
             </>
           )}
