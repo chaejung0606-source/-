@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText } from "lucide-react";
+import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText, Bell, Send, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
@@ -65,6 +65,7 @@ export default function ApplicantsPage() {
   const [view, setView] = useState<"students" | "eligible">("students");
   const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
   const [infoModal, setInfoModal] = useState<Applicant | null>(null);
+  const [notifyModal, setNotifyModal] = useState<Applicant | null>(null);
   // 신청자 등록(회원가입 처리)
   const [regOpen, setRegOpen] = useState(false);
   const [regBusy, setRegBusy] = useState(false);
@@ -295,10 +296,15 @@ export default function ApplicantsPage() {
                         </Link>
                       </div>
                     </td>
-                    <td className="text-center">
-                      <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
-                        <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
-                      </button>
+                    <td className="text-center whitespace-nowrap">
+                      <div className="inline-flex flex-col gap-1 items-stretch">
+                        <button onClick={() => setNotifyModal(a)} className="text-xs font-semibold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 inline-flex items-center justify-center gap-1" title="이 신청자에게 안내(요청 건) 보내기">
+                          <Bell className="w-3.5 h-3.5" /> 알림 보내기
+                        </button>
+                        <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center justify-center gap-1">
+                          <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -370,6 +376,14 @@ export default function ApplicantsPage() {
           programs={programs}
           onClose={() => setDesignateModal(null)}
           onSave={(ids) => saveDesignatedPrograms(designateModal, ids)}
+        />
+      )}
+
+      {notifyModal && (
+        <NotifyModal
+          applicant={notifyModal}
+          apps={appsOf(notifyModal)}
+          onClose={() => setNotifyModal(null)}
         />
       )}
 
@@ -518,6 +532,124 @@ function DesignateModal({ applicant, programs, onClose, onSave }: { applicant: A
             <button onClick={onClose} className="btn-secondary text-sm">취소</button>
             <button onClick={() => onSave(sel)} className="btn-primary text-sm">저장 ({sel.length})</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 신청자에게 알림(요청 건) 보내기 — 신청자 마이페이지 왼쪽 대시보드 '관리자 요청 건'에 표시된다.
+interface SentNoti {
+  id: string; title: string; body: string; createdAt: string; receiptNumber?: string; readAt?: string | null; doneAt?: string | null;
+}
+function NotifyModal({ applicant, apps, onClose }: { applicant: Applicant; apps: Application[]; onClose: () => void }) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [appId, setAppId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<SentNoti[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = () => {
+    fetch(`/api/admin/notifications?studentId=${encodeURIComponent(applicant.student_id)}`)
+      .then((r) => r.json())
+      .then((d) => setSent(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(refresh, [applicant.student_id]);
+
+  const send = async () => {
+    if (!title.trim() && !body.trim()) { alert("제목 또는 내용을 입력해주세요."); return; }
+    setBusy(true);
+    try {
+      const linked = apps.find((a) => a.id === appId);
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds: [applicant.student_id], title: title.trim(), body: body.trim(),
+          applicationId: appId || undefined, receiptNumber: linked?.receiptNumber || undefined,
+        }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("전송 실패: " + (j.error || res.status)); return; }
+      setTitle(""); setBody(""); setAppId("");
+      refresh();
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("이 요청 건을 회수(삭제)하시겠습니까?")) return;
+    setSent((s) => s.filter((n) => n.id !== id));
+    await fetch("/api/admin/notifications", {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="modal-backdrop absolute inset-0" onClick={onClose} />
+      <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8 flex items-center gap-1.5"><Bell className="w-5 h-5 text-indigo-500" /> 알림 보내기</h2>
+        <p className="text-sm text-gray-500 mb-4"><strong>{applicant.name}({applicant.student_id})</strong> 님에게 안내할 요청 건을 보냅니다. 신청자가 로그인하면 마이페이지 왼쪽 <strong>‘관리자 요청 건’</strong>에 표시되어 확인·수행할 수 있습니다.</p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="label">제목</label>
+            <input className="input-field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예) 통장 사본 재제출 요청" />
+          </div>
+          <div>
+            <label className="label">안내 내용</label>
+            <textarea className="input-field min-h-[96px]" value={body} onChange={(e) => setBody(e.target.value)} placeholder="신청자가 수행할 내용을 안내해주세요." />
+          </div>
+          {apps.length > 0 && (
+            <div>
+              <label className="label">연결할 신청 건 (선택)</label>
+              <select className="input-field" value={appId} onChange={(e) => setAppId(e.target.value)}>
+                <option value="">연결 안 함</option>
+                {apps.filter((a) => !a.isDraft).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.receiptNumber || "접수번호 없음"} · {APPLICATION_PHASE_LABELS[a.applicationPhase || "fund"]} {APPLICATION_TYPE_LABELS[a.applicationType]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button onClick={send} disabled={busy} className="btn-primary text-sm flex items-center gap-1.5 disabled:opacity-60">
+              <Send className="w-4 h-4" /> {busy ? "보내는 중..." : "보내기"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-gray-100">
+          <p className="text-xs font-semibold text-gray-500 mb-2">보낸 요청 건 {sent.length > 0 ? `(${sent.length})` : ""}</p>
+          {loading ? (
+            <p className="text-xs text-gray-400 py-2">불러오는 중...</p>
+          ) : sent.length === 0 ? (
+            <p className="text-xs text-gray-400 py-2">아직 보낸 요청 건이 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {sent.map((n) => (
+                <div key={n.id} className="rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {n.title && <div className="text-sm font-semibold text-gray-800 break-words">{n.title}</div>}
+                      {n.body && <div className="text-xs text-gray-600 whitespace-pre-line break-words mt-0.5">{n.body}</div>}
+                      <div className="text-[10px] text-gray-400 mt-1">
+                        {n.receiptNumber ? `접수 ${n.receiptNumber} · ` : ""}
+                        {n.createdAt ? new Date(n.createdAt).toLocaleString("ko-KR") : ""}
+                        {" · "}
+                        {n.doneAt ? <span className="text-emerald-600 font-medium">✔ 확인 완료</span> : n.readAt ? <span className="text-blue-600">읽음</span> : <span className="text-gray-400">미확인</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => remove(n.id)} className="shrink-0 text-gray-400 hover:text-rose-500" title="회수(삭제)"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
