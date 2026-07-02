@@ -198,7 +198,10 @@ function ApplyInner() {
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link href="/" className="text-indigo-500 hover:text-indigo-700"><ArrowLeft className="w-5 h-5" /></Link>
-          <Shield className="w-6 h-6 text-indigo-600" />
+          <div className="w-9 h-9 flex items-center justify-center shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/sdu-shield.png" alt="SDU 사업단 로고" className="w-full h-full object-contain" />
+          </div>
           <span className="font-bold holo-text">{APPLICATION_PHASE_LABELS[mode]}</span>
           <div className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>

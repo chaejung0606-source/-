@@ -17,6 +17,9 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
   const [tableMenu, setTableMenu] = useState(false);
   const [grid, setGrid] = useState({ r: 0, c: 0 }); // 그리드 선택기 하이라이트
   const emit = () => { if (ref.current && !composing.current) onChange(ref.current.innerHTML); };
+  // 리사이즈 커밋 시 항상 최신 onChange를 호출하기 위한 ref
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     const el = ref.current;
@@ -24,6 +27,83 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
     if (document.activeElement === el || composing.current) return;
     if (el.innerHTML !== initialHtml) el.innerHTML = initialHtml;
   }, [initialHtml]);
+
+  // 표 선(테두리)을 직접 드래그해 열 너비·행 높이 조절 — 셀 오른쪽/아래 경계 근처에서 드래그
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const EDGE = 6; // 경계 감지 여유(px)
+    let mode: "col" | "row" | null = null;
+    let cell: HTMLTableCellElement | null = null;
+    let colIdx = -1;
+    let startX = 0, startY = 0, startW = 0, startH = 0;
+
+    const cellFrom = (node: EventTarget | null): HTMLTableCellElement | null => {
+      let n = node as Node | null;
+      while (n && n !== el) {
+        if (n.nodeType === 1 && /^(TD|TH)$/.test((n as HTMLElement).tagName)) return n as HTMLTableCellElement;
+        n = n.parentNode;
+      }
+      return null;
+    };
+    const hit = (e: MouseEvent): "col" | "row" | null => {
+      const c = cellFrom(e.target);
+      if (!c) return null;
+      const r = c.getBoundingClientRect();
+      if (Math.abs(e.clientX - r.right) <= EDGE) return "col";
+      if (Math.abs(e.clientY - r.bottom) <= EDGE) return "row";
+      return null;
+    };
+
+    const onElMove = (e: MouseEvent) => {
+      if (mode) return; // 드래그 중엔 document 핸들러가 처리
+      const h = hit(e);
+      el.style.cursor = h === "col" ? "col-resize" : h === "row" ? "row-resize" : "";
+    };
+    const onDocMove = (e: MouseEvent) => {
+      if (!mode || !cell) return;
+      e.preventDefault();
+      if (mode === "col") {
+        const w = Math.max(24, Math.round(startW + (e.clientX - startX)));
+        cell.closest("table")?.querySelectorAll("tr").forEach((tr) => {
+          const c = tr.children[colIdx] as HTMLElement | undefined;
+          if (c) c.style.width = `${w}px`;
+        });
+      } else {
+        const h = Math.max(20, Math.round(startH + (e.clientY - startY)));
+        (cell.parentElement as HTMLElement).style.height = `${h}px`;
+      }
+    };
+    const onUp = () => {
+      const wasDragging = !!mode;
+      mode = null; cell = null; el.style.cursor = "";
+      document.removeEventListener("mousemove", onDocMove);
+      document.removeEventListener("mouseup", onUp);
+      if (wasDragging && ref.current) onChangeRef.current(ref.current.innerHTML);
+    };
+    const onDown = (e: MouseEvent) => {
+      const h = hit(e);
+      if (!h) return;
+      const c = cellFrom(e.target)!;
+      e.preventDefault(); // 캐럿 이동·텍스트 선택 방지
+      mode = h; cell = c;
+      const r = c.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY; startW = r.width;
+      startH = (c.parentElement as HTMLElement).getBoundingClientRect().height;
+      colIdx = Array.from(c.parentElement!.children).indexOf(c);
+      document.addEventListener("mousemove", onDocMove);
+      document.addEventListener("mouseup", onUp);
+    };
+
+    el.addEventListener("mousemove", onElMove);
+    el.addEventListener("mousedown", onDown);
+    return () => {
+      el.removeEventListener("mousemove", onElMove);
+      el.removeEventListener("mousedown", onDown);
+      document.removeEventListener("mousemove", onDocMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   // CSS 인라인 스타일로 적용(폰트 size 속성 대신) — 색·배경색이 style로 들어가도록
   const exec = (command: string, value?: string) => {
@@ -172,10 +252,10 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
     emit();
   };
 
-  // 현재 열 넓이 조절 (px) — 빈 값이면 자동
+  // 현재 열 넓이 조절 (px) — 빈 값이면 자동. 표 밖이면 조용히 무시(입력창 blur 시 경고 방지)
   const setColWidth = (px: string) => {
     const cell = currentCell();
-    if (!cell) { alert("표 안에 커서를 두고 사용하세요."); return; }
+    if (!cell) return;
     const idx = Array.from(cell.parentElement!.children).indexOf(cell);
     const value = px ? `${px}px` : "";
     cell.closest("table")?.querySelectorAll("tr").forEach((tr) => {
@@ -290,7 +370,7 @@ export default function RichTextEditor({ initialHtml, onChange }: Props) {
                   <p className="text-[10px] text-gray-400 mt-1">셀을 드래그해 여러 칸을 함께 칠할 수 있어요.</p>
                 </div>
 
-                <p className="text-[10px] text-gray-400 mt-1.5">행·열 편집·넓이·색상은 표 안에 커서를 두고 사용하세요.</p>
+                <p className="text-[10px] text-gray-400 mt-1.5">행·열 편집·넓이·색상은 표 안에 커서를 두고 사용하세요. 표의 <strong>세로/가로 선을 직접 드래그</strong>해 열 너비·행 높이를 조절할 수도 있어요.</p>
               </div>
             </>
           )}

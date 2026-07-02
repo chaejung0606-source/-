@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
   title: "개인정보 처리방침 | 강원대학교 데이터보안·활용 혁신융합대학사업단",
@@ -72,7 +72,10 @@ export default function PrivacyPage() {
       <header className="glass-header sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link href="/" className="text-indigo-500 hover:text-indigo-700"><ArrowLeft className="w-5 h-5" /></Link>
-          <Shield className="w-6 h-6 text-indigo-600" />
+          <div className="w-9 h-9 flex items-center justify-center shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/sdu-shield.png" alt="SDU 사업단 로고" className="w-full h-full object-contain" />
+          </div>
           <span className="font-bold holo-text">개인정보 처리방침</span>
         </div>
       </header>
