@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight } from "lucide-react";
 import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
+import SpaceCalendar from "@/components/home/SpaceCalendar";
 
 interface PublicSpace { id: string; name: string; capacity?: number; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
@@ -17,7 +18,6 @@ export default function SpaceRentalPage() {
   const [booked, setBooked] = useState<Booked[]>([]);
   const [calendarError, setCalendarError] = useState(false);
   const [pledge, setPledge] = useState("");
-  const [embedUrl, setEmbedUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
@@ -37,7 +37,6 @@ export default function SpaceRentalPage() {
       setBooked(Array.isArray(d.booked) ? d.booked : []);
       setCalendarError(!!d.calendarError);
       setPledge(d.pledge || "");
-      setEmbedUrl(d.calendarEmbedUrl || "");
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -137,13 +136,10 @@ export default function SpaceRentalPage() {
           )}
         </div>
 
-        {/* 대여일정 캘린더 (구글 캘린더 보기 전용 · 월 보기) */}
-        {embedUrl && (
-          <div className="card mb-6 p-0 overflow-hidden">
-            <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-gray-100">📅 대여일정 (보기 전용 · 이전/다음 달 이동 가능)</div>
-            <iframe src={embedUrl} title="공간대여 캘린더" className="w-full" style={{ height: 520, border: 0 }} />
-          </div>
-        )}
+        {/* 대여일정 캘린더 — 장소·시간별 예약 현황 (플랫폼 자체 캘린더) */}
+        <div className="mb-6">
+          <SpaceCalendar />
+        </div>
 
         {/* 신청 폼 — '신청하기' 클릭 시 표시 */}
         {done ? (
