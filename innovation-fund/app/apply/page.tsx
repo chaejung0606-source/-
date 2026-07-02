@@ -46,7 +46,8 @@ function ApplyInner() {
   const draftId = params.get("draft");
   const initCategory = (() => { const c = params.get("category"); return c && (c in CATEGORY_TYPES) ? (c as FundCategory) : null; })();
   const initType = (() => { const t = params.get("type"); return t && (t in APPLICATION_TYPE_LABELS) ? (t as ApplicationType) : null; })();
-  const [category, setCategory] = useState<FundCategory | null>(initCategory);
+  // 소학회 등 직접 진입(?type=club) 시 카테고리 자동 설정 — 관리자 폼(스키마) 매칭에 사용
+  const [category, setCategory] = useState<FundCategory | null>(initCategory ?? (initType === "club" ? "activity" : null));
   const [selectedType, setSelectedType] = useState<ApplicationType | null>(initType);
 
   // 관리자 폼 빌더(스키마) 연동: 프로그램별 신청 폼이 설정돼 있으면 그 폼으로 신청
@@ -59,7 +60,7 @@ function ApplyInner() {
   }, []);
   // 스키마(관리자 폼) 기반 신청 적용 대상: 근로장학금 전체 + 혁신인재지원금의 프로그램 참여지원비(program)·진행요원비(staff)
   // (성적/경진대회/자격증은 기존 고정 양식 유지)
-  const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff"));
+  const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff")) || selectedType === "club";
   const schemaPrograms = (schemaTypeOk && category ? programs.filter((p) => p.category === category && programMatchesType(p, selectedType || "") && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
   const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
   const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;

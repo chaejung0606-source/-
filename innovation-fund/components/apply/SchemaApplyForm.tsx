@@ -18,6 +18,7 @@ import CostSection from "./CostSection";
 import SignaturePad from "./SignaturePad";
 import AiDraftButton from "./AiDraftButton";
 import TableField, { parseTableGrid } from "./TableField";
+import ClubMembersField from "./ClubMembersField";
 import InquiryButtons from "./InquiryButtons";
 import { CheckCircle } from "lucide-react";
 
@@ -522,6 +523,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} notice={f.uploadNotice} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
       case "workLog": return <div key={f.id}>{label}<WorkLogField field={f} entries={workLogByField[f.id] || []} onChange={(en) => setWorkLogByField((m) => ({ ...m, [f.id]: en }))} group={group} isPre={isPre} /></div>;
       case "eventLocation": return <div key={f.id}><EventLocationSection title={f.label || "활동 장소"} values={eventLocByField[f.id] || { scope: "domestic" }} onChange={(v) => setEventLocByField((m) => ({ ...m, [f.id]: v }))} /></div>;
+      case "clubMembers": return <div key={f.id}>{label}<ClubMembersField value={answers[f.id] || ""} onChange={(json) => setAns(f.id, json)} /></div>;
       case "registration": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["registration"]} /></div>;
       case "transport": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["transport"]} /></div>;
       case "lodging": return <div key={f.id}><CostSection value={cost} onChange={setCost} parts={["lodging"]} /></div>;

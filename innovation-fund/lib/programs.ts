@@ -71,7 +71,7 @@ export interface Program {
   category: FundCategory;   // labor / innovation / activity
   // 혁신인재지원금 내 세부 유형: program(프로그램 참여지원비) / staff(진행요원비).
   // 지정된 유형에서만 신청 가능. 미지정(구버전)은 program으로 간주.
-  programType?: "program" | "staff";
+  programType?: "program" | "staff" | "club";
   // 프로그램 신청대상: virtual(미래융합가상학과 학생만) / designated(지정학생만) / anyone(누구나). 미지정은 anyone.
   // audience: 구버전 단일 값(폴백). 단계별로 따로 설정하려면 audiencePre/audienceFund 사용.
   audience?: "virtual" | "designated" | "anyone";
@@ -130,7 +130,7 @@ function rowToProgram(r: any): Program {
   const roles: string[] = Array.isArray(r.roles) ? r.roles : (r.role ? [r.role] : []);
   return {
     id: r.id, category: r.category, name: r.name,
-    programType: r.program_type === "staff" ? "staff" : (r.program_type === "program" ? "program" : undefined),
+    programType: r.program_type === "staff" ? "staff" : (r.program_type === "club" ? "club" : (r.program_type === "program" ? "program" : undefined)),
     audience: normAudience(r.audience),
     audiencePre: r.audience_pre != null ? normAudience(r.audience_pre) : undefined,
     audienceFund: r.audience_fund != null ? normAudience(r.audience_fund) : undefined,
@@ -151,7 +151,7 @@ export function programToRow(p: Program): Record<string, any> {
   const roles = (p.roles && p.roles.length) ? p.roles.filter((r) => r.trim()) : (p.role ? [p.role] : []);
   return {
     id: p.id, category: p.category, name: p.name,
-    program_type: p.category === "innovation" ? (p.programType || "program") : null,
+    program_type: p.programType === "club" ? "club" : (p.category === "innovation" ? (p.programType || "program") : null),
     // 단계별 신청대상을 우선 저장하고, 호환을 위해 단일 audience도 함께 저장(지원금 단계 기준)
     audience: normAudience(p.audienceFund ?? p.audience),
     audience_pre: normAudience(p.audiencePre ?? p.audience),
@@ -221,9 +221,11 @@ export function audienceOf(p: Program, phase: ApplyPhase = "fund"): Audience {
   return normAudience(v ?? p.audience);
 }
 
-// 프로그램이 특정 신청 유형(program/staff 등)에 속하는지 — 혁신인재지원금은 programType로 구분
+// 프로그램이 특정 신청 유형(program/staff/club 등)에 속하는지 — programType로 구분
 export function programMatchesType(p: Program, type: string): boolean {
+  if (type === "club") return p.programType === "club";
   if (type === "program" || type === "staff") return (p.programType || "program") === type;
+  if (type === "activity") return p.category === "activity" && p.programType !== "club"; // 소학회 프로그램은 학생활동에서 제외
   return true; // 그 외 유형은 카테고리만으로 판단
 }
 

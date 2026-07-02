@@ -19,7 +19,8 @@ export type FormFieldType =
   | "transport"     // 표준 블록: 교통비(다중 행)
   | "registration"  // 표준 블록: 등록비(+증빙)
   | "lodging"       // 표준 블록: 숙박비(개인/단체 한도)
-  | "eventLocation";// 표준 블록: 활동(참여) 장소(국내/국외)
+  | "eventLocation" // 표준 블록: 활동(참여) 장소(국내/국외)
+  | "clubMembers";  // 표준 블록: 소학회 구성원(회장+팀원 명단)
 
 export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   shortText: "한 줄 입력",
@@ -39,10 +40,11 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   registration: "등록비(표준)",
   lodging: "숙박비(표준)",
   eventLocation: "활동 장소(표준)",
+  clubMembers: "소학회 구성원(표준)",
 };
 
 // 표준 블록(여러 칸이 묶여있는) 타입 — 라벨/필수만 의미가 있고 옵션 없음
-export const STANDARD_TYPES: FormFieldType[] = ["applicantInfo", "account", "privacyConsent", "workLog", "transport", "registration", "lodging", "eventLocation"];
+export const STANDARD_TYPES: FormFieldType[] = ["applicantInfo", "account", "privacyConsent", "workLog", "transport", "registration", "lodging", "eventLocation", "clubMembers"];
 
 // 근무상황부 구분별 단가/시간 — 재학생(1~4학년 통합) / 대학원생
 export const WORKLOG_GROUPS: { key: string; label: string }[] = [

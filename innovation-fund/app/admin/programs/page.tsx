@@ -8,11 +8,11 @@ import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
 
 // 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비
-type ProgKind = "labor" | "program" | "staff";
-const KINDS: ProgKind[] = ["labor", "program", "staff"];
-const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비" };
-const kindOf = (p: Program): ProgKind => p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : "program");
-const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : "innovation");
+type ProgKind = "labor" | "program" | "staff" | "club";
+const KINDS: ProgKind[] = ["labor", "program", "staff", "club"];
+const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비", club: "소학회" };
+const kindOf = (p: Program): ProgKind => p.programType === "club" ? "club" : (p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : "program"));
+const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : k === "club" ? "activity" : "innovation");
 const inKind = (p: Program, k: ProgKind) => kindOf(p) === k;
 const today = () => new Date().toISOString().split("T")[0];
 // 상시 신청: 기한 제약 없이 항상 신청 가능하도록 하는 센티넬 기간(아주 과거~아주 미래)
@@ -131,7 +131,7 @@ export default function ProgramsAdminPage() {
   };
   const add = (kind: ProgKind) => {
     const category = categoryOfKind(kind);
-    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(category === "innovation" ? { programType: (kind === "staff" ? "staff" : "program") as "program" | "staff" } : {}) };
+    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(kind === "club" ? { programType: "club" as const } : category === "innovation" ? { programType: (kind === "staff" ? "staff" : "program") as "program" | "staff" } : {}) };
     setList((l) => [...l, np]);
     setSelectedKind(kind);
     setSelectedId(np.id);

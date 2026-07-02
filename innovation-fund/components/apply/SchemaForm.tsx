@@ -239,6 +239,18 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           </div>
         </div>
       );
+    case "clubMembers":
+      return (
+        <div>
+          <label className="label">{f.label || "소학회 구성원"}{req}</label>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs text-gray-500 mb-2">회장 + 팀원 명단 (이름·학번·소속학과·가상학과 여부·연락처). 신청자가 직접 입력합니다.</p>
+            <div className="grid grid-cols-5 gap-1 text-[11px] text-gray-400">
+              <span>구분</span><span>이름</span><span>학번</span><span>소속학과·가상학과</span><span>연락처</span>
+            </div>
+          </div>
+        </div>
+      );
     default:
       return null;
   }
