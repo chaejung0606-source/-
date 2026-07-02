@@ -2,12 +2,34 @@
 // 이미 신청받은 건(구글 캘린더 공개 iCal)과 장소+시간이 겹치면 신청 차단.
 export const SPACES_KEY = "space_rental_spaces";      // 대여 가능 장소 목록(관리자 관리)
 export const REQUESTS_KEY = "space_rental_requests";  // 접수된 공간대여 신청
-export const CONFIG_KEY = "space_rental_config";       // { calendarId }
+export const CONFIG_KEY = "space_rental_config";       // { calendarId, approveWebhook, pledge }
 
-// 사용자가 제공한 구글 캘린더(공개) — 관리자 설정으로 변경 가능
-export const DEFAULT_CALENDAR_ID = "be98515f39d0c2c785d01d0a506901d1d28efbe0da0c7cb1023f38240e0eaa59@group.calendar.google.com";
+// 공간대여 전용 구글 캘린더(공개) — 관리자 설정으로 변경 가능
+export const DEFAULT_CALENDAR_ID = "eb8f4a81fedc9b901da25bb794fd0a87dfe45ccd099450880debe57c8b02efd0@group.calendar.google.com";
 
-export interface RentalSpace { id: string; name: string; note?: string; }
+// 기본 서약서 문구 (관리자 설정으로 변경 가능)
+export const DEFAULT_PLEDGE = "본인은 대여 공간을 사용 목적에 맞게 이용하며, 이용 수칙을 준수하고 시설·비품을 훼손하지 않겠습니다. 사용 후 원상복구 및 정리정돈하며, 위반 시 향후 대여가 제한될 수 있음에 동의합니다.";
+
+// 공개 구글 캘린더 임베드(보기 전용) URL
+export function calendarEmbedUrl(calendarId: string): string {
+  return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=Asia%2FSeoul&mode=WEEK`;
+}
+
+export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; }
+
+// 대여 가능 장소 기본값 — 인프라 시트 기준(서암관·의생명대 도서실 제외). 관리자가 수정 가능.
+export const DEFAULT_SPACES: RentalSpace[] = [
+  { id: "sp-ai-playground", name: "데이터라이브러리 · AI Playground (중도 4층)", capacity: 10 },
+  { id: "sp-living-lab", name: "데이터라이브러리 · 데이터 리빙랩 (중도 4층)", capacity: 24 },
+  { id: "sp-cyber-warroom", name: "데이터라이브러리 · 사이버 워룸 (중도 4층)", capacity: 30 },
+  { id: "sp-safe-zone", name: "데이터라이브러리 · 데이터 안심존 (중도 4층)", capacity: 10 },
+  { id: "sp-open-hall", name: "데이터라이브러리 · 오픈형 강연장 (중도 4층)", capacity: 40 },
+  { id: "sp-eng4-107", name: "공과대학 4호관 공학정보센터 전산실 (107호)", capacity: 46 },
+  { id: "sp-eng5-106", name: "공과대학 5호관 (106호)", capacity: 32 },
+  { id: "sp-eng5-106-1", name: "공과대학 5호관 (106-1호)", capacity: 6 },
+  { id: "sp-eng5-106-2", name: "공과대학 5호관 (106-2호)", capacity: 6 },
+  { id: "sp-eng5-106-3", name: "공과대학 5호관 (106-3호)", capacity: 6 },
+];
 export type RentalStatus = "pending" | "approved" | "rejected";
 export interface RentalRequest {
   id: string;
@@ -17,10 +39,12 @@ export interface RentalRequest {
   end: string;    // HH:mm
   applicantName: string; studentId: string; phone: string; email: string;
   purpose: string; headcount: number;
+  agree: boolean;              // 서약서 동의
   status: RentalStatus;
   adminMemo?: string;
   createdAt: string;
   applicantId?: string;
+  calendarEventId?: string;    // 캘린더 반영 시 이벤트 id(웹훅 응답)
 }
 // 시간 겹침 판정용 슬롯 (KST 벽시계 정수 YYYYMMDDHHmm)
 export interface BookedSlot { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
@@ -28,7 +52,7 @@ export interface BookedSlot { start: number; end: number; label: string; source:
 export function normalizeSpaces(v: unknown): RentalSpace[] {
   if (!Array.isArray(v)) return [];
   return v.filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
-    .map((s) => ({ id: String(s.id || ""), name: String(s.name || ""), note: s.note ? String(s.note) : undefined }))
+    .map((s) => ({ id: String(s.id || ""), name: String(s.name || ""), capacity: s.capacity != null && s.capacity !== "" ? Number(s.capacity) || undefined : undefined, note: s.note ? String(s.note) : undefined }))
     .filter((s) => s.id && s.name);
 }
 export function normalizeRequests(v: unknown): RentalRequest[] {
@@ -40,9 +64,11 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       applicantName: String(r.applicantName || ""), studentId: String(r.studentId || ""),
       phone: String(r.phone || ""), email: String(r.email || ""),
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
+      agree: !!r.agree,
       status: (["pending", "approved", "rejected"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,
+      calendarEventId: r.calendarEventId ? String(r.calendarEventId) : undefined,
     }))
     .filter((r) => r.id && r.date && r.start && r.end);
 }

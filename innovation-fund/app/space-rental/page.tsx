@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Home as HomeIcon, LogOut, User, CalendarClock, MapPin, Clock } from "lucide-react";
-import { currentUser, logout } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
-import { slotInt, overlaps, textMatchesSpace, type RentalSpace, type BookedSlot } from "@/lib/space-rental";
+import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users } from "lucide-react";
+import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
+
+interface PublicSpace { id: string; name: string; capacity?: number; }
+interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
 
 const fmtSlot = (n: number) => {
   const s = String(n);
@@ -13,45 +13,35 @@ const fmtSlot = (n: number) => {
 };
 
 export default function SpaceRentalPage() {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [spaces, setSpaces] = useState<RentalSpace[]>([]);
-  const [booked, setBooked] = useState<BookedSlot[]>([]);
+  const [spaces, setSpaces] = useState<PublicSpace[]>([]);
+  const [booked, setBooked] = useState<Booked[]>([]);
   const [calendarError, setCalendarError] = useState(false);
+  const [pledge, setPledge] = useState("");
+  const [embedUrl, setEmbedUrl] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
     spaceId: "", date: "", start: "", end: "",
-    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "",
+    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "", agree: false,
   });
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const u = await currentUser();
-      if (!u) { router.replace("/login?next=/space-rental"); return; }
-      setUserName(u.name);
-      setForm((f) => ({ ...f, applicantName: u.name, studentId: u.studentId, phone: u.phone || "", email: u.email || "" }));
-      setReady(true);
-    })();
-  }, [router]);
-
-  const loadAvailability = () => {
+  const load = () => {
     setLoading(true);
     fetch("/api/space-rental").then((r) => r.json()).then((d) => {
       setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
       setBooked(Array.isArray(d.booked) ? d.booked : []);
       setCalendarError(!!d.calendarError);
+      setPledge(d.pledge || "");
+      setEmbedUrl(d.calendarEmbedUrl || "");
     }).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { if (ready) loadAvailability(); }, [ready]);
+  useEffect(load, []);
 
   const space = spaces.find((s) => s.id === form.spaceId);
 
-  // 선택한 장소·날짜의 예약 현황
   const daySlots = useMemo(() => {
     if (!space || !form.date) return [];
     const dayPrefix = Number(form.date.replace(/-/g, "") + "0000");
@@ -62,7 +52,6 @@ export default function SpaceRentalPage() {
       .sort((a, b) => a.start - b.start);
   }, [booked, space, form.date]);
 
-  // 현재 입력한 시간이 기존 예약과 겹치는지
   const conflict = useMemo(() => {
     if (!space || !form.date || !form.start || !form.end) return null;
     const rs = slotInt(form.date, form.start), re = slotInt(form.date, form.end);
@@ -70,86 +59,90 @@ export default function SpaceRentalPage() {
     return daySlots.find((b) => overlaps(rs, re, b.start, b.end)) || null;
   }, [space, form.date, form.start, form.end, daySlots]);
 
-  const timeInvalid = form.start && form.end && slotInt(form.date, form.end) <= slotInt(form.date, form.start);
+  const timeInvalid = !!(form.start && form.end && slotInt(form.date, form.end) <= slotInt(form.date, form.start));
+  const overCap = !!(space?.capacity && Number(form.headcount) > space.capacity);
 
   const submit = async () => {
     if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
-    if (!form.date || !form.start || !form.end) return alert("날짜와 시간을 입력해주세요.");
+    if (!form.date || !form.start || !form.end) return alert("사용 기간(날짜)과 시간을 입력해주세요.");
     if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
-    if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 정보를 입력해주세요.");
+    if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
+    if (!form.agree) return alert("서약서에 동의해주세요.");
+    if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
     if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
     setBusy(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/space-rental", {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, headcount: Number(form.headcount) || 0 }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); loadAvailability(); return; }
+      if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
       setDone(true);
     } finally { setBusy(false); }
   };
 
-  const doLogout = async () => { await logout(); router.replace("/"); };
-
-  if (!ready) return <div className="min-h-screen flex items-center justify-center text-gray-400">확인 중...</div>;
-
   return (
     <div className="min-h-screen">
       <header className="glass-header sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link href="/" className="text-indigo-500 hover:text-indigo-700"><ArrowLeft className="w-5 h-5" /></Link>
           <div className="w-9 h-9 flex items-center justify-center shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/sdu-shield.png" alt="SDU 사업단 로고" className="w-full h-full object-contain" />
           </div>
           <span className="font-bold holo-text">공간대여 신청</span>
-          <div className="ml-auto flex items-center gap-2 text-sm">
-            <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
-            <Link href="/mypage" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><User className="w-4 h-4" /> 마이페이지</Link>
-            <Link href="/" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
-            <button onClick={doLogout} className="glass-pill px-3 h-9 flex items-center gap-1.5 text-gray-700 hover:text-red-500"><LogOut className="w-4 h-4" /> 로그아웃</button>
-          </div>
+          <Link href="/" className="ml-auto glass-pill px-3 h-9 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600"><HomeIcon className="w-4 h-4" /> 홈</Link>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold holo-text mb-1 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 신청</h1>
-          <p className="text-gray-600">대여할 공간과 일시를 선택해 신청합니다. 이미 예약된 시간대는 신청할 수 없습니다.</p>
+          <p className="text-gray-600">로그인 없이 신청할 수 있습니다. 아래 캘린더에서 예약 현황을 확인하고, 이미 예약된 장소·시간은 신청할 수 없습니다.</p>
         </div>
+
+        {/* 공간대여 구글 캘린더 (보기 전용 — 여기서 추가·수정 불가) */}
+        {embedUrl && (
+          <div className="card mb-6 p-0 overflow-hidden">
+            <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-gray-100">📅 공간대여 예약 현황 (보기 전용)</div>
+            <iframe src={embedUrl} title="공간대여 캘린더" className="w-full" style={{ height: 480, border: 0 }} />
+          </div>
+        )}
 
         {done ? (
           <div className="card text-center py-16">
             <div className="text-4xl mb-3">✅</div>
             <h2 className="text-lg font-bold text-gray-800 mb-1">공간대여 신청이 접수되었습니다.</h2>
-            <p className="text-sm text-gray-500 mb-5">사업단 검토 후 확정됩니다. 결과는 별도 안내됩니다.</p>
+            <p className="text-sm text-gray-500 mb-5">관리자 승인 후 캘린더에 반영됩니다.</p>
             <div className="flex justify-center gap-2">
-              <button onClick={() => { setDone(false); loadAvailability(); }} className="btn-secondary">추가 신청</button>
+              <button onClick={() => { setDone(false); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "", agree: false })); load(); }} className="btn-secondary">추가 신청</button>
               <Link href="/" className="btn-primary">홈으로</Link>
             </div>
           </div>
         ) : loading ? (
           <div className="text-center py-20 text-gray-400">불러오는 중...</div>
-        ) : spaces.length === 0 ? (
-          <div className="card text-center py-16 text-gray-500">
-            현재 대여 가능한 공간이 등록되어 있지 않습니다. 사업단에 문의해주세요.
-          </div>
         ) : (
           <div className="card space-y-4">
-            <div>
-              <label className="label">대여 공간 <span className="text-red-500">*</span></label>
-              <select className="input-field" value={form.spaceId} onChange={(e) => set("spaceId", e.target.value)}>
-                <option value="">공간을 선택하세요</option>
-                {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              {space?.note && <p className="text-xs text-gray-400 mt-1">{space.note}</p>}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">대여 공간 <span className="text-red-500">*</span></label>
+                <select className="input-field" value={form.spaceId} onChange={(e) => set("spaceId", e.target.value)}>
+                  <option value="">공간을 선택하세요</option>
+                  {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                {space?.capacity != null && <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> 수용 인원 {space.capacity}명</p>}
+              </div>
+              <div>
+                <label className="label">사용 인원</label>
+                <input type="number" min={0} className="input-field" value={form.headcount} onChange={(e) => set("headcount", e.target.value)} placeholder="예: 6" />
+                {overCap && <p className="text-xs text-rose-600 mt-1">수용 인원({space?.capacity}명)을 초과했습니다.</p>}
+              </div>
             </div>
 
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
-                <label className="label">날짜 <span className="text-red-500">*</span></label>
+                <label className="label">사용일 <span className="text-red-500">*</span></label>
                 <input type="date" className="input-field" value={form.date} onChange={(e) => set("date", e.target.value)} />
               </div>
               <div>
@@ -162,7 +155,6 @@ export default function SpaceRentalPage() {
               </div>
             </div>
 
-            {/* 선택한 공간·날짜의 예약 현황 */}
             {space && form.date && (
               <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
                 <p className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {space.name} · {form.date} 예약 현황</p>
@@ -188,22 +180,23 @@ export default function SpaceRentalPage() {
               </div>
             )}
 
+            {/* 신청자 기본정보 */}
             <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
               <div>
                 <label className="label">신청자 이름 <span className="text-red-500">*</span></label>
-                <input className="input-field" value={form.applicantName} onChange={(e) => set("applicantName", e.target.value)} />
+                <input className="input-field" value={form.applicantName} onChange={(e) => set("applicantName", e.target.value)} placeholder="홍길동" />
               </div>
               <div>
-                <label className="label">학번 <span className="text-red-500">*</span></label>
-                <input className="input-field" value={form.studentId} onChange={(e) => set("studentId", e.target.value)} />
+                <label className="label">학번 / 소속 <span className="text-red-500">*</span></label>
+                <input className="input-field" value={form.studentId} onChange={(e) => set("studentId", e.target.value)} placeholder="학번 또는 소속" />
               </div>
               <div>
                 <label className="label">연락처</label>
                 <input className="input-field" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="010-0000-0000" />
               </div>
               <div>
-                <label className="label">사용 인원</label>
-                <input type="number" min={0} className="input-field" value={form.headcount} onChange={(e) => set("headcount", e.target.value)} placeholder="예: 6" />
+                <label className="label">이메일</label>
+                <input className="input-field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="example@kangwon.ac.kr" />
               </div>
               <div className="sm:col-span-2">
                 <label className="label">사용 목적</label>
@@ -211,8 +204,18 @@ export default function SpaceRentalPage() {
               </div>
             </div>
 
+            {/* 서약서 */}
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+              <p className="text-xs font-bold text-gray-600 mb-1.5">서약서</p>
+              <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{pledge}</p>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4" checked={form.agree} onChange={(e) => set("agree", e.target.checked)} />
+                위 서약 내용에 동의합니다. <span className="text-red-500">*</span>
+              </label>
+            </div>
+
             <div className="flex justify-end">
-              <button onClick={submit} disabled={busy || !!conflict || !!timeInvalid} className="btn-primary disabled:opacity-50">
+              <button onClick={submit} disabled={busy || !!conflict || timeInvalid || overCap} className="btn-primary disabled:opacity-50">
                 {busy ? "신청 중..." : "공간대여 신청"}
               </button>
             </div>

@@ -13,6 +13,8 @@ const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
 export default function SpaceRentalAdminPage() {
   const [spaces, setSpaces] = useState<RentalSpace[]>([]);
   const [calendarId, setCalendarId] = useState("");
+  const [approveWebhook, setApproveWebhook] = useState("");
+  const [pledge, setPledge] = useState("");
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
@@ -21,12 +23,14 @@ export default function SpaceRentalAdminPage() {
     fetch("/api/admin/space-rental").then((r) => r.json()).then((d) => {
       setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
       setCalendarId(d.calendarId || "");
+      setApproveWebhook(d.approveWebhook || "");
+      setPledge(d.pledge || "");
       setRequests(Array.isArray(d.requests) ? d.requests : []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
-  const addSpace = () => setSpaces((s) => [...s, { id: "sp-" + Math.random().toString(36).slice(2, 9), name: "", note: "" }]);
+  const addSpace = () => setSpaces((s) => [...s, { id: "sp-" + Math.random().toString(36).slice(2, 9), name: "" }]);
   const setSpace = (i: number, patch: Partial<RentalSpace>) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, ...patch } : x));
   const removeSpace = (i: number) => setSpaces((s) => s.filter((_, idx) => idx !== i));
 
@@ -34,7 +38,7 @@ export default function SpaceRentalAdminPage() {
     const clean = spaces.map((s) => ({ ...s, name: s.name.trim() })).filter((s) => s.name);
     const res = await fetch("/api/admin/space-rental", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaces: clean, calendarId: calendarId.trim() }),
+      body: JSON.stringify({ spaces: clean, calendarId: calendarId.trim(), approveWebhook: approveWebhook.trim(), pledge }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) { setSpaces(clean); setSavedMsg("저장되었습니다."); setTimeout(() => setSavedMsg(""), 2500); }
@@ -76,19 +80,36 @@ export default function SpaceRentalAdminPage() {
           <p className="text-sm text-gray-400 py-3">등록된 공간이 없습니다. ‘공간 추가’로 대여 가능한 공간을 등록해주세요.</p>
         ) : (
           <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 px-1">
+              <span className="flex-1">공간명 (신청자에게 표시)</span>
+              <span className="w-28">수용 인원(명)</span>
+              <span className="w-4" />
+            </div>
             {spaces.map((s, i) => (
               <div key={s.id} className="flex items-center gap-2">
-                <input className="input-field flex-1" value={s.name} onChange={(e) => setSpace(i, { name: e.target.value })} placeholder="공간명 (예: 세미나실 A)" />
-                <input className="input-field flex-1" value={s.note || ""} onChange={(e) => setSpace(i, { note: e.target.value })} placeholder="비고 (위치·수용인원 등, 선택)" />
+                <input className="input-field flex-1" value={s.name} onChange={(e) => setSpace(i, { name: e.target.value })} placeholder="공간명 (예: 데이터라이브러리 · 사이버 워룸)" />
+                <input type="number" min={0} className="input-field w-28" value={s.capacity ?? ""} onChange={(e) => setSpace(i, { capacity: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="예: 30" />
                 <button onClick={() => removeSpace(i)} className="text-gray-400 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
           </div>
         )}
-        <div className="mt-4 pt-3 border-t border-gray-100">
-          <label className="label">구글 캘린더 ID (공개 캘린더)</label>
-          <input className="input-field font-mono text-xs" value={calendarId} onChange={(e) => setCalendarId(e.target.value)} placeholder="xxxxx@group.calendar.google.com" />
-          <p className="text-[11px] text-gray-400 mt-1">이 캘린더에 이미 등록된 예약(이벤트 제목/장소에 공간명 포함)과 시간이 겹치면 신청이 차단됩니다. 승인한 건은 이 캘린더에 등록해 관리하세요.</p>
+        <p className="text-[11px] text-gray-400 mt-2">※ 신청자에게는 <strong>공간명·수용 인원만</strong> 표시됩니다. (서암관·의생명대 도서실은 대여 공간에서 제외)</p>
+        <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
+          <div>
+            <label className="label">구글 캘린더 ID (공개 캘린더 · 홈/공간대여에 보기 전용으로 표시)</label>
+            <input className="input-field font-mono text-xs" value={calendarId} onChange={(e) => setCalendarId(e.target.value)} placeholder="xxxxx@group.calendar.google.com" />
+            <p className="text-[11px] text-gray-400 mt-1">이 캘린더의 예약(이벤트 제목/장소에 공간명 포함)과 시간이 겹치면 신청이 차단됩니다.</p>
+          </div>
+          <div>
+            <label className="label">승인 시 캘린더 자동 반영 웹훅 URL (구글 Apps Script)</label>
+            <input className="input-field font-mono text-xs" value={approveWebhook} onChange={(e) => setApproveWebhook(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
+            <p className="text-[11px] text-gray-400 mt-1">신청을 <strong>승인</strong>하면 이 웹훅으로 이벤트 생성 요청을 보내 위 구글 캘린더에 자동 등록합니다. (미설정 시 자동 반영 없음 — 수동 등록)</p>
+          </div>
+          <div>
+            <label className="label">서약서 문구</label>
+            <textarea className="input-field h-24 resize-none" value={pledge} onChange={(e) => setPledge(e.target.value)} placeholder="공간 사용 서약 내용" />
+          </div>
         </div>
       </div>
 

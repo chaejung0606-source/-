@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield, CalendarClock } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
@@ -9,6 +9,7 @@ import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from
 import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriods } from "@/lib/type-periods";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
+import SpaceCalendar from "@/components/home/SpaceCalendar";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import CertList from "@/components/home/CertList";
@@ -238,6 +239,15 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
+        {/* 공간대여 예약 현황 (구글 캘린더 보기 전용) */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">구글 캘린더의 예약 현황을 그대로 보여줍니다. 신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
+          <SpaceCalendar />
+        </section>
+
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
-  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID,
+  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES, DEFAULT_PLEDGE,
   normalizeSpaces, normalizeRequests, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
+  calendarEmbedUrl,
   type BookedSlot,
 } from "@/lib/space-rental";
 
@@ -17,10 +17,14 @@ async function readConfig() {
     admin.from("app_config").select("value").eq("key", CONFIG_KEY).maybeSingle(),
     admin.from("app_config").select("value").eq("key", REQUESTS_KEY).maybeSingle(),
   ]);
-  const spaces = normalizeSpaces(sp?.value);
-  const calendarId = (cf?.value && typeof cf.value === "object" && (cf.value as { calendarId?: string }).calendarId) || DEFAULT_CALENDAR_ID;
+  // 관리자가 저장한 장소가 없으면 인프라 시트 기준 기본 장소 사용
+  const saved = normalizeSpaces(sp?.value);
+  const spaces = saved.length ? saved : DEFAULT_SPACES;
+  const cfg = (cf?.value && typeof cf.value === "object") ? cf.value as { calendarId?: string; pledge?: string } : {};
+  const calendarId = cfg.calendarId || DEFAULT_CALENDAR_ID;
+  const pledge = cfg.pledge || DEFAULT_PLEDGE;
   const requests = normalizeRequests(rq?.value);
-  return { admin, spaces, calendarId, requests };
+  return { admin, spaces, calendarId, pledge, requests };
 }
 
 // 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로
@@ -31,25 +35,20 @@ function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlo
   }));
 }
 
-// 공개: 대여 장소 목록 + 이미 예약된 슬롯(캘린더 + 접수건)
+// 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
 export async function GET() {
-  const { spaces, calendarId, requests } = await readConfig();
+  const { spaces, calendarId, pledge, requests } = await readConfig();
   let calendar: BookedSlot[] = [];
   let calendarError = false;
   try { calendar = await fetchCalendarSlots(calendarId); } catch { calendarError = true; }
   const booked = [...calendar, ...requestSlots(requests)];
-  return NextResponse.json({ spaces, booked, calendarError });
+  // 신청자에게는 이름·수용인원만 노출 (세부정보 비공개)
+  const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity }));
+  return NextResponse.json({ spaces: publicSpaces, booked, calendarError, pledge, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
 }
 
-// 신청자: 공간대여 신청 (로그인 필요, 서버측 충돌 검증)
+// 신청자: 공간대여 신청 — 로그인 불필요(공개). 서버측 충돌 검증.
 export async function POST(req: NextRequest) {
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return NextResponse.json({ ok: false, error: "로그인이 필요합니다." }, { status: 401 });
-  const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-    { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data: { user } } = await anon.auth.getUser(token);
-  if (!user) return NextResponse.json({ ok: false, error: "로그인이 필요합니다." }, { status: 401 });
-
   const b = await req.json().catch(() => ({}));
   const spaceId = String(b.spaceId || "");
   const date = String(b.date || "");
@@ -59,6 +58,7 @@ export async function POST(req: NextRequest) {
   const headcount = Number(b.headcount) || 0;
   const applicantName = String(b.applicantName || "").trim();
   const studentId = String(b.studentId || "").trim();
+  const agree = !!b.agree;
 
   const { admin, spaces, calendarId, requests } = await readConfig();
   const space = spaces.find((s) => s.id === spaceId);
@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "날짜와 시간을 정확히 입력해주세요." }, { status: 400 });
   const reqStart = slotInt(date, start), reqEnd = slotInt(date, end);
   if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 시간이 시작 시간보다 늦어야 합니다." }, { status: 400 });
-  if (!applicantName || !studentId) return NextResponse.json({ ok: false, error: "신청자 정보를 입력해주세요." }, { status: 400 });
+  if (!applicantName || !studentId) return NextResponse.json({ ok: false, error: "신청자 정보(이름·학번/소속)를 입력해주세요." }, { status: 400 });
+  if (!agree) return NextResponse.json({ ok: false, error: "서약서에 동의해주세요." }, { status: 400 });
+  if (space.capacity && headcount > space.capacity) return NextResponse.json({ ok: false, error: `수용 인원(${space.capacity}명)을 초과했습니다.` }, { status: 400 });
 
   // 충돌 검증: 캘린더 예약 + 접수건 중 같은 장소·시간 겹침
   let calendar: BookedSlot[] = [];
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
   const entry = {
     id: crypto.randomUUID(), spaceId, spaceName: space.name, date, start, end,
     applicantName, studentId, phone: String(b.phone || "").trim(), email: String(b.email || "").trim(),
-    purpose, headcount, status: "pending" as const, createdAt: now, applicantId: user.id,
+    purpose, headcount, agree: true, status: "pending" as const, createdAt: now,
   };
   const next = [entry, ...requests];
   const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
