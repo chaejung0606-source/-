@@ -82,7 +82,28 @@ function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// (선택) 배포 전 권한 승인용 테스트 함수 — 한 번 실행해 캘린더/시트 접근 권한을 허용하세요.
+// (선택) 배포 전 권한 승인·동작 확인용 테스트 — 실행 후 [실행 로그]와 캘린더(내일 10~11시)를 확인하세요.
 function testOnce() {
-  createEvent_({ spaceName: "테스트공간", date: "2026-01-01", start: "10:00", end: "11:00", title: "[공간대여] 테스트", description: "권한 테스트" });
+  var cal = CalendarApp.getCalendarById(CALENDAR_ID);
+  Logger.log(cal ? ("캘린더 찾음: " + cal.getName()) : "❌ 캘린더를 찾지 못함 — CALENDAR_ID 또는 접근 권한을 확인하세요.");
+  if (!cal) return;
+
+  // 내일 10:00~11:00 (현재 달 화면에서 바로 보이도록)
+  var start = new Date(); start.setDate(start.getDate() + 1); start.setHours(10, 0, 0, 0);
+  var end = new Date(start); end.setHours(11, 0, 0, 0);
+  var ev = cal.createEvent("[공간대여] 테스트(삭제하세요)", start, end, { description: "권한/동작 테스트" });
+  Logger.log("✅ 캘린더 이벤트 생성됨 · ID: " + ev.getId());
+
+  // 시트 기록 테스트
+  try {
+    appendRow_({ spaceName: "테스트공간", date: Utilities.formatDate(start, "Asia/Seoul", "yyyy-MM-dd"), start: "10:00", end: "11:00", applicantName: "테스트", studentId: "-", purpose: "권한 테스트" }, ev.getId());
+    Logger.log("✅ 시트 기록 성공 (SHEET_ID: " + SHEET_ID + ", 탭: " + SHEET_NAME + ")");
+  } catch (err) {
+    Logger.log("⚠️ 시트 기록 실패: " + err + " — SHEET_ID/편집권한 확인");
+  }
+}
+
+// 접근 가능한 캘린더 목록 확인용 (CALENDAR_ID가 안 맞을 때 이걸로 실제 ID를 찾으세요)
+function listMyCalendars() {
+  CalendarApp.getAllCalendars().forEach(function (c) { Logger.log(c.getName() + "  →  " + c.getId()); });
 }
