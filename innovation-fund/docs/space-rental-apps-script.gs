@@ -20,7 +20,7 @@
 
 // ── CONFIG ─────────────────────────────────────────────────
 var CALENDAR_ID = "eb8f4a81fedc9b901da25bb794fd0a87dfe45ccd099450880debe57c8b02efd0@group.calendar.google.com";
-var SHEET_ID = "여기에_스프레드시트_ID_입력";   // 예: 1DylY5o5QUDG1IqGXNhMEeGi_lTiD_Du77UVS2IO3fbE
+var SHEET_ID = "1Ujr7AN2Z1_cV4bH5QUMWrA68rrj3meN9n6EyqYe2";   // 승인 기록 스프레드시트
 var SHEET_NAME = "공간대여신청";                 // 기록 탭 이름 (없으면 자동 생성)
 // ───────────────────────────────────────────────────────────
 
