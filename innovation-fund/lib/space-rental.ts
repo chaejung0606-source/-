@@ -2,20 +2,17 @@
 // 이미 신청받은 건(구글 캘린더 공개 iCal)과 장소+시간이 겹치면 신청 차단.
 export const SPACES_KEY = "space_rental_spaces";      // 대여 가능 장소 목록(관리자 관리)
 export const REQUESTS_KEY = "space_rental_requests";  // 접수된 공간대여 신청
-export const CONFIG_KEY = "space_rental_config";       // { calendarId, approveWebhook, pledge }
+export const CONFIG_KEY = "space_rental_config";       // { calendarId, approveWebhook, form }
 
 // 공간대여 전용 구글 캘린더(공개) — 관리자 설정으로 변경 가능
 export const DEFAULT_CALENDAR_ID = "eb8f4a81fedc9b901da25bb794fd0a87dfe45ccd099450880debe57c8b02efd0@group.calendar.google.com";
-
-// 기본 서약서 문구 (관리자 설정으로 변경 가능)
-export const DEFAULT_PLEDGE = "본인은 대여 공간을 사용 목적에 맞게 이용하며, 이용 수칙을 준수하고 시설·비품을 훼손하지 않겠습니다. 사용 후 원상복구 및 정리정돈하며, 위반 시 향후 대여가 제한될 수 있음에 동의합니다.";
 
 // 공개 구글 캘린더 임베드(보기 전용) URL — 월(MONTH) 보기, 이전/다음달 이동 가능
 export function calendarEmbedUrl(calendarId: string): string {
   return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=Asia%2FSeoul&mode=MONTH&showTitle=0&showPrint=0&showTabs=1&showCalendars=0`;
 }
 
-export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; photo?: string; }
+export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; photos?: string[]; }
 
 // 대여 가능 장소 기본값 — 인프라 시트 기준(서암관·의생명대 도서실 제외). 관리자가 수정 가능.
 export const DEFAULT_SPACES: RentalSpace[] = [
@@ -39,7 +36,7 @@ export interface RentalRequest {
   end: string;    // HH:mm
   applicantName: string; studentId: string; phone: string; email: string;
   purpose: string; headcount: number;
-  agree: boolean;              // 서약서 동의
+  answers?: { id: string; label: string; value: string }[]; // 관리자 설정 추가 설문 답변
   status: RentalStatus;
   adminMemo?: string;
   createdAt: string;
@@ -52,7 +49,10 @@ export interface BookedSlot { start: number; end: number; label: string; source:
 export function normalizeSpaces(v: unknown): RentalSpace[] {
   if (!Array.isArray(v)) return [];
   return v.filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
-    .map((s) => ({ id: String(s.id || ""), name: String(s.name || ""), capacity: s.capacity != null && s.capacity !== "" ? Number(s.capacity) || undefined : undefined, note: s.note ? String(s.note) : undefined, photo: s.photo ? String(s.photo) : undefined }))
+    .map((s) => {
+      const photos = Array.isArray(s.photos) ? (s.photos as unknown[]).map(String).filter(Boolean) : (s.photo ? [String(s.photo)] : []);
+      return { id: String(s.id || ""), name: String(s.name || ""), capacity: s.capacity != null && s.capacity !== "" ? Number(s.capacity) || undefined : undefined, note: s.note ? String(s.note) : undefined, photos: photos.length ? photos : undefined };
+    })
     .filter((s) => s.id && s.name);
 }
 export function normalizeRequests(v: unknown): RentalRequest[] {
@@ -64,7 +64,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       applicantName: String(r.applicantName || ""), studentId: String(r.studentId || ""),
       phone: String(r.phone || ""), email: String(r.email || ""),
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
-      agree: !!r.agree,
+      answers: Array.isArray(r.answers) ? (r.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined,
       status: (["pending", "approved", "rejected", "supplement"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,

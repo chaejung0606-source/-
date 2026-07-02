@@ -301,7 +301,7 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
             <CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황
           </h2>
-          <p className="text-sm text-gray-500 mb-4">구글 캘린더의 예약 현황을 그대로 보여줍니다. 신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
+          <p className="text-sm text-gray-500 mb-4">신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
           <SpaceCalendar />
         </section>
 

@@ -33,7 +33,7 @@ function verifyAdminToken(token: string | undefined): string | null {
   return id;
 }
 
-export interface AdminSession { id: string; role: AdminRole; programIds: string[]; }
+export interface AdminSession { id: string; role: AdminRole; programIds: string[]; systemAdmin: boolean; }
 
 // 서명 검증 후 DB에서 권한을 재조회 → 위조된 role/programIds 차단
 export async function getAdminSession(req: NextRequest): Promise<AdminSession | null> {
@@ -41,10 +41,10 @@ export async function getAdminSession(req: NextRequest): Promise<AdminSession | 
   if (!id) return null;
   const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", "admin_accounts").maybeSingle();
   const { expense, accounts } = normalizeAdminAccounts(data?.value);
-  if (id === expense.loginId) return { id, role: "expense", programIds: [] };
+  if (id === expense.loginId) return { id, role: "expense", programIds: [], systemAdmin: true };
   const acc = accounts.find((a) => a.loginId === id);
   if (!acc) return null;
-  return { id, role: "program", programIds: acc.programIds };
+  return { id, role: "program", programIds: acc.programIds, systemAdmin: !!acc.systemAdmin };
 }
 
 // 인증된 관리자(역할 무관). null이면 미인증.
@@ -52,8 +52,14 @@ export async function requireAdmin(req: NextRequest): Promise<AdminSession | nul
   return getAdminSession(req);
 }
 
-// 지출관리자(전체 권한) 전용. null이면 권한 없음.
+// 관리자 시스템 전체 권한. 지출관리자 또는 '관리자 권한'을 부여받은 프로그램 관리자.
 export async function requireExpense(req: NextRequest): Promise<AdminSession | null> {
+  const s = await getAdminSession(req);
+  return s && (s.role === "expense" || s.systemAdmin) ? s : null;
+}
+
+// 지출관리자(최상위) 전용 — 관리자 계정 관리·비밀번호 재설정 등 민감 작업. 부여받은 관리자도 접근 불가.
+export async function requireExpenseOnly(req: NextRequest): Promise<AdminSession | null> {
   const s = await getAdminSession(req);
   return s && s.role === "expense" ? s : null;
 }

@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireExpense } from "@/lib/admin-auth";
 import {
-  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES, DEFAULT_PLEDGE,
+  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
   normalizeSpaces, normalizeRequests, type RentalRequest,
 } from "@/lib/space-rental";
+import type { FormSchema } from "@/lib/form-schema";
 
 export const dynamic = "force-dynamic";
 
-interface RentalConfig { calendarId?: string; approveWebhook?: string; pledge?: string; }
+interface RentalConfig { calendarId?: string; approveWebhook?: string; form?: FormSchema; }
 async function getConfig(admin: ReturnType<typeof supabaseAdmin>): Promise<RentalConfig> {
   const { data } = await admin.from("app_config").select("value").eq("key", CONFIG_KEY).maybeSingle();
   return (data?.value && typeof data.value === "object") ? data.value as RentalConfig : {};
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
     spaces: saved.length ? saved : DEFAULT_SPACES,
     calendarId: cfg.calendarId || DEFAULT_CALENDAR_ID,
     approveWebhook: cfg.approveWebhook || "",
-    pledge: cfg.pledge || DEFAULT_PLEDGE,
+    form: cfg.form || null,
     requests: normalizeRequests(rq?.value).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
   });
 }
@@ -67,12 +68,12 @@ export async function POST(req: NextRequest) {
     const { error } = await admin.from("app_config").upsert({ key: SPACES_KEY, value: spaces }, { onConflict: "key" });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
-  if (b.calendarId != null || b.approveWebhook != null || b.pledge != null) {
+  if (b.calendarId != null || b.approveWebhook != null || b.form != null) {
     const cur = await getConfig(admin);
     const value: RentalConfig = {
       calendarId: (b.calendarId != null ? String(b.calendarId).trim() : cur.calendarId) || DEFAULT_CALENDAR_ID,
       approveWebhook: b.approveWebhook != null ? String(b.approveWebhook).trim() : cur.approveWebhook,
-      pledge: (b.pledge != null ? String(b.pledge) : cur.pledge) || DEFAULT_PLEDGE,
+      form: b.form != null ? (b.form as FormSchema) : cur.form,
     };
     await admin.from("app_config").upsert({ key: CONFIG_KEY, value }, { onConflict: "key" });
   }

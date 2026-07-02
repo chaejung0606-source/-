@@ -19,7 +19,7 @@ export default function AdminsPage() {
       if (!d?.admin || d.role !== "expense") { setDenied(true); setLoading(false); return; }
       fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
         // 보안: 서버는 비밀번호를 내려주지 않음(hasPassword만). 비밀번호 칸은 비워두고 '변경 시에만' 입력.
-        setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], hasPassword: !!a.hasPassword })) : []);
+        setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; systemAdmin?: boolean; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], systemAdmin: !!a.systemAdmin, hasPassword: !!a.hasPassword })) : []);
         if (j?.expense) setExpense({ loginId: j.expense.loginId || "", password: "", hasPassword: !!j.expense.hasPassword });
         setLoading(false);
       });
@@ -28,7 +28,7 @@ export default function AdminsPage() {
   }, []);
 
   const dirty = () => setSaved(false);
-  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [], hasPassword: false }]); dirty(); };
+  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [], systemAdmin: false, hasPassword: false }]); dirty(); };
   const upd = (i: number, patch: Partial<AdminAccount>) => { setAccounts((a) => a.map((x, idx) => idx === i ? { ...x, ...patch } : x)); dirty(); };
   const remove = (i: number) => { setAccounts((a) => a.filter((_, idx) => idx !== i)); dirty(); };
   const toggleProgram = (i: number, pid: string) => {
@@ -110,6 +110,16 @@ export default function AdminsPage() {
                   <input className="input-field" value={a.name} onChange={(e) => upd(i, { name: e.target.value })} placeholder="예: 홍길동" />
                 </div>
                 <button onClick={() => remove(i)} className="ml-auto text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 삭제</button>
+              </div>
+              {/* 관리자 권한 — 관리자 시스템 메뉴 전체 접근 부여 */}
+              <div className={`rounded-xl border p-3 ${a.systemAdmin ? "border-violet-300 bg-violet-50/60" : "border-gray-200 bg-white/60"}`}>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 mt-0.5" checked={!!a.systemAdmin} onChange={(e) => upd(i, { systemAdmin: e.target.checked })} />
+                  <span>
+                    <span className="text-sm font-semibold text-gray-800">관리자 권한 부여</span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5">체크하면 이 관리자가 <strong>관리자 시스템 메뉴 전체(신청자 정보·신청폼 편집·공간대여·유형별 지급 기준·자격증·사이트 설정 등)</strong>에 접근할 수 있습니다. (지출관리자 계정 관리 메뉴는 제외)</span>
+                  </span>
+                </label>
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-1.5">담당 프로그램 ({a.programIds.length}개)</p>

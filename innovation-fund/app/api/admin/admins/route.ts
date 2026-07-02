@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { normalizeAdminAccounts, hashAdminPassword, isHashedPassword } from "@/lib/admin-accounts";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireExpenseOnly } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 const KEY = "admin_accounts";
@@ -9,20 +9,20 @@ const KEY = "admin_accounts";
 // 지출관리자 전용: 프로그램별 관리자 계정 목록 조회/저장 (서명 세션 검증)
 // 보안: 비밀번호(해시)는 응답에 절대 포함하지 않고, 설정 여부(hasPassword)만 전달한다.
 export async function GET(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpenseOnly(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", KEY).maybeSingle();
   const cfg = normalizeAdminAccounts(data?.value);
   return NextResponse.json({
     expense: { loginId: cfg.expense.loginId, password: "", hasPassword: !!cfg.expense.password },
     accounts: cfg.accounts.map((a) => ({
-      loginId: a.loginId, name: a.name, programIds: a.programIds,
+      loginId: a.loginId, name: a.name, programIds: a.programIds, systemAdmin: !!a.systemAdmin,
       password: "", hasPassword: !!a.password,
     })),
   });
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireExpenseOnly(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
 
   // 기존 저장값(원본) — 비밀번호를 비워서 보낸 경우 기존값을 유지하기 위함
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
         loginId,
         name: String(a?.name || "").trim(),
         programIds: Array.isArray(a?.programIds) ? a.programIds.map((x: unknown) => String(x)) : [],
+        systemAdmin: a?.systemAdmin === true,
         password: keepOrHash(a?.password, prevById[loginId]?.password),
       };
     })

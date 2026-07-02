@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight, X, ImageIcon } from "lucide-react";
 import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
+import type { FormSchema, FormField } from "@/lib/form-schema";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 
-interface PublicSpace { id: string; name: string; capacity?: number; photo?: string; }
+interface PublicSpace { id: string; name: string; capacity?: number; photos?: string[]; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
 
 const fmtSlot = (n: number) => {
@@ -13,11 +14,18 @@ const fmtSlot = (n: number) => {
   return `${s.slice(4, 6)}/${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
 };
 
+// 관리자가 설정한 설문 폼에서 신청자가 답할 수 있는 항목만 추출 (표준 블록·파일·서명 제외)
+const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "select", "agreement"];
+function surveyFields(schema: FormSchema | null): FormField[] {
+  if (!schema?.steps) return [];
+  return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
+}
+
 export default function SpaceRentalPage() {
   const [spaces, setSpaces] = useState<PublicSpace[]>([]);
   const [booked, setBooked] = useState<Booked[]>([]);
   const [calendarError, setCalendarError] = useState(false);
-  const [pledge, setPledge] = useState("");
+  const [survey, setSurvey] = useState<FormSchema | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
@@ -25,11 +33,16 @@ export default function SpaceRentalPage() {
 
   const [form, setForm] = useState({
     spaceId: "", date: "", start: "", end: "",
-    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "", agree: false,
+    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "",
   });
-  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  // 관리자 설정 설문 답변 (fieldId → 값)
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+
+  const questions = useMemo(() => surveyFields(survey), [survey]);
 
   const load = () => {
     setLoading(true);
@@ -37,7 +50,7 @@ export default function SpaceRentalPage() {
       setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
       setBooked(Array.isArray(d.booked) ? d.booked : []);
       setCalendarError(!!d.calendarError);
-      setPledge(d.pledge || "");
+      setSurvey(d.form && typeof d.form === "object" ? d.form : null);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -75,14 +88,20 @@ export default function SpaceRentalPage() {
     if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
     if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
     if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
-    if (!form.agree) return alert("서약서에 동의해주세요.");
     if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
     if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
+    // 필수 설문 항목 검증
+    for (const q of questions) {
+      if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
+    }
     setBusy(true);
     try {
+      const answerList = questions
+        .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
+        .filter((a) => a.value);
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, headcount: Number(form.headcount) || 0 }),
+        body: JSON.stringify({ ...form, headcount: Number(form.headcount) || 0, answers: answerList }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
@@ -130,7 +149,7 @@ export default function SpaceRentalPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {spaces.map((s) => (
                   <button key={s.id} onClick={() => setPhotoSpace(s)} className="text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
-                    <div className="font-semibold text-sm text-gray-800 flex items-center gap-1">{s.name}{s.photo && <ImageIcon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}</div>
+                    <div className="font-semibold text-sm text-gray-800 flex items-center gap-1">{s.name}{!!(s.photos && s.photos.length) && <ImageIcon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}</div>
                     {s.capacity != null && <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> 수용 인원 {s.capacity}명</div>}
                   </button>
                 ))}
@@ -152,7 +171,7 @@ export default function SpaceRentalPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-1">공간대여 신청이 접수되었습니다.</h2>
             <p className="text-sm text-gray-500 mb-5">관리자 승인 후 캘린더에 반영됩니다.</p>
             <div className="flex justify-center gap-2">
-              <button onClick={() => { setDone(false); setShowForm(true); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "", agree: false })); load(); }} className="btn-secondary">추가 신청</button>
+              <button onClick={() => { setDone(false); setShowForm(true); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "" })); setAnswers({}); load(); }} className="btn-secondary">추가 신청</button>
               <Link href="/" className="btn-primary">홈으로</Link>
             </div>
           </div>
@@ -239,15 +258,34 @@ export default function SpaceRentalPage() {
               </div>
             </div>
 
-            {/* 서약서 */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-              <p className="text-xs font-bold text-gray-600 mb-1.5">서약서</p>
-              <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{pledge}</p>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4" checked={form.agree} onChange={(e) => set("agree", e.target.checked)} />
-                위 서약 내용에 동의합니다. <span className="text-red-500">*</span>
-              </label>
-            </div>
+            {/* 관리자가 설정한 추가 설문 항목 */}
+            {questions.length > 0 && (
+              <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                {questions.map((q) => (
+                  <div key={q.id} className={q.type === "longText" || q.type === "agreement" ? "sm:col-span-2" : ""}>
+                    <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>
+                    {q.type === "longText" ? (
+                      <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                    ) : q.type === "select" ? (
+                      <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>
+                        <option value="">선택하세요</option>
+                        {(q.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : q.type === "agreement" ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} />
+                          동의합니다.
+                        </label>
+                      </div>
+                    ) : (
+                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex justify-end">
               <button onClick={submit} disabled={busy || !!conflict || timeInvalid || overCap} className="btn-primary disabled:opacity-50">
@@ -266,9 +304,13 @@ export default function SpaceRentalPage() {
             <button onClick={() => setPhotoSpace(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
             <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8">{photoSpace.name}</h2>
             {photoSpace.capacity != null && <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Users className="w-4 h-4" /> 수용 인원 {photoSpace.capacity}명</p>}
-            {photoSpace.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoSpace.photo} alt={photoSpace.name} className="w-full rounded-xl border border-gray-100" />
+            {photoSpace.photos && photoSpace.photos.length > 0 ? (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {photoSpace.photos.map((p, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={i} src={p} alt={`${photoSpace.name} 사진 ${i + 1}`} className="w-full rounded-xl border border-gray-100" />
+                ))}
+              </div>
             ) : (
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center text-sm text-gray-400 flex flex-col items-center gap-2">
                 <ImageIcon className="w-8 h-8 text-gray-300" />

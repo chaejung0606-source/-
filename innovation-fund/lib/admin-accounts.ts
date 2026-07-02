@@ -10,6 +10,7 @@ export interface AdminAccount {
   password: string;
   name: string;
   programIds: string[]; // 관리하는 프로그램 id 목록
+  systemAdmin?: boolean; // 관리자 권한: 관리자 시스템 메뉴 전체 접근(지출관리자와 동일 권한)
 }
 export interface ExpenseAdmin { loginId: string; password: string; }
 export interface AdminAccountsConfig { expense: ExpenseAdmin; accounts: AdminAccount[]; }
@@ -57,6 +58,7 @@ export function normalizeAdminAccounts(value: unknown): AdminAccountsConfig {
       password: String(o.password || "").trim(),
       name: String(o.name || "").trim(),
       programIds: Array.isArray(o.programIds) ? (o.programIds as unknown[]).map((x) => String(x)) : [],
+      systemAdmin: o.systemAdmin === true,
     };
   }).filter((a) => a.loginId);
   const e = (v.expense || {}) as Record<string, unknown>;

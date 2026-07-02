@@ -19,7 +19,6 @@ export default function SpaceRentalAdminPage() {
   const [spaces, setSpaces] = useState<RentalSpace[]>([]);
   const [calendarId, setCalendarId] = useState("");
   const [approveWebhook, setApproveWebhook] = useState("");
-  const [pledge, setPledge] = useState("");
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
@@ -33,7 +32,6 @@ export default function SpaceRentalAdminPage() {
       setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
       setCalendarId(d.calendarId || "");
       setApproveWebhook(d.approveWebhook || "");
-      setPledge(d.pledge || "");
       setRequests(Array.isArray(d.requests) ? d.requests : []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
@@ -52,15 +50,17 @@ export default function SpaceRentalAdminPage() {
       const res = await fetch("/api/admin/site-upload", { method: "POST", body: fd });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("사진 업로드 실패: " + (j.error || res.status)); return; }
-      setSpace(i, { photo: `/api/site-file?path=${encodeURIComponent(j.path)}` });
+      // 여러 장 추가 — 기존 사진 배열에 append
+      setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, photos: [...(x.photos || []), `/api/site-file?path=${encodeURIComponent(j.path)}`] } : x));
     } finally { setUploading(null); }
   };
+  const removePhoto = (i: number, pi: number) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, photos: (x.photos || []).filter((_, k) => k !== pi) } : x));
 
   const saveConfig = async () => {
     const clean = spaces.map((s) => ({ ...s, name: s.name.trim() })).filter((s) => s.name);
     const res = await fetch("/api/admin/space-rental", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ spaces: clean, calendarId: calendarId.trim(), approveWebhook: approveWebhook.trim(), pledge }),
+      body: JSON.stringify({ spaces: clean, calendarId: calendarId.trim(), approveWebhook: approveWebhook.trim() }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) { setSpaces(clean); setSavedMsg("저장되었습니다."); setTimeout(() => setSavedMsg(""), 2500); }
@@ -166,34 +166,33 @@ export default function SpaceRentalAdminPage() {
           {spaces.length === 0 ? (
             <p className="text-sm text-gray-400 py-3">등록된 공간이 없습니다. ‘공간 추가’로 대여 가능한 공간을 등록해주세요.</p>
           ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 px-1">
-                <span className="flex-1">공간명 (신청자에게 표시)</span>
-                <span className="w-24">수용 인원(명)</span>
-                <span className="w-36">장소 사진</span>
-                <span className="w-4" />
-              </div>
+            <div className="space-y-3">
               {spaces.map((s, i) => (
-                <div key={s.id} className="flex items-center gap-2">
-                  <input className="input-field flex-1" value={s.name} onChange={(e) => setSpace(i, { name: e.target.value })} placeholder="공간명 (예: 데이터라이브러리 · 사이버 워룸)" />
-                  <input type="number" min={0} className="input-field w-24" value={s.capacity ?? ""} onChange={(e) => setSpace(i, { capacity: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="예: 30" />
-                  <div className="w-36 flex items-center gap-1.5">
-                    {s.photo && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.photo} alt="" className="w-9 h-9 rounded object-cover border border-gray-200" />
-                    )}
-                    <label className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 cursor-pointer whitespace-nowrap">
-                      {uploading === i ? "업로드…" : s.photo ? "변경" : "사진 추가"}
+                <div key={s.id} className="rounded-xl border border-gray-200 p-3">
+                  <div className="flex items-center gap-2">
+                    <input className="input-field flex-1" value={s.name} onChange={(e) => setSpace(i, { name: e.target.value })} placeholder="공간명 (예: 데이터라이브러리 · 사이버 워룸)" />
+                    <input type="number" min={0} className="input-field w-28" value={s.capacity ?? ""} onChange={(e) => setSpace(i, { capacity: e.target.value === "" ? undefined : Number(e.target.value) })} placeholder="수용인원" />
+                    <button onClick={() => removeSpace(i)} className="text-gray-400 hover:text-rose-500" title="공간 삭제"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                  {/* 장소 사진 (여러 장) */}
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {(s.photos || []).map((p, pi) => (
+                      <div key={pi} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p} alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-200" />
+                        <button onClick={() => removePhoto(i, pi)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow" title="사진 삭제">✕</button>
+                      </div>
+                    ))}
+                    <label className="w-14 h-14 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex items-center justify-center text-xs text-center">
+                      {uploading === i ? "…" : "+ 사진"}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(i, f); e.target.value = ""; }} />
                     </label>
-                    {s.photo && <button onClick={() => setSpace(i, { photo: undefined })} className="text-gray-300 hover:text-rose-500 text-xs" title="사진 삭제">✕</button>}
                   </div>
-                  <button onClick={() => removeSpace(i)} className="text-gray-400 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-[11px] text-gray-400 mt-2">※ 신청자에게는 <strong>공간명·수용 인원·사진만</strong> 표시됩니다. 신청자가 장소를 클릭하면 사진을 볼 수 있습니다. (서암관·의생명대 도서실은 대여 공간에서 제외)</p>
+          <p className="text-[11px] text-gray-400 mt-2">※ 신청자에게는 <strong>공간명·수용 인원·사진(여러 장)만</strong> 표시됩니다. 신청자가 장소를 클릭하면 사진을 볼 수 있습니다. (서암관·의생명대 도서실은 대여 공간에서 제외)</p>
           <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
             <div>
               <label className="label">구글 캘린더 ID (공개 캘린더 · 예약 현황 표시·충돌 검사)</label>
@@ -203,10 +202,6 @@ export default function SpaceRentalAdminPage() {
               <label className="label">승인 시 구글시트·캘린더 자동 반영 웹훅 URL (구글 Apps Script)</label>
               <input className="input-field font-mono text-xs" value={approveWebhook} onChange={(e) => setApproveWebhook(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
               <p className="text-[11px] text-gray-400 mt-1">신청을 <strong>승인</strong>하면 이 웹훅으로 상세 정보를 보내 구글시트·캘린더에 자동 반영합니다. (미설정 시 수동 등록 — 플랫폼 캘린더에는 즉시 반영)</p>
-            </div>
-            <div>
-              <label className="label">서약서 문구</label>
-              <textarea className="input-field h-24 resize-none" value={pledge} onChange={(e) => setPledge(e.target.value)} placeholder="공간 사용 서약 내용" />
             </div>
           </div>
         </div>
@@ -236,7 +231,7 @@ export default function SpaceRentalAdminPage() {
                 ["이메일", detail.email || "-"],
                 ["사용 인원", `${detail.headcount || 0}명`],
                 ["사용 목적", detail.purpose || "-"],
-                ["서약 동의", detail.agree ? "동의함" : "미동의"],
+                ...(detail.answers || []).map((a) => [a.label || a.id, a.value || "-"] as [string, string]),
                 ["접수일시", detail.createdAt ? new Date(detail.createdAt).toLocaleString("ko-KR") : "-"],
               ] as [string, string][]).map(([k, v]) => (
                 <div key={k} className="flex gap-3 px-3 py-2">
@@ -284,7 +279,7 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, headcount: Number(f.headcount) || 0, agree: true }),
+        body: JSON.stringify({ ...f, headcount: Number(f.headcount) || 0 }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); return; }

@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
-  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES, DEFAULT_PLEDGE,
+  SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
   normalizeSpaces, normalizeRequests, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
   calendarEmbedUrl,
   type BookedSlot,
 } from "@/lib/space-rental";
+import type { FormSchema } from "@/lib/form-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +21,11 @@ async function readConfig() {
   // 관리자가 저장한 장소가 없으면 인프라 시트 기준 기본 장소 사용
   const saved = normalizeSpaces(sp?.value);
   const spaces = saved.length ? saved : DEFAULT_SPACES;
-  const cfg = (cf?.value && typeof cf.value === "object") ? cf.value as { calendarId?: string; pledge?: string } : {};
+  const cfg = (cf?.value && typeof cf.value === "object") ? cf.value as { calendarId?: string; form?: FormSchema } : {};
   const calendarId = cfg.calendarId || DEFAULT_CALENDAR_ID;
-  const pledge = cfg.pledge || DEFAULT_PLEDGE;
+  const form = cfg.form || null;
   const requests = normalizeRequests(rq?.value);
-  return { admin, spaces, calendarId, pledge, requests };
+  return { admin, spaces, calendarId, form, requests };
 }
 
 // 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로
@@ -37,14 +38,14 @@ function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlo
 
 // 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
 export async function GET() {
-  const { spaces, calendarId, pledge, requests } = await readConfig();
+  const { spaces, calendarId, form, requests } = await readConfig();
   let calendar: BookedSlot[] = [];
   let calendarError = false;
   try { calendar = await fetchCalendarSlots(calendarId); } catch { calendarError = true; }
   const booked = [...calendar, ...requestSlots(requests)];
   // 신청자에게는 이름·수용인원·사진만 노출 (그 외 세부정보 비공개)
-  const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photo: s.photo }));
-  return NextResponse.json({ spaces: publicSpaces, booked, calendarError, pledge, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
+  const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photos: s.photos }));
+  return NextResponse.json({ spaces: publicSpaces, booked, calendarError, form, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
 }
 
 // 신청자: 공간대여 신청 — 로그인 불필요(공개). 서버측 충돌 검증.
@@ -58,7 +59,10 @@ export async function POST(req: NextRequest) {
   const headcount = Number(b.headcount) || 0;
   const applicantName = String(b.applicantName || "").trim();
   const studentId = String(b.studentId || "").trim();
-  const agree = !!b.agree;
+  // 관리자가 설정한 추가 설문 답변 (있으면 저장)
+  const answers = Array.isArray(b.answers)
+    ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") }))
+    : [];
 
   const { admin, spaces, calendarId, requests } = await readConfig();
   const space = spaces.find((s) => s.id === spaceId);
@@ -68,7 +72,6 @@ export async function POST(req: NextRequest) {
   const reqStart = slotInt(date, start), reqEnd = slotInt(date, end);
   if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 시간이 시작 시간보다 늦어야 합니다." }, { status: 400 });
   if (!applicantName || !studentId) return NextResponse.json({ ok: false, error: "신청자 정보(이름·학번/소속)를 입력해주세요." }, { status: 400 });
-  if (!agree) return NextResponse.json({ ok: false, error: "서약서에 동의해주세요." }, { status: 400 });
   if (space.capacity && headcount > space.capacity) return NextResponse.json({ ok: false, error: `수용 인원(${space.capacity}명)을 초과했습니다.` }, { status: 400 });
 
   // 충돌 검증: 캘린더 예약 + 접수건 중 같은 장소·시간 겹침
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest) {
   const entry = {
     id: crypto.randomUUID(), spaceId, spaceName: space.name, date, start, end,
     applicantName, studentId, phone: String(b.phone || "").trim(), email: String(b.email || "").trim(),
-    purpose, headcount, agree: true, status: "pending" as const, createdAt: now,
+    purpose, headcount, answers, status: "pending" as const, createdAt: now,
   };
   const next = [entry, ...requests];
   const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
