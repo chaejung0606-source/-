@@ -3,10 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Award, Search } from "lucide-react";
 import type { CertList as CertListType } from "@/lib/cert-list";
 
+const PAGE_SIZE = 10;
+
 export default function CertList() {
   const [list, setList] = useState<CertListType | null>(null);
   const [active, setActive] = useState(0);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     fetch("/api/admin/cert-list?pub=1", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.sheets) setList(d); }).catch(() => {});
@@ -25,6 +28,12 @@ export default function CertList() {
       return terms.every((t) => hay.includes(t));
     });
   }, [sheet, q]);
+
+  // 검색·구분 변경 시 첫 페이지로
+  useEffect(() => { setPage(0); }, [q, active]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const curPage = Math.min(page, totalPages - 1);
+  const pageRows = rows.slice(curPage * PAGE_SIZE, curPage * PAGE_SIZE + PAGE_SIZE);
 
   if (sheets.length === 0) return null;
 
@@ -54,7 +63,7 @@ export default function CertList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input className="input-field pl-9" placeholder="자격증명·분야 등 검색 (여러 단어 가능)" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <p className="text-xs text-gray-400 mb-2">{rows.length} / {sheet.rows.length}건</p>
+        <p className="text-xs text-gray-400 mb-2">{rows.length} / {sheet.rows.length}건{rows.length > PAGE_SIZE ? ` · ${curPage + 1}/${totalPages} 페이지` : ""}</p>
         <div className="overflow-x-auto rounded-2xl">
           <table className="text-sm w-full">
             <thead>
@@ -65,7 +74,7 @@ export default function CertList() {
             <tbody>
               {rows.length === 0 ? (
                 <tr><td colSpan={sheet.columns.length} className="text-center py-8 text-gray-400">검색 결과가 없습니다.</td></tr>
-              ) : rows.map((r) => (
+              ) : pageRows.map((r) => (
                 <tr key={r.id} className="border-b border-gray-50 hover:bg-amber-50/40">
                   {sheet.columns.map((c) => <td key={c.id} className="py-2 px-3 align-top">{r.cells[c.id] || "-"}</td>)}
                 </tr>
@@ -73,6 +82,16 @@ export default function CertList() {
             </tbody>
           </table>
         </div>
+        {/* 페이지네이션 — 10건씩 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mt-3">
+            <button onClick={() => setPage(Math.max(0, curPage - 1))} disabled={curPage === 0} className="px-2.5 py-1 rounded-lg text-sm border border-gray-200 text-gray-600 disabled:opacity-40 hover:border-amber-300">이전</button>
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button key={i} onClick={() => setPage(i)} className={`w-8 h-8 rounded-lg text-sm font-medium ${i === curPage ? "bg-amber-500 text-white" : "text-gray-600 hover:bg-amber-50"}`}>{i + 1}</button>
+            ))}
+            <button onClick={() => setPage(Math.min(totalPages - 1, curPage + 1))} disabled={curPage >= totalPages - 1} className="px-2.5 py-1 rounded-lg text-sm border border-gray-200 text-gray-600 disabled:opacity-40 hover:border-amber-300">다음</button>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -10,9 +10,9 @@ export const DEFAULT_CALENDAR_ID = "eb8f4a81fedc9b901da25bb794fd0a87dfe45ccd0994
 // 기본 서약서 문구 (관리자 설정으로 변경 가능)
 export const DEFAULT_PLEDGE = "본인은 대여 공간을 사용 목적에 맞게 이용하며, 이용 수칙을 준수하고 시설·비품을 훼손하지 않겠습니다. 사용 후 원상복구 및 정리정돈하며, 위반 시 향후 대여가 제한될 수 있음에 동의합니다.";
 
-// 공개 구글 캘린더 임베드(보기 전용) URL
+// 공개 구글 캘린더 임베드(보기 전용) URL — 월(MONTH) 보기, 이전/다음달 이동 가능
 export function calendarEmbedUrl(calendarId: string): string {
-  return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=Asia%2FSeoul&mode=WEEK`;
+  return `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calendarId)}&ctz=Asia%2FSeoul&mode=MONTH&showTitle=0&showPrint=0&showTabs=1&showCalendars=0`;
 }
 
 export interface RentalSpace { id: string; name: string; capacity?: number; note?: string; }

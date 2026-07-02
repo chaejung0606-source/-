@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users } from "lucide-react";
+import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight } from "lucide-react";
 import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
 
 interface PublicSpace { id: string; name: string; capacity?: number; }
@@ -19,6 +19,8 @@ export default function SpaceRentalPage() {
   const [pledge, setPledge] = useState("");
   const [embedUrl, setEmbedUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     spaceId: "", date: "", start: "", end: "",
@@ -39,6 +41,12 @@ export default function SpaceRentalPage() {
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const openForm = (spaceId?: string) => {
+    if (spaceId) set("spaceId", spaceId);
+    setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
 
   const space = spaces.find((s) => s.id === form.spaceId);
 
@@ -64,7 +72,7 @@ export default function SpaceRentalPage() {
 
   const submit = async () => {
     if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
-    if (!form.date || !form.start || !form.end) return alert("사용 기간(날짜)과 시간을 입력해주세요.");
+    if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
     if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
     if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
     if (!form.agree) return alert("서약서에 동의해주세요.");
@@ -97,33 +105,60 @@ export default function SpaceRentalPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-extrabold holo-text mb-1 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 신청</h1>
-          <p className="text-gray-600">로그인 없이 신청할 수 있습니다. 아래 캘린더에서 예약 현황을 확인하고, 이미 예약된 장소·시간은 신청할 수 없습니다.</p>
+        {/* 제목 + 신청하기 버튼 */}
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+          <div>
+            <h1 className="text-2xl font-extrabold holo-text mb-1 flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 신청</h1>
+            <p className="text-gray-600">로그인 없이 신청할 수 있습니다. 대여 가능한 장소와 예약 현황을 확인하고 신청하세요.</p>
+          </div>
+          {!done && (
+            <button onClick={() => openForm()} className="btn-primary flex items-center gap-1.5 shrink-0">
+              신청하기 <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
-        {/* 공간대여 구글 캘린더 (보기 전용 — 여기서 추가·수정 불가) */}
+        {/* 대여 가능한 장소 정보 (공간명·수용 인원) */}
+        <div className="card mb-6">
+          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><MapPin className="w-5 h-5 text-indigo-500" /> 대여 가능한 장소</h2>
+          {loading ? (
+            <p className="text-sm text-gray-400">불러오는 중...</p>
+          ) : spaces.length === 0 ? (
+            <p className="text-sm text-gray-400">등록된 대여 장소가 없습니다.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {spaces.map((s) => (
+                <button key={s.id} onClick={() => openForm(s.id)} className="text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
+                  <div className="font-semibold text-sm text-gray-800">{s.name}</div>
+                  {s.capacity != null && <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> 수용 인원 {s.capacity}명</div>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 대여일정 캘린더 (구글 캘린더 보기 전용 · 월 보기) */}
         {embedUrl && (
           <div className="card mb-6 p-0 overflow-hidden">
-            <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-gray-100">📅 공간대여 예약 현황 (보기 전용)</div>
-            <iframe src={embedUrl} title="공간대여 캘린더" className="w-full" style={{ height: 480, border: 0 }} />
+            <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-b border-gray-100">📅 대여일정 (보기 전용 · 이전/다음 달 이동 가능)</div>
+            <iframe src={embedUrl} title="공간대여 캘린더" className="w-full" style={{ height: 520, border: 0 }} />
           </div>
         )}
 
+        {/* 신청 폼 — '신청하기' 클릭 시 표시 */}
         {done ? (
           <div className="card text-center py-16">
             <div className="text-4xl mb-3">✅</div>
             <h2 className="text-lg font-bold text-gray-800 mb-1">공간대여 신청이 접수되었습니다.</h2>
             <p className="text-sm text-gray-500 mb-5">관리자 승인 후 캘린더에 반영됩니다.</p>
             <div className="flex justify-center gap-2">
-              <button onClick={() => { setDone(false); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "", agree: false })); load(); }} className="btn-secondary">추가 신청</button>
+              <button onClick={() => { setDone(false); setShowForm(true); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "", agree: false })); load(); }} className="btn-secondary">추가 신청</button>
               <Link href="/" className="btn-primary">홈으로</Link>
             </div>
           </div>
-        ) : loading ? (
-          <div className="text-center py-20 text-gray-400">불러오는 중...</div>
-        ) : (
-          <div className="card space-y-4">
+        ) : showForm ? (
+          <div ref={formRef} className="card space-y-4">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2"><CalendarClock className="w-5 h-5 text-indigo-500" /> 신청서 작성</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">대여 공간 <span className="text-red-500">*</span></label>
@@ -220,7 +255,7 @@ export default function SpaceRentalPage() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

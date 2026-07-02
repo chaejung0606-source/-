@@ -239,15 +239,6 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
-        {/* 공간대여 예약 현황 (구글 캘린더 보기 전용) */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
-            <CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">구글 캘린더의 예약 현황을 그대로 보여줍니다. 신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
-          <SpaceCalendar />
-        </section>
-
         {/* 운영 절차 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -304,6 +295,15 @@ export default function Home() {
 
         {/* 자격증 목록 (독립 섹션) */}
         <CertList />
+
+        {/* 공간대여 예약 현황 (구글 캘린더 보기 전용) — 자격증 목록 아래 */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">구글 캘린더의 예약 현황을 그대로 보여줍니다. 신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
+          <SpaceCalendar />
+        </section>
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">
