@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, Lock, User, Home, LogIn } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminLoginPage() {
   const [loginId, setLoginId] = useState("");
@@ -23,6 +24,8 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // 중복 로그인 방지: 관리자로 로그인하면 남아있는 신청자(Supabase) 세션을 정리
+        try { await supabase.auth.signOut(); } catch { /* best-effort */ }
         // 편집 내용을 바로 확인할 수 있도록 홈 화면으로 이동 (헤더의 '관리자 페이지' 버튼으로 왕복)
         router.push("/");
       } else {

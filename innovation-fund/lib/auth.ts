@@ -58,6 +58,8 @@ export async function login(studentId: string, password: string): Promise<{ ok: 
     email: emailForStudentId(studentId), password,
   });
   if (error) return { ok: false, error: "학번 또는 비밀번호가 올바르지 않습니다." };
+  // 중복 로그인 방지: 신청자로 로그인하면 남아있는 관리자 세션을 정리
+  try { await fetch("/api/admin/logout", { method: "POST" }); } catch { /* best-effort */ }
   return { ok: true };
 }
 

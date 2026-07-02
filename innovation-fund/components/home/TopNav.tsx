@@ -7,12 +7,12 @@ import { APPLICATION_TYPE_LABELS, PICK_TYPES_PRE, PICK_TYPES_FUND } from "@/type
 interface SubItem { label: string; href: string; }
 interface Menu { label: string; href?: string; items?: SubItem[]; }
 
-// 홈 상단바 메뉴 — 지원신청/지원금신청/소학회는 하위 목록, 공간대여는 바로가기.
+// 홈 상단바 메뉴 — 상위목록 클릭 시 해당 섹션 페이지(/menu/*)로, 커서 올리면 하위목록.
 const MENUS: Menu[] = [
-  { label: "지원신청", items: PICK_TYPES_PRE.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}&mode=pre` })) },
-  { label: "지원금신청", items: PICK_TYPES_FUND.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}` })) },
+  { label: "지원신청", href: "/menu/pre", items: PICK_TYPES_PRE.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}&mode=pre` })) },
+  { label: "지원금신청", href: "/menu/fund", items: PICK_TYPES_FUND.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}` })) },
   // 소학회는 독립 메뉴 — 하위로 지원신청/지원금신청
-  { label: "소학회", items: [
+  { label: "소학회", href: "/menu/club", items: [
     { label: "지원신청", href: "/apply?type=club&mode=pre" },
     { label: "지원금신청", href: "/apply?type=club" },
   ] },
@@ -23,9 +23,9 @@ export default function TopNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
-    <nav className="border-t border-white/40 bg-white/40 backdrop-blur-sm">
-      <div className="max-w-6xl mx-auto px-4">
-        <ul className="flex flex-wrap items-center gap-1 sm:gap-2">
+    <nav className="flex-1 min-w-0">
+      <div>
+        <ul className="flex flex-wrap items-center justify-center gap-0.5 sm:gap-1.5">
           {MENUS.map((m) => (
             <li
               key={m.label}
@@ -33,22 +33,23 @@ export default function TopNav() {
               onMouseEnter={() => setOpen(m.label)}
               onMouseLeave={() => setOpen((o) => (o === m.label ? null : o))}
             >
-              {m.href && !m.items ? (
-                <Link href={m.href} className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
+              {!m.items ? (
+                <Link href={m.href!} className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
                   {m.label}
                 </Link>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setOpen((o) => (o === m.label ? null : m.label))}
+                  {/* 상위목록 클릭 → 섹션 페이지, 커서 올림 → 하위목록 */}
+                  <Link
+                    href={m.href!}
+                    onClick={() => setOpen(null)}
                     className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
                     aria-expanded={open === m.label}
                   >
                     {m.label}
                     <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open === m.label ? "rotate-180" : ""}`} />
-                  </button>
-                  {open === m.label && m.items && (
+                  </Link>
+                  {open === m.label && (
                     <div className="absolute left-0 top-full z-50 min-w-[190px] rounded-xl border border-gray-200 bg-white shadow-xl py-1.5">
                       {m.items.map((s) => (
                         <Link

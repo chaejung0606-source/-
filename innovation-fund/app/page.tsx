@@ -178,10 +178,10 @@ export default function Home() {
         );
       })()}
 
-      {/* 헤더 (상단바) */}
+      {/* 헤더 (상단바) — 로고 · 메뉴(가운데) · 로그인/로그아웃 */}
       <header className="glass-header sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="w-11 h-11 flex items-center justify-center shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/sdu-shield.png" alt="SDU 사업단 로고" className="w-full h-full object-contain" />
@@ -191,8 +191,11 @@ export default function Home() {
               <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">학생 지원금 신청 플랫폼</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
+          {/* 상단바 메뉴 — 지원신청/지원금신청/소학회(하위목록) + 공간대여 */}
+          <TopNav />
+          {/* 관리자·신청자 로그인 상태는 상호 배타적으로 표시(중복 로그인 UI 방지) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin ? (
               <>
                 <Link href="/admin/applications" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
                   <Shield className="w-4 h-4" /> 관리자 페이지
@@ -201,8 +204,7 @@ export default function Home() {
                   <LogOut className="w-4 h-4" /> 로그아웃
                 </button>
               </>
-            )}
-            {loggedIn ? (
+            ) : loggedIn ? (
               <>
                 <Link href="/mypage" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
                   <User className="w-4 h-4" /> 마이페이지
@@ -211,7 +213,7 @@ export default function Home() {
                   <LogOut className="w-4 h-4" /> 로그아웃
                 </button>
               </>
-            ) : !isAdmin ? (
+            ) : (
               <>
                 <Link href="/login" className="glass-pill px-4 h-10 flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors">
                   <User className="w-4 h-4" /> 로그인
@@ -220,11 +222,9 @@ export default function Home() {
                   <HomeIcon className="w-4 h-4" /> 홈
                 </Link>
               </>
-            ) : null}
+            )}
           </div>
         </div>
-        {/* 상단바 메뉴 — 지원신청/지원금신청/소학회(하위목록) + 공간대여 */}
-        <TopNav />
       </header>
 
       {/* 히어로 */}
@@ -240,105 +240,10 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 pb-28 space-y-12">
-        {/* 본문 상단 신청 카드 — 지원신청 / 지원금 신청 각각 유형별 개별 카드 */}
-        <section className="space-y-6">
-          {/* 1행: 지원신청 (활동 전) */}
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">📝</span> 지원신청
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
-              {PICK_TYPES_PRE.map((t) => (
-                <div key={t} className="card flex flex-col">
-                  <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
-                  <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
-                  <div className="mb-5 flex-1">
-                    <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "pre")}</p>
-                  </div>
-                  <Link href={`/apply?type=${t}&mode=pre`} className="btn-secondary w-full justify-center">
-                    지원하기 <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 2행: 지원금 신청 (활동 후) */}
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">💸</span> 지원금 신청
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
-              {PICK_TYPES_FUND.map((t) => (
-                <div key={t} className="card flex flex-col">
-                  <div className="text-3xl mb-3">{typeMeta[t].icon}</div>
-                  <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
-                  <div className="mb-5 flex-1 space-y-2">
-                    {(t === "labor" || t === "program" || t === "staff") ? (
-                      <p className="text-sm text-gray-600">신청 가능 분야: {typeInfo(t, "fund")}</p>
-                    ) : (
-                      <p className="text-sm text-gray-600">{typeMeta[t].note || typeMeta[t].desc}</p>
-                    )}
-                    {/* 성과형(성적·경진대회·자격증) 학기별 신청기한 — 관리자 설정값 실시간 반영 */}
-                    {(PERIOD_TYPES as readonly string[]).includes(t) && (
-                      periodLabel(typePeriods[t]) ? (
-                        <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${isTypeOpen(typePeriods[t]) ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                          🗓️ 신청기간 {periodLabel(typePeriods[t])}{isTypeOpen(typePeriods[t]) ? " · 신청 가능" : " · 신청 불가"}
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">🗓️ 상시 신청 가능</div>
-                      )
-                    )}
-                  </div>
-                  <Link href={`/apply?type=${t}`} className="btn-primary w-full justify-center">
-                    지원금 신청하기 <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 3행: 소학회 (독립 — 지원신청/지원금신청) */}
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">🧑‍💻</span> 소학회
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
-              <div className="card flex flex-col">
-                <div className="text-3xl mb-3">{typeMeta.club.icon}</div>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">첨단 ICT 소학회</h3>
-                <div className="mb-5 flex-1">
-                  <p className="text-sm text-gray-600">{typeMeta.club.desc}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Link href="/apply?type=club&mode=pre" className="btn-secondary w-full justify-center text-sm">지원신청</Link>
-                  <Link href="/apply?type=club" className="btn-primary w-full justify-center text-sm">지원금신청</Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 4행: 공간대여 신청 (지원금과 별개) */}
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">🏫</span> 공간대여 신청
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-3">
-              <div className="card flex flex-col">
-                <div className="text-3xl mb-3">🏫</div>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">공간대여 신청</h3>
-                <div className="mb-5 flex-1">
-                  <p className="text-sm text-gray-600">세미나실·실습실 등 사업단 공간을 대여 신청합니다. 이미 예약된 장소·시간은 신청할 수 없습니다.</p>
-                </div>
-                <Link href="/space-rental" className="btn-primary w-full justify-center">
-                  공간대여 신청하기 <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          </div>
-
+        {/* 신청 기능은 상단바 메뉴(지원신청·지원금신청·소학회·공간대여)에서 이용 */}
+        <section>
           <p className="text-base sm:text-lg font-semibold text-red-600">
-            신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
+            상단 메뉴에서 <strong>지원신청 · 지원금신청 · 소학회 · 공간대여</strong>를 신청할 수 있습니다. 신청 가능한 프로그램은 아래 ‘유형별 지급 기준 세부내용’을 확인해주세요.
           </p>
         </section>
 
