@@ -191,6 +191,11 @@ function ApplyInner() {
   const awaitingPreCheck = mode === "fund" && !!selectedType && requiresPre(selectedType) && !prefill && !draftApp && !preChecked;
   const showPrePicker = mode === "fund" && !!category && !selectedType && preChecked && preApps.length > 0 && !skipPre;
 
+  // 상단바 메뉴(섹션 페이지)에서 ?type=로 바로 진입한 경우: '이전'은 종류 선택 그리드가 아니라
+  // 원래의 섹션 페이지(지원신청/지원금신청/소학회)로 돌아가도록 한다.
+  const cameFromSection = !!initType && !fromId && !draftId && !adminFor;
+  const sectionRoute = `/menu/${initType === "club" ? "club" : mode === "pre" ? "pre" : "fund"}`;
+
   if (!ready) return <div className="min-h-screen flex items-center justify-center text-gray-400">확인 중...</div>;
 
   const doLogout = async () => { await logout(); router.replace("/login?next=/apply"); };
@@ -237,7 +242,7 @@ function ApplyInner() {
           />
         ) : selectedType && schemaPrograms.length > 0 && !draftApp && !prefill ? (
           <>
-            <button onClick={() => { setSelectedType(null); if (CATEGORY_TYPES[category!]?.length <= 1) { setCategory(null); } }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 이전</button>
+            <button onClick={() => { if (cameFromSection) { router.push(sectionRoute); return; } setSelectedType(null); if (CATEGORY_TYPES[category!]?.length <= 1) { setCategory(null); } }} className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 이전</button>
             <div className="mb-6">
               <h1 className="text-2xl font-extrabold holo-text mb-1">{APPLICATION_TYPE_LABELS[selectedType]} — 신청 정보</h1>
               <p className="text-gray-600">신청할 프로그램을 선택하면 관리자가 설정한 해당 프로그램의 신청서 양식으로 작성합니다.</p>
@@ -264,6 +269,8 @@ function ApplyInner() {
             adminUser={adminUser}
             onBack={() => {
               setPrefill(null);
+              // 상단바 메뉴에서 바로 진입한 경우: 원래의 섹션 페이지로 복귀
+              if (cameFromSection) { router.push(sectionRoute); return; }
               // 지원신청(pre)서 작성 중 뒤로가기는 곧장 홈으로(종류 선택을 다시 거치지 않도록)
               if (mode === "pre") { router.push("/"); return; }
               // 혁신인재지원금(지원금)은 유형 선택으로, 그 외는 종류 선택으로
