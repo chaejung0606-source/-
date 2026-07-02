@@ -1,12 +1,12 @@
 "use client";
-import { use, useState } from "react";
+import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Home as HomeIcon, ChevronRight, Info } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, PICK_TYPES_PRE, PICK_TYPES_FUND } from "@/types";
 import TopNav from "@/components/home/TopNav";
-import FundTypeModal from "@/components/home/FundTypeModal";
+import TypeCriteria from "@/components/home/TypeCriteria";
 
 const ICONS: Record<ApplicationType, string> = {
   program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", activity: "🎒", club: "🧑‍💻",
@@ -30,15 +30,15 @@ const SECTIONS: Record<SectionKey, SectionCfg> = {
   },
   club: {
     title: "소학회", emoji: "🧑‍💻", desc: "첨단 ICT 분야(보안·클라우드·블록체인 등) 소학회(동아리) 활동을 지원합니다.",
-    types: ["club"], hrefFor: (t) => `/apply?type=${t}`, applyLabel: "신청하기",
+    types: ["club"], hrefFor: (t) => `/apply?type=${t}`, applyLabel: "지원금신청",
   },
 };
 
 export default function MenuSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = use(params);
   const cfg = SECTIONS[section as SectionKey];
-  const [modalType, setModalType] = useState<ApplicationType | null>(null);
   if (!cfg) return notFound();
+  const isClub = section === "club";
 
   return (
     <div className="min-h-screen">
@@ -59,45 +59,47 @@ export default function MenuSectionPage({ params }: { params: Promise<{ section:
       <div className="max-w-5xl mx-auto px-4 py-8">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-700 mb-4"><ArrowLeft className="w-4 h-4" /> 홈으로</Link>
         <div className="mb-6">
-          <h1 className="text-3xl font-extrabold holo-text mb-1 flex items-center gap-2"><span>{cfg.emoji}</span> {cfg.title}</h1>
+          {/* 이모지는 holo-text(그라데이션 텍스트) 밖에 두어 상자처럼 보이는 문제 방지 */}
+          <h1 className="text-3xl font-extrabold mb-1 flex items-center gap-2">
+            <span aria-hidden="true">{cfg.emoji}</span>
+            <span className="holo-text">{cfg.title}</span>
+          </h1>
           <p className="text-gray-600">{cfg.desc}</p>
         </div>
 
-        {/* 하위목록 + 신청 기능 + 신청기준 안내 */}
-        {section === "club" ? (
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="card flex flex-col">
-              <div className="text-3xl mb-3">🧑‍💻</div>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">첨단 ICT 소학회</h3>
-              <div className="mb-5 flex-1"><p className="text-sm text-gray-600">소학회별 최소 6명 · 회장 혁신인재지원금(월 24만원) · 운영비 최대 200만원/학기</p></div>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/apply?type=club&mode=pre" className="btn-secondary w-full justify-center text-sm">지원신청</Link>
-                <Link href="/apply?type=club" className="btn-primary w-full justify-center text-sm">지원금신청</Link>
-              </div>
-              <button onClick={() => setModalType("club")} className="mt-2 text-xs text-indigo-500 hover:text-indigo-700 inline-flex items-center justify-center gap-1"><Info className="w-3.5 h-3.5" /> 신청기준 안내 보기</button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cfg.types.map((t) => (
-              <div key={t} className="card flex flex-col">
-                <div className="text-3xl mb-3">{ICONS[t]}</div>
-                <h3 className="font-bold text-lg text-gray-800 mb-2">{APPLICATION_TYPE_LABELS[t]}</h3>
-                <div className="mb-5 flex-1">
-                  <button onClick={() => setModalType(t)} className="text-sm text-indigo-500 hover:text-indigo-700 inline-flex items-center gap-1"><Info className="w-3.5 h-3.5" /> 신청기준 안내 보기</button>
+        {/* 유형별: 신청 기능 + 신청기준 안내(독립 칸) */}
+        <div className="space-y-6">
+          {cfg.types.map((t) => (
+            <div key={t} className="card">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="text-3xl shrink-0">{ICONS[t]}</div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-lg text-gray-800">{isClub ? "첨단 ICT 소학회" : APPLICATION_TYPE_LABELS[t]}</h3>
+                    {isClub && <p className="text-sm text-gray-600 mt-0.5">소학회별 최소 6명 · 회장 혁신인재지원금(월 24만원) · 운영비 최대 200만원/학기</p>}
+                  </div>
                 </div>
-                <Link href={cfg.hrefFor(t)} className={`${section === "fund" ? "btn-primary" : "btn-secondary"} w-full justify-center`}>
-                  {cfg.applyLabel} <ChevronRight className="w-4 h-4" />
-                </Link>
+                {isClub ? (
+                  <div className="flex gap-2 shrink-0">
+                    <Link href="/apply?type=club&mode=pre" className="btn-secondary justify-center text-sm">지원신청</Link>
+                    <Link href="/apply?type=club" className="btn-primary justify-center text-sm">지원금신청</Link>
+                  </div>
+                ) : (
+                  <Link href={cfg.hrefFor(t)} className={`${section === "fund" ? "btn-primary" : "btn-secondary"} justify-center shrink-0`}>
+                    {cfg.applyLabel} <ChevronRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
-            ))}
-          </div>
-        )}
 
-        <p className="text-sm text-gray-500 mt-6">※ ‘신청기준 안내 보기’를 누르면 각 유형의 세부 지급 기준과 신청 가능한 프로그램을 확인할 수 있습니다.</p>
+              {/* 신청기준 안내 — 신청 버튼 아래 독립 칸에 바로 표시 */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-bold text-indigo-600 mb-2 flex items-center gap-1"><Info className="w-3.5 h-3.5" /> 신청기준 안내</p>
+                <TypeCriteria type={t} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-
-      <FundTypeModal type={modalType} onClose={() => setModalType(null)} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Nanum_Pen_Script, Black_Han_Sans } from "next/font/google";
 import "./globals.css";
 import CursorGlitter from "@/components/common/CursorGlitter";
 import ApplicantDashboard from "@/components/mypage/ApplicantDashboard";
+import HeroClouds from "@/components/home/HeroClouds";
 
 const handwriting = Nanum_Pen_Script({
   weight: "400",
@@ -34,6 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className={`${handwriting.variable} ${bubble.variable}`}>
       <body>
+        {/* 모든 페이지 공통 배경 — 홈과 동일한 뭉게구름·하늘 (본문 뒤 고정) */}
+        <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+          <HeroClouds />
+        </div>
         {/* 마우스 포인터를 따라다니는 반짝이 */}
         <CursorGlitter />
         {children}

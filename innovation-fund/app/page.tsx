@@ -11,7 +11,6 @@ import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
-import HeroClouds from "@/components/home/HeroClouds";
 import CertList from "@/components/home/CertList";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
@@ -227,9 +226,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 히어로 */}
+      {/* 히어로 (배경 구름은 전역 레이아웃에서 공통 렌더) */}
       <section className="py-20 px-4 relative overflow-hidden">
-        <HeroClouds />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h1 className="bubble-text text-5xl sm:text-7xl lg:text-8xl mb-5 holo-text leading-tight tracking-tight">학생 지원금 신청 플랫폼</h1>
           <p className="text-gray-600 text-lg mb-2">
