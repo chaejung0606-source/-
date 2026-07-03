@@ -44,7 +44,21 @@ export interface RentalRequest {
   calendarEventId?: string;    // 캘린더 반영 시 이벤트 id(웹훅 응답)
 }
 // 시간 겹침 판정용 슬롯 (KST 벽시계 정수 YYYYMMDDHHmm)
-export interface BookedSlot { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
+export interface BookedSlot { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; uid?: string; summary?: string; location?: string; }
+
+// 슬롯 정수(YYYYMMDDHHmm) → { date:'YYYY-MM-DD', time:'HH:mm' }
+export function slotIntToParts(n: number): { date: string; time: string } {
+  const s = String(n).padStart(12, "0");
+  return { date: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`, time: `${s.slice(8, 10)}:${s.slice(10, 12)}` };
+}
+// 캘린더 이벤트 제목/장소에서 공간명·신청자명 추정 ("[공간대여] {공간} · {신청자}")
+export function guessSpaceAndApplicant(summary: string, location: string): { spaceName: string; applicantName: string } {
+  const clean = (summary || "").replace(/^\s*\[공간대여\]\s*/, "").trim();
+  const parts = clean.split("·").map((s) => s.trim());
+  const spaceName = (location || "").trim() || parts[0] || clean;
+  const applicantName = parts.length > 1 ? parts.slice(1).join(" · ") : "";
+  return { spaceName, applicantName };
+}
 
 export function normalizeSpaces(v: unknown): RentalSpace[] {
   if (!Array.isArray(v)) return [];
@@ -115,17 +129,19 @@ export function parseIcs(ics: string): BookedSlot[] {
   for (const block of unfolded.split("BEGIN:VEVENT").slice(1)) {
     const body = block.split("END:VEVENT")[0];
     const lines = body.split(/\r?\n/);
-    let start: number | null = null, end: number | null = null, summary = "", location = "";
+    let start: number | null = null, end: number | null = null, summary = "", location = "", uid = "";
     for (const ln of lines) {
       if (/^DTSTART/.test(ln)) start = icsValueToKstInt(ln);
       else if (/^DTEND/.test(ln)) end = icsValueToKstInt(ln);
       else if (/^SUMMARY/.test(ln)) summary = ln.slice(ln.indexOf(":") + 1).trim();
       else if (/^LOCATION/.test(ln)) location = ln.slice(ln.indexOf(":") + 1).trim();
+      else if (/^UID/.test(ln)) uid = ln.slice(ln.indexOf(":") + 1).trim();
     }
     if (start == null) continue;
     if (end == null) end = start + 1;
     const unesc = (s: string) => s.replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\n/gi, " ");
-    out.push({ start, end, label: `${unesc(summary)} ${unesc(location)}`.trim(), source: "calendar" });
+    const sm = unesc(summary), lc = unesc(location);
+    out.push({ start, end, label: `${sm} ${lc}`.trim(), source: "calendar", uid: uid || undefined, summary: sm, location: lc });
   }
   return out;
 }

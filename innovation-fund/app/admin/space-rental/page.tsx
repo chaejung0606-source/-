@@ -25,7 +25,10 @@ export default function SpaceRentalAdminPage() {
 
   const [detail, setDetail] = useState<RentalRequest | null>(null);
   const [memo, setMemo] = useState("");
+  const [edit, setEdit] = useState<Partial<RentalRequest>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = () => {
     fetch("/api/admin/space-rental").then((r) => r.json()).then((d) => {
@@ -84,7 +87,42 @@ export default function SpaceRentalAdminPage() {
     await fetch("/api/admin/space-rental", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
   };
 
-  const openDetail = (r: RentalRequest) => { setDetail(r); setMemo(r.adminMemo || ""); };
+  const openDetail = (r: RentalRequest) => {
+    setDetail(r); setMemo(r.adminMemo || "");
+    setEdit({ spaceId: r.spaceId, spaceName: r.spaceName, date: r.date, start: r.start, end: r.end, applicantName: r.applicantName, studentId: r.studentId, phone: r.phone, email: r.email, headcount: r.headcount, purpose: r.purpose });
+  };
+  const setE = (patch: Partial<RentalRequest>) => setEdit((p) => ({ ...p, ...patch }));
+
+  // 신청 내용 편집 저장 → 구글 캘린더·시트·플랫폼 캘린더 반영
+  const saveEdit = async () => {
+    if (!detail) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/admin/space-rental", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id, edit }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("수정 실패: " + (j.error || res.status)); return; }
+      setRequests((rs) => rs.map((r) => r.id === detail.id ? { ...r, ...edit } as RentalRequest : r));
+      setDetail((d) => d ? { ...d, ...edit } as RentalRequest : d);
+      alert(j.calendarReflected ? "수정되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다." : "수정되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
+    } finally { setSavingEdit(false); }
+  };
+
+  // 구글 캘린더에 이미 등록된 공간대여 건들을 신청목록으로 불러오기
+  const importCalendar = async () => {
+    if (!confirm("구글 캘린더에 등록된 공간대여 일정을 신청목록으로 불러올까요?\n(공간명이 일치하는 이벤트만, 이미 불러온 건은 제외)")) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/admin/space-rental", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "importCalendar" }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("불러오기 실패: " + (j.error || res.status)); return; }
+      alert(`${j.added}건을 신청목록으로 불러왔습니다.`);
+      load();
+    } finally { setImporting(false); }
+  };
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
@@ -117,7 +155,10 @@ export default function SpaceRentalAdminPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h2 className="font-bold text-gray-800">공간대여 신청목록 <span className="text-sm text-gray-400 font-normal">({requests.length})</span></h2>
-            <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
+            <div className="flex items-center gap-2">
+              <button onClick={importCalendar} disabled={importing} className="btn-secondary text-sm flex items-center gap-1.5 disabled:opacity-60"><CalendarDays className="w-4 h-4" /> {importing ? "불러오는 중..." : "구글 캘린더에서 불러오기"}</button>
+              <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
+            </div>
           </div>
           {requests.length === 0 ? (
             <p className="text-sm text-gray-400 py-3">접수된 공간대여 신청이 없습니다.</p>
@@ -220,25 +261,40 @@ export default function SpaceRentalAdminPage() {
               <h2 className="text-lg font-bold text-gray-800">공간대여 신청 상세</h2>
               <span className={`badge ${STATUS_META[detail.status].badge}`}>{STATUS_META[detail.status].label}</span>
             </div>
-            {/* 신청자가 작성한 설문 폼 */}
-            <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 text-sm">
-              {([
-                ["대여 공간", detail.spaceName],
-                ["사용일", detail.date],
-                ["사용 시간", `${detail.start} ~ ${detail.end}`],
-                ["신청자", `${detail.applicantName} (${detail.studentId})`],
-                ["연락처", detail.phone || "-"],
-                ["이메일", detail.email || "-"],
-                ["사용 인원", `${detail.headcount || 0}명`],
-                ["사용 목적", detail.purpose || "-"],
-                ...(detail.answers || []).map((a) => [a.label || a.id, a.value || "-"] as [string, string]),
-                ["접수일시", detail.createdAt ? new Date(detail.createdAt).toLocaleString("ko-KR") : "-"],
-              ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="flex gap-3 px-3 py-2">
-                  <span className="w-24 shrink-0 text-gray-500">{k}</span>
-                  <span className="text-gray-800 break-words whitespace-pre-line">{v}</span>
+            {/* 신청 내용 편집 — 수정 시 구글 캘린더·시트·플랫폼 캘린더에 반영 */}
+            <div className="rounded-xl border border-gray-100 p-3 space-y-3">
+              <div>
+                <label className="label">대여 공간</label>
+                <select className="input-field" value={edit.spaceId || ""} onChange={(e) => { const s = spaces.find((x) => x.id === e.target.value); setE({ spaceId: e.target.value, spaceName: s ? s.name : edit.spaceName }); }}>
+                  {!spaces.some((s) => s.id === edit.spaceId) && <option value={edit.spaceId || ""}>{edit.spaceName || "(캘린더 등록)"}</option>}
+                  {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div><label className="label">사용일</label><input type="date" className="input-field" value={edit.date || ""} onChange={(e) => setE({ date: e.target.value })} /></div>
+                <div><label className="label">시작</label><input type="time" className="input-field" value={edit.start || ""} onChange={(e) => setE({ start: e.target.value })} /></div>
+                <div><label className="label">종료</label><input type="time" className="input-field" value={edit.end || ""} onChange={(e) => setE({ end: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="label">신청자</label><input className="input-field" value={edit.applicantName || ""} onChange={(e) => setE({ applicantName: e.target.value })} /></div>
+                <div><label className="label">학번/소속</label><input className="input-field" value={edit.studentId || ""} onChange={(e) => setE({ studentId: e.target.value })} /></div>
+                <div><label className="label">연락처</label><input className="input-field" value={edit.phone || ""} onChange={(e) => setE({ phone: e.target.value })} /></div>
+                <div><label className="label">이메일</label><input className="input-field" value={edit.email || ""} onChange={(e) => setE({ email: e.target.value })} /></div>
+                <div><label className="label">사용 인원</label><input type="number" min={0} className="input-field" value={edit.headcount ?? ""} onChange={(e) => setE({ headcount: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
+              </div>
+              <div><label className="label">사용 목적</label><textarea className="input-field h-16 resize-none" value={edit.purpose || ""} onChange={(e) => setE({ purpose: e.target.value })} /></div>
+              <div className="flex justify-end">
+                <button onClick={saveEdit} disabled={savingEdit} className="btn-secondary text-sm flex items-center gap-1 disabled:opacity-60"><Save className="w-4 h-4" /> {savingEdit ? "저장 중..." : "수정 저장 (캘린더·시트 반영)"}</button>
+              </div>
+              {(detail.answers && detail.answers.length > 0) && (
+                <div className="pt-2 border-t border-gray-100 text-sm space-y-1">
+                  <p className="text-[11px] font-semibold text-gray-500">신청자 추가 설문</p>
+                  {detail.answers.map((a) => (
+                    <div key={a.id} className="flex gap-3"><span className="w-28 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
+                  ))}
                 </div>
-              ))}
+              )}
+              <p className="text-[11px] text-gray-400">접수일시: {detail.createdAt ? new Date(detail.createdAt).toLocaleString("ko-KR") : "-"}</p>
             </div>
 
             {/* 보완요청 메모 */}
@@ -253,7 +309,7 @@ export default function SpaceRentalAdminPage() {
               <button onClick={() => updateStatus(detail.id, "rejected", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-rose-700 bg-rose-100 hover:bg-rose-200 flex items-center gap-1"><Ban className="w-4 h-4" /> 반려</button>
               <button onClick={() => updateStatus(detail.id, "approved", memo)} className="btn-primary text-sm flex items-center gap-1"><Check className="w-4 h-4" /> 승인</button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">승인하면 플랫폼 캘린더에 즉시 반영되고, 웹훅이 설정된 경우 구글시트·캘린더에도 자동 등록됩니다.</p>
+            <p className="text-[11px] text-gray-400 mt-2">승인하면 플랫폼 캘린더에 즉시 반영되고, 웹훅이 설정된 경우 구글시트·캘린더에도 자동 등록됩니다. 내용을 수정하면 ‘수정 저장’으로 반영하세요.</p>
           </div>
         </div>
       )}
