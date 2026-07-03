@@ -14,7 +14,7 @@ export default function AdminsPage() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [saved, setSaved] = useState(false);
-  // AI(회의록·초안 작성) 키 설정
+  // AI 초안 작성 키 설정
   const [aiHasKey, setAiHasKey] = useState(false);
   const [aiFromEnv, setAiFromEnv] = useState(false);
   const [aiModel, setAiModel] = useState("");
@@ -107,10 +107,10 @@ export default function AdminsPage() {
         <p className="text-[11px] text-amber-600 mt-2">※ 여기서 설정한 아이디·비밀번호로 지출관리자 로그인 및 모든 비밀번호 확인이 동작합니다. 변경 후 분실에 주의하세요.</p>
       </div>
 
-      {/* AI(회의록·초안 작성) 키 설정 */}
+      {/* AI 초안 작성 키 설정 */}
       <div className="card mb-4">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <p className="text-xs font-semibold text-gray-500">AI 회의록·초안 작성 키 (Anthropic)</p>
+          <p className="text-xs font-semibold text-gray-500">AI 초안 작성 키 (Anthropic)</p>
           <span className={`badge ${aiHasKey ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{aiHasKey ? (aiFromEnv ? "설정됨(환경변수)" : "설정됨") : "미설정"}</span>
         </div>
         <div className="flex items-end gap-2 flex-wrap">
@@ -128,7 +128,7 @@ export default function AdminsPage() {
         <p className="text-[11px] text-gray-400 mt-2">
           {aiFromEnv
             ? "환경변수 ANTHROPIC_API_KEY가 설정되어 있어 그 값을 사용합니다. (여기서 수정 불가)"
-            : "여기에 키를 저장하면 회의록 작성·AI 초안 기능이 활성화됩니다. 키는 서버에만 저장되고 화면에 다시 표시되지 않습니다. (콘솔: console.anthropic.com 에서 발급)"}
+            : "여기에 키를 저장하면 관리자 대리 신청의 AI 초안 작성 기능이 활성화됩니다. 키는 서버에만 저장되고 화면에 다시 표시되지 않습니다. (콘솔: console.anthropic.com 에서 발급)"}
         </p>
       </div>
 

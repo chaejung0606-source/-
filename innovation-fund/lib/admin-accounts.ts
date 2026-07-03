@@ -13,7 +13,6 @@ export const GRANTABLE_MENUS: { key: string; label: string }[] = [
   { key: "/admin/programs", label: "신청폼 편집 (지급 기준·자격증 포함)" },
   { key: "/admin/space-rental", label: "공간대여 신청 (설문폼 포함)" },
   { key: "/admin/site-settings", label: "사이트 설정 (파일 저장 경로 포함)" },
-  { key: "/admin/meeting-minutes", label: "회의록 작성" },
 ];
 export const GRANTABLE_MENU_KEYS = GRANTABLE_MENUS.map((m) => m.key);
 

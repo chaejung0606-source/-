@@ -1,4 +1,4 @@
-// AI(회의록·초안 작성) 키 설정 — 환경변수(ANTHROPIC_API_KEY) 우선, 없으면 관리자 설정(app_config)에서.
+// AI 초안 작성 키 설정 — 환경변수(ANTHROPIC_API_KEY) 우선, 없으면 관리자 설정(app_config)에서.
 // 배포 환경에 환경변수를 넣기 어려운 경우 관리자 페이지에서 키를 저장해 사용할 수 있다.
 // 키는 서버에서만 읽고 클라이언트로 절대 반환하지 않는다.
 import { supabaseAdmin } from "./supabase-admin";

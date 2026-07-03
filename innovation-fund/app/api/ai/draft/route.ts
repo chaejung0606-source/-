@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
   const { apiKey, model } = await getAnthropic();
   if (!apiKey) {
-    return NextResponse.json({ ok: false, error: "AI 키가 설정되어 있지 않습니다. 관리자 설정 → 'AI 회의록 키'에 Anthropic API 키를 입력하거나 환경변수 ANTHROPIC_API_KEY를 추가하세요." }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "AI 키가 설정되어 있지 않습니다. 관리자 설정 → 'AI 초안 작성 키'에 Anthropic API 키를 입력하거나 환경변수 ANTHROPIC_API_KEY를 추가하세요." }, { status: 503 });
   }
 
   const b = await req.json().catch(() => ({}));

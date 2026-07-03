@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog, CalendarClock, NotebookPen } from "lucide-react";
+import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog, CalendarClock } from "lucide-react";
 
 // expenseOnly: 지출관리자(전체 권한)만 보이는 메뉴. 프로그램별 관리자는 '신청 목록'만.
 // 일부 기능은 상위 메뉴 탭으로 통합됨:
@@ -15,7 +15,6 @@ const NAV = [
   { href: "/admin/space-rental", label: "공간대여 신청", icon: CalendarClock, expenseOnly: true },
   { href: "/admin/admins", label: "관리자 설정", icon: UserCog, expenseOnly: true },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal, expenseOnly: true },
-  { href: "/admin/meeting-minutes", label: "회의록 작성", icon: NotebookPen, expenseOnly: true },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
