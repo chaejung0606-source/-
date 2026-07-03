@@ -28,7 +28,6 @@ export default function SpaceRentalAdminPage() {
   const [edit, setEdit] = useState<Partial<RentalRequest>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
 
   const load = () => {
     fetch("/api/admin/space-rental").then((r) => r.json()).then((d) => {
@@ -109,20 +108,6 @@ export default function SpaceRentalAdminPage() {
     } finally { setSavingEdit(false); }
   };
 
-  // 구글 캘린더에 이미 등록된 공간대여 건들을 신청목록으로 불러오기
-  const importCalendar = async () => {
-    if (!confirm("구글 캘린더에 등록된 공간대여 일정을 신청목록으로 불러올까요?\n(공간명이 일치하는 이벤트만, 이미 불러온 건은 제외)")) return;
-    setImporting(true);
-    try {
-      const res = await fetch("/api/admin/space-rental", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "importCalendar" }),
-      });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("불러오기 실패: " + (j.error || res.status)); return; }
-      alert(`${j.added}건을 신청목록으로 불러왔습니다.`);
-      load();
-    } finally { setImporting(false); }
-  };
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
@@ -155,10 +140,7 @@ export default function SpaceRentalAdminPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h2 className="font-bold text-gray-800">공간대여 신청목록 <span className="text-sm text-gray-400 font-normal">({requests.length})</span></h2>
-            <div className="flex items-center gap-2">
-              <button onClick={importCalendar} disabled={importing} className="btn-secondary text-sm flex items-center gap-1.5 disabled:opacity-60"><CalendarDays className="w-4 h-4" /> {importing ? "불러오는 중..." : "구글 캘린더에서 불러오기"}</button>
-              <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
-            </div>
+            <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
           </div>
           {requests.length === 0 ? (
             <p className="text-sm text-gray-400 py-3">접수된 공간대여 신청이 없습니다.</p>

@@ -3,11 +3,9 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireExpense } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, fetchCalendarSlots, slotIntToParts, guessSpaceAndApplicant, textMatchesSpace,
-  type RentalRequest,
+  normalizeSpaces, normalizeRequests, type RentalRequest,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
-import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -68,46 +66,11 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// 관리자: 장소·설정 저장 / 구글 캘린더 신청 불러오기(action:"importCalendar")
+// 관리자: 장소·설정 저장
 export async function POST(req: NextRequest) {
   if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => ({}));
   const admin = supabaseAdmin();
-
-  // 구글 캘린더에 이미 등록된 공간대여 건들을 신청목록으로 가져오기
-  if (b.action === "importCalendar") {
-    const cfg = await getConfig(admin);
-    const calendarId = cfg.calendarId || DEFAULT_CALENDAR_ID;
-    const { data: sp } = await admin.from("app_config").select("value").eq("key", SPACES_KEY).maybeSingle();
-    const spaces = normalizeSpaces(sp?.value).length ? normalizeSpaces(sp?.value) : DEFAULT_SPACES;
-    let slots;
-    try { slots = await fetchCalendarSlots(calendarId); }
-    catch { return NextResponse.json({ ok: false, error: "구글 캘린더를 불러오지 못했습니다. 공개 설정·캘린더 ID를 확인하세요." }, { status: 502 }); }
-    const { data: rq } = await admin.from("app_config").select("value").eq("key", REQUESTS_KEY).maybeSingle();
-    const list = normalizeRequests(rq?.value);
-    const existingUids = new Set(list.map((r) => r.calendarEventId).filter(Boolean));
-    let added = 0;
-    for (const s of slots) {
-      // 공간명이 매칭되는(=대여 공간 관련) 이벤트만, 이미 불러온 건은 제외
-      const matched = spaces.find((sp2) => textMatchesSpace(`${s.summary || ""} ${s.location || ""}`, sp2.name));
-      if (!matched) continue;
-      if (s.uid && existingUids.has(s.uid)) continue;
-      const st = slotIntToParts(s.start), en = slotIntToParts(s.end);
-      const guessed = guessSpaceAndApplicant(s.summary || "", s.location || "");
-      list.unshift({
-        id: crypto.randomUUID(), spaceId: matched.id, spaceName: matched.name,
-        date: st.date, start: st.time, end: en.time,
-        applicantName: guessed.applicantName || "(캘린더 등록)", studentId: "-", phone: "", email: "",
-        purpose: s.summary || "", headcount: 0, status: "approved", createdAt: new Date().toISOString(),
-        calendarEventId: s.uid, adminMemo: "구글 캘린더에서 불러온 신청",
-      });
-      if (s.uid) existingUids.add(s.uid);
-      added++;
-    }
-    const { error } = await saveRequests(admin, list);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, added });
-  }
 
   if (Array.isArray(b.spaces)) {
     const spaces = normalizeSpaces(b.spaces);
