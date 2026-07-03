@@ -14,7 +14,10 @@ export async function withMissingColumnRetry<T>(
   for (let i = 0; i < maxTries; i++) {
     last = await exec(attempt);
     if (!last.error) return last;
-    const m = last.error.message.match(/Could not find the '([^']+)' column/i);
+    // PostgREST(스키마 캐시) 형식과 Postgres raw(column "x" does not exist) 형식 모두 매칭
+    const msg = last.error.message || "";
+    const m = msg.match(/Could not find the '([^']+)' column/i)
+      || msg.match(/column "?([a-zA-Z0-9_]+)"? does not exist/i);
     if (m && m[1] in attempt) { const { [m[1]]: _drop, ...rest } = attempt; attempt = rest; continue; }
     return last;
   }
@@ -44,7 +47,11 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
     account_mismatch: !!p.accountMismatch,
     application_phase: p.applicationPhase || "fund",
     application_type: p.applicationType,
-    program_detail: p.programDetail ?? null,
+    // club_detail 컬럼이 실DB에 없으면 폴백으로 제거되어 소학회 내용이 유실될 수 있으므로,
+    // 항상 존재하는 program_detail(JSONB)에 __clubDetail로 미러링해 데이터 손실을 방지한다.
+    program_detail: p.clubDetail
+      ? { ...(p.programDetail && typeof p.programDetail === "object" ? p.programDetail : {}), __clubDetail: p.clubDetail }
+      : (p.programDetail ?? null),
     staff_detail: p.staffDetail ?? null,
     grade_detail: p.gradeDetail ?? null,
     contest_detail: p.contestDetail ?? null,
@@ -70,6 +77,14 @@ export function toRow(p: any, applicantId?: string): Record<string, any> {
 
 // DB row → Application
 export function fromRow(r: any): Application {
+  // program_detail에 미러링된 소학회 내용(__clubDetail) 복원 + programDetail에서 제거
+  const pdRaw = r.program_detail;
+  const mirroredClub = pdRaw && typeof pdRaw === "object" ? pdRaw.__clubDetail : undefined;
+  const programDetailClean = (() => {
+    if (!pdRaw || typeof pdRaw !== "object" || !("__clubDetail" in pdRaw)) return pdRaw ?? undefined;
+    const { __clubDetail, ...rest } = pdRaw;
+    return Object.keys(rest).length ? rest : undefined;
+  })();
   return {
     id: r.id,
     receiptNumber: r.receipt_number || "",
@@ -96,14 +111,14 @@ export function fromRow(r: any): Application {
     accountMismatch: r.account_mismatch ?? undefined,
     applicationPhase: r.application_phase || "fund",
     applicationType: r.application_type,
-    programDetail: r.program_detail ?? undefined,
+    programDetail: programDetailClean,
     staffDetail: r.staff_detail ?? undefined,
     gradeDetail: r.grade_detail ?? undefined,
     contestDetail: r.contest_detail ?? undefined,
     certificateDetail: r.certificate_detail ?? undefined,
     laborDetail: r.labor_detail ?? undefined,
     activityDetail: r.activity_detail ?? undefined,
-    clubDetail: r.club_detail ?? undefined,
+    clubDetail: r.club_detail ?? mirroredClub ?? undefined,
     files: r.files ?? [],
     privacyConsent: !!r.privacy_consent,
     truthConsent: !!r.truth_consent,
