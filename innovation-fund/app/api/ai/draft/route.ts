@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
+import { getAnthropic } from "@/lib/ai-config";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +10,9 @@ export async function POST(req: NextRequest) {
   if (!(await getAdminSession(req))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY || "";
+  const { apiKey, model } = await getAnthropic();
   if (!apiKey) {
-    return NextResponse.json({ ok: false, error: "AI 키(ANTHROPIC_API_KEY)가 설정되어 있지 않습니다. 환경변수에 추가하면 AI 초안 작성이 활성화됩니다." }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "AI 키가 설정되어 있지 않습니다. 관리자 설정 → 'AI 회의록 키'에 Anthropic API 키를 입력하거나 환경변수 ANTHROPIC_API_KEY를 추가하세요." }, { status: 503 });
   }
 
   const b = await req.json().catch(() => ({}));
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+        model,
         max_tokens: 1500,
         system: sys,
         messages: [{ role: "user", content: user }],

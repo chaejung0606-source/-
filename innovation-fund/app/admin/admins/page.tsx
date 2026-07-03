@@ -14,10 +14,23 @@ export default function AdminsPage() {
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [saved, setSaved] = useState(false);
+  // AI(회의록·초안 작성) 키 설정
+  const [aiHasKey, setAiHasKey] = useState(false);
+  const [aiFromEnv, setAiFromEnv] = useState(false);
+  const [aiModel, setAiModel] = useState("");
+  const [aiKey, setAiKey] = useState("");
+  const [aiSaved, setAiSaved] = useState(false);
+  const saveAi = async () => {
+    const res = await fetch("/api/admin/ai-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anthropicApiKey: aiKey.trim(), model: aiModel.trim() }) });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (j.ok) { setAiKey(""); setAiHasKey(aiHasKey || !!aiKey.trim()); setAiSaved(true); setTimeout(() => setAiSaved(false), 2500); }
+    else alert("저장 실패: " + (j.error || res.status));
+  };
 
   useEffect(() => {
     fetch("/api/admin/status").then((r) => r.json()).then((d) => {
       if (!d?.admin || d.role !== "expense") { setDenied(true); setLoading(false); return; }
+      fetch("/api/admin/ai-config").then((r) => r.json()).then((a) => { setAiHasKey(!!a.hasKey); setAiFromEnv(!!a.fromEnv); setAiModel(a.model || ""); }).catch(() => {});
       fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
         // 보안: 서버는 비밀번호를 내려주지 않음(hasPassword만). 비밀번호 칸은 비워두고 '변경 시에만' 입력.
         setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; menus?: string[]; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], menus: Array.isArray(a.menus) ? a.menus : [], hasPassword: !!a.hasPassword })) : []);
@@ -92,6 +105,31 @@ export default function AdminsPage() {
           </div>
         </div>
         <p className="text-[11px] text-amber-600 mt-2">※ 여기서 설정한 아이디·비밀번호로 지출관리자 로그인 및 모든 비밀번호 확인이 동작합니다. 변경 후 분실에 주의하세요.</p>
+      </div>
+
+      {/* AI(회의록·초안 작성) 키 설정 */}
+      <div className="card mb-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <p className="text-xs font-semibold text-gray-500">AI 회의록·초안 작성 키 (Anthropic)</p>
+          <span className={`badge ${aiHasKey ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{aiHasKey ? (aiFromEnv ? "설정됨(환경변수)" : "설정됨") : "미설정"}</span>
+        </div>
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex-1 min-w-[240px]">
+            <label className="label text-xs mb-0.5">Anthropic API 키</label>
+            <input type="password" autoComplete="new-password" className="input-field font-mono text-xs" value={aiKey} onChange={(e) => setAiKey(e.target.value)} placeholder={aiHasKey ? "변경 시에만 입력 (비우면 유지)" : "sk-ant-..."} disabled={aiFromEnv} />
+          </div>
+          <div>
+            <label className="label text-xs mb-0.5">모델</label>
+            <input className="input-field text-xs" value={aiModel} onChange={(e) => setAiModel(e.target.value)} placeholder="claude-sonnet-4-6" disabled={aiFromEnv} />
+          </div>
+          {!aiFromEnv && <button onClick={saveAi} className="btn-primary text-sm flex items-center gap-1.5"><Save className="w-4 h-4" /> 저장</button>}
+          {aiSaved && <span className="text-green-600 text-sm font-medium">✓ 저장됨</span>}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">
+          {aiFromEnv
+            ? "환경변수 ANTHROPIC_API_KEY가 설정되어 있어 그 값을 사용합니다. (여기서 수정 불가)"
+            : "여기에 키를 저장하면 회의록 작성·AI 초안 기능이 활성화됩니다. 키는 서버에만 저장되고 화면에 다시 표시되지 않습니다. (콘솔: console.anthropic.com 에서 발급)"}
+        </p>
       </div>
 
       <p className="text-xs font-semibold text-gray-500 mb-2">프로그램별 관리자</p>

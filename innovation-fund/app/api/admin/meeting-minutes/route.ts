@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMenu } from "@/lib/admin-auth";
 import { normalizeMeeting, type Meeting } from "@/lib/meeting-minutes";
+import { getAnthropic } from "@/lib/ai-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -41,7 +42,7 @@ function contentBlocks(files: InFile[]): unknown[] {
   return blocks;
 }
 
-async function analyzeGroup(apiKey: string, g: InGroup): Promise<Meeting> {
+async function analyzeGroup(apiKey: string, model: string, g: InGroup): Promise<Meeting> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -51,7 +52,7 @@ async function analyzeGroup(apiKey: string, g: InGroup): Promise<Meeting> {
       "anthropic-beta": "pdfs-2024-09-25",
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+      model,
       max_tokens: 3000,
       system: SYSTEM,
       messages: [{ role: "user", content: contentBlocks(g.files) }],
@@ -73,8 +74,8 @@ async function analyzeGroup(apiKey: string, g: InGroup): Promise<Meeting> {
 
 export async function POST(req: NextRequest) {
   if (!(await requireMenu(req, "/admin/meeting-minutes"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-  const apiKey = process.env.ANTHROPIC_API_KEY || "";
-  if (!apiKey) return NextResponse.json({ ok: false, error: "AI 키(ANTHROPIC_API_KEY)가 설정되어 있지 않습니다. 환경변수에 추가하면 회의록 자동 작성이 활성화됩니다." }, { status: 503 });
+  const { apiKey, model } = await getAnthropic();
+  if (!apiKey) return NextResponse.json({ ok: false, error: "AI 키가 설정되어 있지 않습니다. 관리자 설정 → 'AI 회의록 키'에 Anthropic API 키를 입력·저장하거나, 환경변수 ANTHROPIC_API_KEY를 추가하세요." }, { status: 503 });
 
   const b = await req.json().catch(() => ({}));
   const groups: InGroup[] = Array.isArray(b.groups) ? b.groups.filter((g: unknown) => g && typeof g === "object") : [];
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
   if (groups.length > 20) return NextResponse.json({ ok: false, error: "한 번에 최대 20건까지 처리할 수 있습니다." }, { status: 400 });
 
   try {
-    const meetings = await Promise.all(groups.map((g) => analyzeGroup(apiKey, {
+    const meetings = await Promise.all(groups.map((g) => analyzeGroup(apiKey, model, {
       name: String(g.name || "회의"),
       files: (Array.isArray(g.files) ? g.files : []).filter((f: InFile) => f && f.dataBase64).slice(0, 12),
     })));
