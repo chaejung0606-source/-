@@ -5,7 +5,9 @@ import type { FundCategory } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
-import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema, emptySchema, defaultSpaceRentalForm } from "@/lib/form-schema";
+import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
+import ContentPanel from "@/components/admin/ContentPanel";
+import CertificatesPanel from "@/components/admin/CertificatesPanel";
 
 // 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비
 type ProgKind = "labor" | "program" | "staff" | "club";
@@ -34,9 +36,7 @@ export default function ProgramsAdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<"pre" | "fund">("pre");
   const [progSearch, setProgSearch] = useState("");
-  const [tab, setTab] = useState<"edit" | "search" | "templates" | "periods" | "space">("edit");
-  // 공간대여 설문폼 (신청자가 공간대여 신청 시 답할 추가 설문)
-  const [spaceForm, setSpaceForm] = useState<FormSchema | null>(null);
+  const [tab, setTab] = useState<"edit" | "search" | "templates" | "periods" | "content" | "certs">("edit");
   // 성과형(성적·경진대회·자격증) 학기별 신청기한
   const [periods, setPeriods] = useState<Record<string, { start: string; end: string }>>({ grade: { start: "", end: "" }, contest: { start: "", end: "" }, certificate: { start: "", end: "" } });
   const [periodsSaved, setPeriodsSaved] = useState(false);
@@ -53,10 +53,8 @@ export default function ProgramsAdminPage() {
       fetch("/api/admin/program-forms").then((r) => r.json()).catch(() => ({})),
       fetch("/api/admin/form-templates").then((r) => r.json()).catch(() => ({ templates: [] })),
       fetch("/api/type-periods").then((r) => r.json()).catch(() => ({ periods: {} })),
-      fetch("/api/admin/space-rental").then((r) => r.json()).catch(() => ({})),
-    ]).then(([l, forms, tpl, per, space]) => {
+    ]).then(([l, forms, tpl, per]) => {
       if (per?.periods) setPeriods((prev) => ({ ...prev, ...per.periods }));
-      setSpaceForm(space?.form && typeof space.form === "object" ? space.form : null);
       const base = l.length ? l : SEED;
       const fm = (forms || {}) as Record<string, { pre?: FormSchema; fund?: FormSchema }>;
       setList(base.map((p) => ({
@@ -168,7 +166,6 @@ export default function ProgramsAdminPage() {
         post("/api/admin/program-forms", { forms }),
         post("/api/type-periods", { periods }),
         post("/api/admin/form-templates", { templates }),
-        post("/api/admin/space-rental", { form: spaceForm || emptySchema() }),
       ]);
       const js = await Promise.all(rs.map((r) => r.json().catch(() => ({}))));
       if (js.every((j) => j.ok)) { setSaved(true); setPeriodsSaved(true); setTimeout(() => setSaved(false), 2500); }
@@ -187,7 +184,7 @@ export default function ProgramsAdminPage() {
 
       {/* 하위 메뉴 */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {([["edit", "프로그램 신청 내용"], ["search", "프로그램 검색"], ["templates", "템플릿 설정"], ["periods", "성과형 신청기한"], ["space", "공간대여 설문폼"]] as const).map(([key, label]) => (
+        {([["edit", "프로그램 신청 내용"], ["search", "프로그램 검색"], ["templates", "템플릿 설정"], ["periods", "성과형 신청기한"], ["content", "유형별 지급 기준"], ["certs", "자격증 목록"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${tab === key ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600 hover:text-indigo-600"}`}>{label}</button>
         ))}
       </div>
@@ -603,31 +600,11 @@ export default function ProgramsAdminPage() {
         </div>
       )}
 
-      {/* 공간대여 설문폼 탭 — 신청자가 공간대여 신청 시 추가로 답할 설문 항목 편집 */}
-      {tab === "space" && (
-        <div className="space-y-4">
-          <div className="card">
-            <div className="flex items-start justify-between gap-2 flex-wrap">
-              <div>
-                <h2 className="section-title mb-1">공간대여 설문폼</h2>
-                <p className="text-sm text-gray-500">공간대여 신청 화면에 표시할 폼을 구성합니다. <strong>여기서 만든 항목만</strong> 신청자에게 보입니다.</p>
-              </div>
-              <button onClick={() => { if (!spaceForm || window.confirm("현재 공간대여 폼을 기본 폼(장소·일시·연락처·개인정보동의 포함)으로 덮어씁니다. 계속할까요?")) { setSpaceForm(defaultSpaceRentalForm()); setSaved(false); } }} className="btn-secondary text-sm">기본 폼 불러오기</button>
-            </div>
-            <p className="text-[11px] text-gray-400 mt-1">※ 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong> 등을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘연락처’는 이용결과 제출 시 본인 확인에 사용됩니다.) <strong>개인정보 수집·이용 동의</strong> 항목도 여기서 추가·수정할 수 있습니다.</p>
-          </div>
-          <div className="card">
-            <SchemaForm
-              editable
-              showBookingRoles
-              schema={spaceForm || emptySchema()}
-              accent="#6366f1"
-              onChange={(s) => { setSpaceForm(s); setSaved(false); }}
-            />
-            <p className="text-[11px] text-gray-400 mt-3">수정한 뒤 <strong>오른쪽 위 ‘저장’</strong>을 누르면 공간대여 신청 화면에 반영됩니다.</p>
-          </div>
-        </div>
-      )}
+      {/* 유형별 지급 기준 탭 (통합) */}
+      {tab === "content" && <ContentPanel />}
+
+      {/* 자격증 목록 탭 (통합) */}
+      {tab === "certs" && <CertificatesPanel />}
     </AdminLayout>
   );
 }

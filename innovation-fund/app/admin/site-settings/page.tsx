@@ -4,8 +4,9 @@ import { Save, Plus, Trash2, ChevronUp, ChevronDown, Globe, BookOpen, Graduation
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
 import type { PopupItem } from "@/app/api/popup/route";
+import FileStoragePanel from "@/components/admin/FileStoragePanel";
 
-const TABS = ["푸터 설정", "사이드바 링크", "팝업 공지"] as const;
+const TABS = ["푸터 설정", "사이드바 링크", "팝업 공지", "파일 저장 경로"] as const;
 type Tab = typeof TABS[number];
 const ICON_MAP: Record<string, typeof Globe> = { Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText, Link: LinkIcon };
 const ICONS = Object.keys(ICON_MAP);
@@ -215,6 +216,8 @@ export default function SiteSettingsPage() {
           </div>
         </div>
       )}
+
+      {tab === "파일 저장 경로" && <FileStoragePanel />}
     </AdminLayout>
   );
 }

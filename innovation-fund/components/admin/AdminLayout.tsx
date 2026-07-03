@@ -5,18 +5,17 @@ import { useEffect, useState } from "react";
 import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog, CalendarClock, NotebookPen } from "lucide-react";
 
 // expenseOnly: 지출관리자(전체 권한)만 보이는 메뉴. 프로그램별 관리자는 '신청 목록'만.
+// 일부 기능은 상위 메뉴 탭으로 통합됨:
+//  가상학과 학생 → 신청자 정보 / 유형별 지급 기준·자격증 목록 → 신청폼 편집
+//  공간대여 설문폼 → 공간대여 신청 / 파일 저장 경로 → 사이트 설정
 const NAV = [
   { href: "/admin/applications", label: "신청 목록", icon: FileText, expenseOnly: false },
   { href: "/admin/applicants", label: "신청자 정보", icon: Users, expenseOnly: true },
-  { href: "/admin/virtual-students", label: "가상학과 학생", icon: GraduationCap, expenseOnly: true },
   { href: "/admin/programs", label: "신청폼 편집", icon: CalendarRange, expenseOnly: true },
   { href: "/admin/space-rental", label: "공간대여 신청", icon: CalendarClock, expenseOnly: true },
-  { href: "/admin/meeting-minutes", label: "회의록 작성", icon: NotebookPen, expenseOnly: true },
-  { href: "/admin/content", label: "유형별 지급 기준", icon: ListChecks, expenseOnly: true },
-  { href: "/admin/certificates", label: "자격증 목록", icon: Award, expenseOnly: true },
   { href: "/admin/admins", label: "관리자 설정", icon: UserCog, expenseOnly: true },
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal, expenseOnly: true },
-  { href: "/admin/settings", label: "파일 저장 경로", icon: Settings, expenseOnly: true },
+  { href: "/admin/meeting-minutes", label: "회의록 작성", icon: NotebookPen, expenseOnly: true },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

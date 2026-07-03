@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, MapPin, CalendarDays, FilePlus, PencilLine } from "lucide-react";
+import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, MapPin, CalendarDays, FilePlus, PencilLine, FileText } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
+import SchemaForm from "@/components/apply/SchemaForm";
+import { type FormSchema, defaultSpaceRentalForm, emptySchema } from "@/lib/form-schema";
 import type { RentalSpace, RentalRequest, RentalStatus } from "@/lib/space-rental";
 
 const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
@@ -12,7 +14,7 @@ const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
   rejected: { label: "반려", badge: "bg-rose-100 text-rose-700" },
 };
 
-type Tab = "requests" | "spaces" | "calendar";
+type Tab = "requests" | "spaces" | "form" | "calendar";
 
 export default function SpaceRentalAdminPage() {
   const [tab, setTab] = useState<Tab>("requests");
@@ -20,6 +22,8 @@ export default function SpaceRentalAdminPage() {
   const [calendarId, setCalendarId] = useState("");
   const [approveWebhook, setApproveWebhook] = useState("");
   const [requests, setRequests] = useState<RentalRequest[]>([]);
+  const [spaceForm, setSpaceForm] = useState<FormSchema | null>(null);
+  const [formSaved, setFormSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
 
@@ -35,9 +39,20 @@ export default function SpaceRentalAdminPage() {
       setCalendarId(d.calendarId || "");
       setApproveWebhook(d.approveWebhook || "");
       setRequests(Array.isArray(d.requests) ? d.requests : []);
+      setSpaceForm(d.form && typeof d.form === "object" ? d.form : null);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  // 공간대여 설문폼 저장
+  const saveForm = async (schema: FormSchema) => {
+    const res = await fetch("/api/admin/space-rental", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form: schema }),
+    });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (j.ok) { setFormSaved(true); setTimeout(() => setFormSaved(false), 2500); }
+    else alert("저장 실패: " + (j.error || res.status));
+  };
 
   const addSpace = () => setSpaces((s) => [...s, { id: "sp-" + Math.random().toString(36).slice(2, 9), name: "" }]);
   const setSpace = (i: number, patch: Partial<RentalSpace>) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, ...patch } : x));
@@ -114,6 +129,7 @@ export default function SpaceRentalAdminPage() {
   const TABS: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
     { key: "requests", label: "공간대여 신청목록", icon: ClipboardList },
     { key: "spaces", label: "대여가능공간", icon: MapPin },
+    { key: "form", label: "공간대여 신청폼", icon: FileText },
     { key: "calendar", label: "공간대여 캘린더", icon: CalendarDays },
   ];
 
@@ -231,6 +247,30 @@ export default function SpaceRentalAdminPage() {
       )}
 
       {/* ── 공간대여 캘린더 ── */}
+      {/* ── 공간대여 신청폼 (설문폼 편집) ── */}
+      {tab === "form" && (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="section-title mb-1">공간대여 신청폼</h2>
+                <p className="text-sm text-gray-500">공간대여 신청 화면에 표시할 폼을 구성합니다. <strong>여기서 만든 항목만</strong> 신청자에게 보입니다.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {formSaved && <span className="text-green-600 text-sm font-medium">✓ 저장됨</span>}
+                <button onClick={() => { if (!spaceForm || window.confirm("현재 공간대여 폼을 기본 폼(장소·일시·연락처·개인정보동의 포함)으로 덮어씁니다. 계속할까요?")) setSpaceForm(defaultSpaceRentalForm()); }} className="btn-secondary text-sm">기본 폼 불러오기</button>
+                <button onClick={() => saveForm(spaceForm || emptySchema())} className="btn-primary text-sm flex items-center gap-1.5"><Save className="w-4 h-4" /> 저장</button>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">※ 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong> 등을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘연락처’는 이용결과 제출 시 본인 확인에 사용됩니다.) <strong>개인정보 수집·이용 동의</strong> 항목도 여기서 추가·수정할 수 있습니다.</p>
+          </div>
+          <div className="card">
+            <SchemaForm editable showBookingRoles schema={spaceForm || emptySchema()} accent="#6366f1" onChange={(s) => setSpaceForm(s)} />
+            <p className="text-[11px] text-gray-400 mt-3">수정한 뒤 위 <strong>‘저장’</strong>을 누르면 공간대여 신청 화면에 반영됩니다.</p>
+          </div>
+        </div>
+      )}
+
       {tab === "calendar" && <SpaceCalendar />}
 
       {/* 신청 상세·심사 모달 */}

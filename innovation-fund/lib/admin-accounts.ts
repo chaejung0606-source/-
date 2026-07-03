@@ -6,16 +6,14 @@ import crypto from "crypto";
 export type AdminRole = "expense" | "program";
 
 // 프로그램별 관리자에게 메뉴별로 부여 가능한 관리자 시스템 메뉴 (지출관리자 전용 '관리자 설정'은 제외)
+// 상위 메뉴로 통합된 기능(가상학과 학생·유형별 지급 기준·자격증·공간대여 설문폼·파일 저장 경로)은
+// 상위 메뉴 권한으로 함께 접근된다.
 export const GRANTABLE_MENUS: { key: string; label: string }[] = [
-  { key: "/admin/applicants", label: "신청자 정보" },
-  { key: "/admin/virtual-students", label: "가상학과 학생" },
-  { key: "/admin/programs", label: "신청폼 편집" },
-  { key: "/admin/space-rental", label: "공간대여 신청" },
+  { key: "/admin/applicants", label: "신청자 정보 (가상학과 학생 포함)" },
+  { key: "/admin/programs", label: "신청폼 편집 (지급 기준·자격증 포함)" },
+  { key: "/admin/space-rental", label: "공간대여 신청 (설문폼 포함)" },
+  { key: "/admin/site-settings", label: "사이트 설정 (파일 저장 경로 포함)" },
   { key: "/admin/meeting-minutes", label: "회의록 작성" },
-  { key: "/admin/content", label: "유형별 지급 기준" },
-  { key: "/admin/certificates", label: "자격증 목록" },
-  { key: "/admin/site-settings", label: "사이트 설정" },
-  { key: "/admin/settings", label: "파일 저장 경로" },
 ];
 export const GRANTABLE_MENU_KEYS = GRANTABLE_MENUS.map((m) => m.key);
 

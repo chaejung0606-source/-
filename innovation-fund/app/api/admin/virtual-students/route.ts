@@ -4,7 +4,7 @@ import { requireMenu } from "@/lib/admin-auth";
 
 // 관리자: 가상학과 학생 명단 조회
 export async function GET(req: NextRequest) {
-  if (!(await requireMenu(req, "/admin/virtual-students"))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, ["/admin/applicants", "/admin/virtual-students"]))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { data, error } = await supabaseAdmin()
     .from("virtual_students").select("*").order("student_id", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
 // 관리자: 가상학과 학생 명단 변경 (action: replace | upsert | delete)
 export async function POST(req: NextRequest) {
-  if (!(await requireMenu(req, "/admin/virtual-students"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, ["/admin/applicants", "/admin/virtual-students"]))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const action = body.action as string;
   const admin = supabaseAdmin();

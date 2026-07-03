@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, KeyRound, Users, Lock, CheckCircle, Download, X, ShieldCheck, FilePlus, UserPlus, FileText, Bell, Send, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import VirtualStudentsPanel from "@/components/admin/VirtualStudentsPanel";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
 import { fetchPrograms, audienceOf, type Program } from "@/lib/programs";
@@ -63,7 +64,7 @@ export default function ApplicantsPage() {
   const [progFilter, setProgFilter] = useState<string>("all");   // 학생 검색을 프로그램별로 필터
   const [eligSearch, setEligSearch] = useState("");
   const [eligProgram, setEligProgram] = useState<string>("all");
-  const [view, setView] = useState<"students" | "eligible">("students");
+  const [view, setView] = useState<"students" | "eligible" | "virtual">("students");
   const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
   const [infoModal, setInfoModal] = useState<Applicant | null>(null);
   const [notifyOpen, setNotifyOpen] = useState(false);          // 선택 학생에게 알림 보내기 모달
@@ -246,12 +247,15 @@ export default function ApplicantsPage() {
       <p className="text-gray-500 text-sm mb-4">신청자 로그인 지원용 화면입니다. 보안상 비밀번호 원문은 조회할 수 없으며, 필요 시 새 비밀번호로 재설정할 수 있습니다.</p>
 
       {/* 보기 전환 */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button onClick={() => setView("students")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "students" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>학생 검색</button>
         <button onClick={() => setView("eligible")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "eligible" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>프로그램별 신청 가능 학생</button>
+        <button onClick={() => setView("virtual")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "virtual" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>가상학과 학생</button>
       </div>
 
-      {view === "students" ? (
+      {view === "virtual" ? (
+        <VirtualStudentsPanel />
+      ) : view === "students" ? (
         <>
           <div className="card mb-4 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">

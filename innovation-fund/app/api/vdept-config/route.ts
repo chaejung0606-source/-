@@ -18,7 +18,7 @@ export async function GET() {
 
 // POST: 관리자 — 목록 저장
 export async function POST(req: NextRequest) {
-  if (!(await requireMenu(req, "/admin/virtual-students"))) {
+  if (!(await requireMenu(req, ["/admin/applicants", "/admin/virtual-students"]))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

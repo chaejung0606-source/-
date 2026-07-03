@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // 관리자: 구글 시트(공개) CSV/XLSX 또는 붙여넣은 CSV/TSV → CertList 파싱
 export async function POST(req: NextRequest) {
-  if (!(await requireMenu(req, "/admin/certificates"))) {
+  if (!(await requireMenu(req, ["/admin/programs", "/admin/certificates"]))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
