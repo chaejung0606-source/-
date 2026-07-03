@@ -5,12 +5,25 @@ import crypto from "crypto";
 
 export type AdminRole = "expense" | "program";
 
+// 프로그램별 관리자에게 메뉴별로 부여 가능한 관리자 시스템 메뉴 (지출관리자 전용 '관리자 설정'은 제외)
+export const GRANTABLE_MENUS: { key: string; label: string }[] = [
+  { key: "/admin/applicants", label: "신청자 정보" },
+  { key: "/admin/virtual-students", label: "가상학과 학생" },
+  { key: "/admin/programs", label: "신청폼 편집" },
+  { key: "/admin/space-rental", label: "공간대여 신청" },
+  { key: "/admin/content", label: "유형별 지급 기준" },
+  { key: "/admin/certificates", label: "자격증 목록" },
+  { key: "/admin/site-settings", label: "사이트 설정" },
+  { key: "/admin/settings", label: "파일 저장 경로" },
+];
+export const GRANTABLE_MENU_KEYS = GRANTABLE_MENUS.map((m) => m.key);
+
 export interface AdminAccount {
   loginId: string;
   password: string;
   name: string;
   programIds: string[]; // 관리하는 프로그램 id 목록
-  systemAdmin?: boolean; // 관리자 권한: 관리자 시스템 메뉴 전체 접근(지출관리자와 동일 권한)
+  menus?: string[];     // 접근 권한을 부여한 관리자 시스템 메뉴(경로) 목록
 }
 export interface ExpenseAdmin { loginId: string; password: string; }
 export interface AdminAccountsConfig { expense: ExpenseAdmin; accounts: AdminAccount[]; }
@@ -58,7 +71,10 @@ export function normalizeAdminAccounts(value: unknown): AdminAccountsConfig {
       password: String(o.password || "").trim(),
       name: String(o.name || "").trim(),
       programIds: Array.isArray(o.programIds) ? (o.programIds as unknown[]).map((x) => String(x)) : [],
-      systemAdmin: o.systemAdmin === true,
+      // 구버전 systemAdmin(전체 권한) 호환: true였으면 모든 부여가능 메뉴로 확장
+      menus: Array.isArray(o.menus)
+        ? (o.menus as unknown[]).map((x) => String(x)).filter((k) => GRANTABLE_MENU_KEYS.includes(k))
+        : (o.systemAdmin === true ? [...GRANTABLE_MENU_KEYS] : []),
     };
   }).filter((a) => a.loginId);
   const e = (v.expense || {}) as Record<string, unknown>;

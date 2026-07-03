@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireMenu } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function GET() {
 
 // POST: 관리자 — 목록 저장
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) {
+  if (!(await requireMenu(req, "/admin/virtual-students"))) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));

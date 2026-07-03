@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, type Program } from "@/lib/programs";
 import { FUND_CATEGORY_LABELS } from "@/types";
 import type { AdminAccount, ExpenseAdmin } from "@/lib/admin-accounts";
+import { GRANTABLE_MENUS } from "@/lib/admin-accounts";
 
 export default function AdminsPage() {
   const [accounts, setAccounts] = useState<(AdminAccount & { hasPassword?: boolean })[]>([]);
@@ -19,7 +20,7 @@ export default function AdminsPage() {
       if (!d?.admin || d.role !== "expense") { setDenied(true); setLoading(false); return; }
       fetch("/api/admin/admins").then((r) => r.json()).then((j) => {
         // 보안: 서버는 비밀번호를 내려주지 않음(hasPassword만). 비밀번호 칸은 비워두고 '변경 시에만' 입력.
-        setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; systemAdmin?: boolean; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], systemAdmin: !!a.systemAdmin, hasPassword: !!a.hasPassword })) : []);
+        setAccounts(Array.isArray(j?.accounts) ? j.accounts.map((a: { loginId?: string; name?: string; programIds?: string[]; menus?: string[]; hasPassword?: boolean }) => ({ loginId: a.loginId || "", password: "", name: a.name || "", programIds: a.programIds || [], menus: Array.isArray(a.menus) ? a.menus : [], hasPassword: !!a.hasPassword })) : []);
         if (j?.expense) setExpense({ loginId: j.expense.loginId || "", password: "", hasPassword: !!j.expense.hasPassword });
         setLoading(false);
       });
@@ -28,11 +29,15 @@ export default function AdminsPage() {
   }, []);
 
   const dirty = () => setSaved(false);
-  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [], systemAdmin: false, hasPassword: false }]); dirty(); };
+  const add = () => { setAccounts((a) => [...a, { loginId: "", password: "", name: "", programIds: [], menus: [], hasPassword: false }]); dirty(); };
   const upd = (i: number, patch: Partial<AdminAccount>) => { setAccounts((a) => a.map((x, idx) => idx === i ? { ...x, ...patch } : x)); dirty(); };
   const remove = (i: number) => { setAccounts((a) => a.filter((_, idx) => idx !== i)); dirty(); };
   const toggleProgram = (i: number, pid: string) => {
     setAccounts((a) => a.map((x, idx) => idx === i ? { ...x, programIds: x.programIds.includes(pid) ? x.programIds.filter((p) => p !== pid) : [...x.programIds, pid] } : x));
+    dirty();
+  };
+  const toggleMenu = (i: number, key: string) => {
+    setAccounts((a) => a.map((x, idx) => idx === i ? { ...x, menus: (x.menus || []).includes(key) ? (x.menus || []).filter((m) => m !== key) : [...(x.menus || []), key] } : x));
     dirty();
   };
 
@@ -111,15 +116,20 @@ export default function AdminsPage() {
                 </div>
                 <button onClick={() => remove(i)} className="ml-auto text-gray-300 hover:text-red-500 flex items-center gap-1 text-xs"><Trash2 className="w-4 h-4" /> 삭제</button>
               </div>
-              {/* 관리자 권한 — 관리자 시스템 메뉴 전체 접근 부여 */}
-              <div className={`rounded-xl border p-3 ${a.systemAdmin ? "border-violet-300 bg-violet-50/60" : "border-gray-200 bg-white/60"}`}>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 mt-0.5" checked={!!a.systemAdmin} onChange={(e) => upd(i, { systemAdmin: e.target.checked })} />
-                  <span>
-                    <span className="text-sm font-semibold text-gray-800">관리자 권한 부여</span>
-                    <span className="block text-[11px] text-gray-500 mt-0.5">체크하면 이 관리자가 <strong>관리자 시스템 메뉴 전체(신청자 정보·신청폼 편집·공간대여·유형별 지급 기준·자격증·사이트 설정 등)</strong>에 접근할 수 있습니다. (지출관리자 계정 관리 메뉴는 제외)</span>
-                  </span>
-                </label>
+              {/* 관리자 권한 — 메뉴별 접근 권한 부여 */}
+              <div className={`rounded-xl border p-3 ${(a.menus || []).length > 0 ? "border-violet-300 bg-violet-50/60" : "border-gray-200 bg-white/60"}`}>
+                <p className="text-sm font-semibold text-gray-800">관리자 권한 부여 <span className="text-[11px] font-normal text-gray-500">(허용할 메뉴만 선택 · {(a.menus || []).length}개)</span></p>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">체크한 <strong>관리자 시스템 메뉴</strong>에만 접근할 수 있습니다. (지출관리자 계정 관리 메뉴는 부여 불가)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {GRANTABLE_MENUS.map((m) => {
+                    const on = (a.menus || []).includes(m.key);
+                    return (
+                      <button key={m.key} type="button" onClick={() => toggleMenu(i, m.key)} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition ${on ? "bg-violet-500 text-white border-violet-500" : "bg-white/70 border-gray-200 text-gray-600 hover:border-violet-300"}`}>
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-1.5">담당 프로그램 ({a.programIds.length}개)</p>

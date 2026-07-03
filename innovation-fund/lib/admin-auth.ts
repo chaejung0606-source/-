@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { supabaseAdmin } from "./supabase-admin";
-import { normalizeAdminAccounts, type AdminRole } from "./admin-accounts";
+import { normalizeAdminAccounts, GRANTABLE_MENU_KEYS, type AdminRole } from "./admin-accounts";
 
 // 세션 서명 키: ADMIN_SESSION_SECRET 우선, 없으면 SUPABASE_SERVICE_ROLE_KEY.
 // 하드코딩 폴백 금지 — 둘 다 없으면 예외(fail-closed).
@@ -33,7 +33,7 @@ function verifyAdminToken(token: string | undefined): string | null {
   return id;
 }
 
-export interface AdminSession { id: string; role: AdminRole; programIds: string[]; systemAdmin: boolean; }
+export interface AdminSession { id: string; role: AdminRole; programIds: string[]; menus: string[]; }
 
 // 서명 검증 후 DB에서 권한을 재조회 → 위조된 role/programIds 차단
 export async function getAdminSession(req: NextRequest): Promise<AdminSession | null> {
@@ -41,10 +41,10 @@ export async function getAdminSession(req: NextRequest): Promise<AdminSession | 
   if (!id) return null;
   const { data } = await supabaseAdmin().from("app_config").select("value").eq("key", "admin_accounts").maybeSingle();
   const { expense, accounts } = normalizeAdminAccounts(data?.value);
-  if (id === expense.loginId) return { id, role: "expense", programIds: [], systemAdmin: true };
+  if (id === expense.loginId) return { id, role: "expense", programIds: [], menus: [...GRANTABLE_MENU_KEYS] };
   const acc = accounts.find((a) => a.loginId === id);
   if (!acc) return null;
-  return { id, role: "program", programIds: acc.programIds, systemAdmin: !!acc.systemAdmin };
+  return { id, role: "program", programIds: acc.programIds, menus: acc.menus || [] };
 }
 
 // 인증된 관리자(역할 무관). null이면 미인증.
@@ -52,16 +52,20 @@ export async function requireAdmin(req: NextRequest): Promise<AdminSession | nul
   return getAdminSession(req);
 }
 
-// 관리자 시스템 전체 권한. 지출관리자 또는 '관리자 권한'을 부여받은 프로그램 관리자.
+// 지출관리자(최상위) 전용 — 관리자 계정 관리 등 민감 작업. 부여받은 관리자도 접근 불가.
 export async function requireExpense(req: NextRequest): Promise<AdminSession | null> {
   const s = await getAdminSession(req);
-  return s && (s.role === "expense" || s.systemAdmin) ? s : null;
-}
-
-// 지출관리자(최상위) 전용 — 관리자 계정 관리·비밀번호 재설정 등 민감 작업. 부여받은 관리자도 접근 불가.
-export async function requireExpenseOnly(req: NextRequest): Promise<AdminSession | null> {
-  const s = await getAdminSession(req);
   return s && s.role === "expense" ? s : null;
+}
+export const requireExpenseOnly = requireExpense;
+
+// 특정 메뉴 접근 권한 — 지출관리자이거나, 해당 메뉴 권한을 부여받은 프로그램 관리자.
+export async function requireMenu(req: NextRequest, keys: string | string[]): Promise<AdminSession | null> {
+  const s = await getAdminSession(req);
+  if (!s) return null;
+  if (s.role === "expense") return s;
+  const need = Array.isArray(keys) ? keys : [keys];
+  return need.some((k) => s.menus.includes(k)) ? s : null;
 }
 
 // 신청 row(JSONB) → 담당 프로그램명

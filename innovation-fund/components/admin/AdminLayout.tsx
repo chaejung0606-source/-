@@ -24,16 +24,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [role, setRole] = useState<"expense" | "program" | null>(null);
   const [adminName, setAdminName] = useState("");
-  const [systemAdmin, setSystemAdmin] = useState(false);
+  const [menus, setMenus] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/admin/status").then((r) => r.json()).then((d) => {
-      if (d?.admin) { setRole(d.role || "expense"); setAdminName(d.name || ""); setSystemAdmin(!!d.systemAdmin); }
+      if (d?.admin) { setRole(d.role || "expense"); setAdminName(d.name || ""); setMenus(Array.isArray(d.menus) ? d.menus : []); }
     }).catch(() => {});
   }, []);
 
-  // 역할별 메뉴: 지출관리자·관리자 권한 부여 계정=전체, 그 외 프로그램 관리자=신청 목록만
-  const navItems = NAV.filter((n) => role === "expense" || systemAdmin || !n.expenseOnly);
+  // 역할별 메뉴: 지출관리자=전체, 프로그램 관리자=신청 목록 + 부여받은 메뉴만
+  const navItems = NAV.filter((n) => role === "expense" || !n.expenseOnly || menus.includes(n.href));
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
@@ -57,8 +57,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
       {role && (
         <div className="px-3 mb-3 -mt-3">
-          <span className={`badge ${role === "expense" ? "bg-indigo-100 text-indigo-700" : systemAdmin ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"}`}>
-            {role === "expense" ? "지출관리자" : `${systemAdmin ? "관리자 권한" : "프로그램 관리자"}${adminName ? ` · ${adminName}` : ""}`}
+          <span className={`badge ${role === "expense" ? "bg-indigo-100 text-indigo-700" : menus.length > 0 ? "bg-violet-100 text-violet-700" : "bg-emerald-100 text-emerald-700"}`}>
+            {role === "expense" ? "지출관리자" : `프로그램 관리자${adminName ? ` · ${adminName}` : ""}`}
           </span>
         </div>
       )}

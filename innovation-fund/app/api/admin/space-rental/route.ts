@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireAdmin, requireExpense } from "@/lib/admin-auth";
+import { requireAdmin, requireMenu } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
   normalizeSpaces, normalizeRequests, type RentalRequest,
@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
 
 // 관리자: 장소·설정 저장
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  // 공간대여 폼 저장은 '신청폼 편집'에서도 이뤄지므로 두 메뉴 권한 모두 허용
+  if (!(await requireMenu(req, ["/admin/space-rental", "/admin/programs"]))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => ({}));
   const admin = supabaseAdmin();
 
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
 
 // 관리자: 신청 상태 변경(승인/반려/메모) 또는 신청 내용 편집(edit) — 구글 캘린더·시트 자동 반영
 export async function PATCH(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/space-rental"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => ({}));
   const id = String(b.id || "");
   if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });
@@ -153,7 +154,7 @@ export async function PATCH(req: NextRequest) {
 
 // 관리자: 신청 삭제 (캘린더 이벤트가 있으면 캘린더에서도 삭제 요청)
 export async function DELETE(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/space-rental"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => ({}));
   const id = String(b.id || "");
   if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });

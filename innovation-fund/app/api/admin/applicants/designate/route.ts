@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireMenu } from "@/lib/admin-auth";
 
 // 관리자: 특정 학생이 '지정학생만' 단계에 신청 가능하도록 지정한 항목 목록 설정
 // body: { id, studentId, programIds: string[] }  (programIds 각 항목은 "프로그램id::단계" 키)
 // 배포 DB에 student_profiles.designated_programs 컬럼이 없어도 동작하도록 app_config에 저장한다.
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/applicants"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const id = body.id as string | undefined;
   const studentId = String(body.studentId || "").trim();

@@ -16,5 +16,5 @@ export async function GET(req: NextRequest) {
     const { accounts } = normalizeAdminAccounts(data?.value);
     name = accounts.find((a) => a.loginId === session.id)?.name || "";
   }
-  return NextResponse.json({ admin: true, role: session.role, id: session.id, name, programIds: session.programIds, systemAdmin: session.systemAdmin });
+  return NextResponse.json({ admin: true, role: session.role, id: session.id, name, programIds: session.programIds, menus: session.menus });
 }

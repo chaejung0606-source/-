@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireMenu } from "@/lib/admin-auth";
 import { NOTIFICATIONS_KEY, normalizeNotifications, type AdminNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ async function writeAll(list: AdminNotification[]): Promise<string | null> {
 
 // 관리자: 보낸 알림 조회 (?studentId= 로 특정 학생만)
 export async function GET(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/applicants"))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sid = (req.nextUrl.searchParams.get("studentId") || "").trim();
   const all = await readAll();
   const rows = (sid ? all.filter((n) => n.studentId === sid) : all)
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 // 관리자: 알림(요청 건) 보내기
 // body: { studentIds: string[], title, body, applicationId?, receiptNumber? }
 export async function POST(req: NextRequest) {
-  const session = await requireExpense(req);
+  const session = await requireMenu(req, "/admin/applicants");
   if (!session) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
 // 관리자: 보낸 알림 회수(삭제)
 export async function DELETE(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/applicants"))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const b = await req.json().catch(() => ({}));
   const id = String(b.id || "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });

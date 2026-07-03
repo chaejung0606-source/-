@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { normalizeAdminAccounts, hashAdminPassword, isHashedPassword } from "@/lib/admin-accounts";
+import { normalizeAdminAccounts, hashAdminPassword, isHashedPassword, GRANTABLE_MENU_KEYS } from "@/lib/admin-accounts";
 import { requireExpenseOnly } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     expense: { loginId: cfg.expense.loginId, password: "", hasPassword: !!cfg.expense.password },
     accounts: cfg.accounts.map((a) => ({
-      loginId: a.loginId, name: a.name, programIds: a.programIds, systemAdmin: !!a.systemAdmin,
+      loginId: a.loginId, name: a.name, programIds: a.programIds, menus: a.menus || [],
       password: "", hasPassword: !!a.password,
     })),
   });
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         loginId,
         name: String(a?.name || "").trim(),
         programIds: Array.isArray(a?.programIds) ? a.programIds.map((x: unknown) => String(x)) : [],
-        systemAdmin: a?.systemAdmin === true,
+        menus: Array.isArray(a?.menus) ? a.menus.map((x: unknown) => String(x)).filter((k: string) => GRANTABLE_MENU_KEYS.includes(k)) : [],
         password: keepOrHash(a?.password, prevById[loginId]?.password),
       };
     })

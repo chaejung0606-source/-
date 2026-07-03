@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { programToRow, type Program } from "@/lib/programs";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireMenu } from "@/lib/admin-auth";
 
 // 관리자(지출관리자): 프로그램 전체 교체
 // 안전성: 기존처럼 '전체 삭제 후 삽입'하면 삽입 실패 시 전 프로그램이 유실되므로
 // 업서트(있으면 갱신/없으면 추가) 후, 들어온 목록에 없는 프로그램만 삭제한다.
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await requireMenu(req, "/admin/programs"))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { programs } = await req.json().catch(() => ({}));
   if (!Array.isArray(programs)) return NextResponse.json({ error: "programs array required" }, { status: 400 });
 

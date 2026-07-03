@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { DEFAULT_SITE_CONFIG } from "@/lib/site-config";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireMenu } from "@/lib/admin-auth";
 
 // GET: 공개 (푸터·사이드바는 사이트에 표시됨)
 export async function GET() {
@@ -11,7 +11,7 @@ export async function GET() {
 
 // POST: 지출관리자만 (서명 세션 검증)
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) {
+  if (!(await requireMenu(req, "/admin/site-settings"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json().catch(() => null);

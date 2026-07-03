@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireExpense } from "@/lib/admin-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ const OK_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "im
 const OK_EXT = ["pdf", "png", "jpg", "jpeg", "webp", "gif"];
 
 export async function POST(req: NextRequest) {
-  if (!(await requireExpense(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (!(await requireAdmin(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "file required" }, { status: 400 });
