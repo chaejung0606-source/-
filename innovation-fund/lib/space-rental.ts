@@ -1,6 +1,6 @@
 // 공간대여 신청 — 지원금 신청과 별개. app_config에 보관(마이그레이션 불필요).
 // 이미 신청받은 건(구글 캘린더 공개 iCal)과 장소+시간이 겹치면 신청 차단.
-import type { FormSchema } from "./form-schema";
+import type { FormSchema, FormField } from "./form-schema";
 export const SPACES_KEY = "space_rental_spaces";      // 대여 가능 장소 목록(관리자 관리)
 export const REQUESTS_KEY = "space_rental_requests";  // 접수된 공간대여 신청
 export const CONFIG_KEY = "space_rental_config";       // { calendarId, approveWebhook, form }
@@ -97,7 +97,9 @@ export function deriveBooking(form: FormSchema | null | undefined, answers: { id
   const out: DerivedBooking = {};
   if (!form?.steps) return out;
   const byId = new Map(answers.map((a) => [a.id, String(a.value || "")]));
-  const fields = form.steps.flatMap((s) => s.fields || []);
+  // 조건부 하위질문(branches)까지 펼쳐서 bookingRole을 찾는다
+  const flatten = (fs: FormField[]): FormField[] => fs.flatMap((f) => f.branches ? [f, ...flatten(Object.values(f.branches).flat())] : [f]);
+  const fields = flatten(form.steps.flatMap((s) => s.fields || []));
   const timePart = (x: string) => (x.includes("T") ? x.split("T")[1] : x); // datetime-local → HH:mm
   const datePart = (x: string) => (x.includes("T") ? x.split("T")[0] : x);
   for (const f of fields) {

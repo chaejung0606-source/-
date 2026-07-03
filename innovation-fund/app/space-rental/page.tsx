@@ -44,6 +44,9 @@ export default function SpaceRentalPage() {
   const [done, setDone] = useState(false);
 
   const questions = useMemo(() => surveyFields(survey), [survey]);
+  // 드롭다운 선택에 따라 현재 노출 중인 조건부 하위질문까지 펼친 목록 (검증·저장용)
+  const activeQs = (list: FormField[]): FormField[] =>
+    list.flatMap((q) => q.type === "select" ? [q, ...activeQs(q.branches?.[answers[q.id] || ""] || [])] : [q]);
 
   const load = () => {
     setLoading(true);
@@ -86,13 +89,13 @@ export default function SpaceRentalPage() {
   // 관리자가 신청폼을 만들었으면 그 폼만 표시(완전히 관리자 폼). 없으면 기본 폼.
   const formOnly = questions.length > 0;
 
-  const answerList = () => questions
+  const answerList = () => activeQs(questions)
     .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
     .filter((a) => a.value);
 
   const submit = async () => {
-    // 필수 설문 항목 검증(공통)
-    for (const q of questions) {
+    // 필수 설문 항목 검증(공통) — 현재 노출 중인 조건부 하위질문 포함
+    for (const q of activeQs(questions)) {
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
     setBusy(true);
@@ -117,6 +120,73 @@ export default function SpaceRentalPage() {
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
       setDone(true);
     } finally { setBusy(false); }
+  };
+
+  // 설문 항목 입력 컨트롤 렌더
+  const renderInput = (q: FormField) => {
+    const allDay = answers[q.id] === ALL_DAY;
+    if (q.type === "longText") return <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
+    if (q.type === "select") return (
+      <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>
+        <option value="">선택하세요</option>
+        {(q.options || []).filter((o) => o.trim()).map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+    if (q.type === "agreement") return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> 동의합니다.
+        </label>
+      </div>
+    );
+    if (q.type === "privacyConsent") return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+        <p className="text-sm font-semibold text-gray-800 mb-1">{q.label || "개인정보 수집·이용 동의"} {q.required && <span className="text-red-500">*</span>}</p>
+        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.consentIntro?.trim() || DEFAULT_CONSENT_INTRO}</p>
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> {q.consentPrivacyLabel?.trim() || "위 내용에 동의합니다."}
+        </label>
+      </div>
+    );
+    if (q.type === "time" || q.type === "datetime") {
+      const it = q.type === "time" ? "time" : "datetime-local";
+      return (
+        <div className="space-y-1.5">
+          {q.allowAllDay && (
+            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={allDay} onChange={(e) => setAnswer(q.id, e.target.checked ? ALL_DAY : "")} /> 종일
+            </label>
+          )}
+          {allDay ? <p className="text-sm text-gray-500">종일 사용</p> : q.range ? (() => {
+            const [a = "", b = ""] = (answers[q.id] || "").split("~");
+            return <div className="flex items-center gap-2 flex-wrap"><input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} /></div>;
+          })() : <input type={it} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />}
+        </div>
+      );
+    }
+    if (q.type === "date" && q.range) {
+      const [a = "", b = ""] = (answers[q.id] || "").split("~");
+      return <div className="flex items-center gap-2 flex-wrap"><input type="date" className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} /></div>;
+    }
+    return <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
+  };
+
+  // 설문 항목 렌더 (드롭다운은 선택값에 따른 조건부 하위질문까지 재귀 렌더)
+  const renderQ = (q: FormField) => {
+    const subs = q.type === "select" ? (q.branches?.[answers[q.id] || ""] || []) : [];
+    const wide = ["longText", "agreement", "privacyConsent"].includes(q.type) || subs.length > 0;
+    return (
+      <div key={q.id} className={wide ? "sm:col-span-2" : ""}>
+        {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
+        {renderInput(q)}
+        {subs.length > 0 && (
+          <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
+            {subs.map((sf) => renderQ(sf))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -271,77 +341,10 @@ export default function SpaceRentalPage() {
             </div>
             </>)}
 
-            {/* 관리자가 '신청폼 편집'에서 만든 항목 (formOnly일 때 이것만 표시) */}
+            {/* 관리자가 '신청폼 편집'에서 만든 항목 (formOnly일 때 이것만 표시) — 드롭다운 조건부 하위질문 포함 */}
             {questions.length > 0 && (
               <div className={`grid sm:grid-cols-2 gap-4 ${formOnly ? "" : "pt-2 border-t border-gray-100"}`}>
-                {questions.map((q) => {
-                  const wide = ["longText", "agreement", "privacyConsent"].includes(q.type);
-                  const allDay = answers[q.id] === ALL_DAY;
-                  return (
-                  <div key={q.id} className={wide ? "sm:col-span-2" : ""}>
-                    {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
-                    {q.type === "longText" ? (
-                      <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
-                    ) : q.type === "select" ? (
-                      <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>
-                        <option value="">선택하세요</option>
-                        {(q.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    ) : q.type === "agreement" ? (
-                      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-                        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} />
-                          동의합니다.
-                        </label>
-                      </div>
-                    ) : q.type === "privacyConsent" ? (
-                      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-                        <p className="text-sm font-semibold text-gray-800 mb-1">{q.label || "개인정보 수집·이용 동의"} {q.required && <span className="text-red-500">*</span>}</p>
-                        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.consentIntro?.trim() || DEFAULT_CONSENT_INTRO}</p>
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} />
-                          {q.consentPrivacyLabel?.trim() || "위 내용에 동의합니다."}
-                        </label>
-                      </div>
-                    ) : (q.type === "time" || q.type === "datetime") ? (
-                      <div className="space-y-1.5">
-                        {q.allowAllDay && (
-                          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                            <input type="checkbox" checked={allDay} onChange={(e) => setAnswer(q.id, e.target.checked ? ALL_DAY : "")} /> 종일
-                          </label>
-                        )}
-                        {allDay ? (
-                          <p className="text-sm text-gray-500">종일 사용</p>
-                        ) : q.range ? (() => {
-                          const it = q.type === "time" ? "time" : "datetime-local";
-                          const [a = "", b = ""] = (answers[q.id] || "").split("~");
-                          return (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
-                              <span className="text-gray-400">~</span>
-                              <input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
-                            </div>
-                          );
-                        })() : (
-                          <input type={q.type === "time" ? "time" : "datetime-local"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
-                        )}
-                      </div>
-                    ) : (q.type === "date") && q.range ? (() => {
-                      const [a = "", b = ""] = (answers[q.id] || "").split("~");
-                      return (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <input type="date" className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
-                          <span className="text-gray-400">~</span>
-                          <input type="date" className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
-                        </div>
-                      );
-                    })() : (
-                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
-                    )}
-                  </div>
-                  );
-                })}
+                {questions.map((q) => renderQ(q))}
               </div>
             )}
 
