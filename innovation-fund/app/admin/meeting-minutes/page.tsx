@@ -26,6 +26,7 @@ export default function MeetingMinutesPage() {
   const [busy, setBusy] = useState(false);
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [err, setErr] = useState("");
+  const [dragOver, setDragOver] = useState(false);
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
@@ -93,7 +94,13 @@ export default function MeetingMinutesPage() {
 
       {/* 업로드 */}
       <div className="card mb-5">
-        <label className="upload-card flex flex-col items-center justify-center gap-1 p-8 text-center text-sm cursor-pointer">
+        <label
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+          className={`upload-card flex flex-col items-center justify-center gap-1 p-8 text-center text-sm cursor-pointer ${dragOver ? "ring-2 ring-indigo-300 bg-indigo-50/40" : ""}`}
+        >
           <Upload className="w-7 h-7 opacity-60 text-gray-400" />
           <span className="text-gray-500">PDF · 이미지 · ZIP 파일을 끌어다 놓거나 클릭하여 업로드</span>
           <span className="text-[11px] text-gray-300">여러 회의 = 회의별 ZIP 여러 개 · 한 회의 = PDF/이미지 낱개</span>
