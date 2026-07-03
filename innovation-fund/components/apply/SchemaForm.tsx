@@ -13,7 +13,20 @@ interface Props {
   editable?: boolean;
   accent?: string;
   onChange?: (schema: FormSchema) => void;
+  showBookingRoles?: boolean; // 공간대여 설문폼 편집 시: 항목을 예약 정보(장소·날짜·시간 등)로 연결하는 선택 표시
 }
+
+// 공간대여 예약 연결(bookingRole) 라벨
+const BOOKING_ROLE_LABELS: { value: string; label: string }[] = [
+  { value: "", label: "예약 연결 없음" },
+  { value: "space", label: "대여 장소" },
+  { value: "date", label: "사용일" },
+  { value: "time", label: "사용 시간" },
+  { value: "applicantName", label: "신청자 이름" },
+  { value: "studentId", label: "학번/소속" },
+  { value: "purpose", label: "사용 목적" },
+  { value: "headcount", label: "사용 인원" },
+];
 
 // 항목 추가 시 기본 라벨 / 기본 필수 여부
 const FIELD_DEFAULT_LABEL: Partial<Record<FormFieldType, string>> = {
@@ -273,7 +286,7 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
   }
 }
 
-export default function SchemaForm({ schema, editable = false, accent = "#6366f1", onChange }: Props) {
+export default function SchemaForm({ schema, editable = false, accent = "#6366f1", onChange, showBookingRoles = false }: Props) {
   const steps = schema.steps || [];
   const [step, setStep] = useState(0);
   const [addOpen, setAddOpen] = useState<string | null>(null);
@@ -341,6 +354,11 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                 <select className="input-field !w-auto text-xs" value={f.type} onChange={(e) => updField(cur.id, f.id, { type: e.target.value as FormFieldType })}>
                   {(Object.keys(FIELD_TYPE_LABELS) as FormFieldType[]).map((t) => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
                 </select>
+                {showBookingRoles && (
+                  <select className="input-field !w-auto text-xs" title="예약 정보 연결" value={f.bookingRole || ""} onChange={(e) => updField(cur.id, f.id, { bookingRole: (e.target.value || undefined) as FormField["bookingRole"] })}>
+                    {BOOKING_ROLE_LABELS.map((r) => <option key={r.value} value={r.value}>📅 {r.label}</option>)}
+                  </select>
+                )}
               </div>
               {/* 신청자 화면과 동일한 미리보기 */}
               <FieldView f={f} disabled />
@@ -415,10 +433,17 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                 <textarea className="input-field text-xs mt-2 h-16 resize-none" value={f.text || ""} onChange={(e) => updField(cur.id, f.id, { text: e.target.value })} placeholder="서약 본문" />
               )}
               {(f.type === "date" || f.type === "time" || f.type === "datetime") && (
-                <label className="flex items-center gap-1.5 text-xs text-gray-600 mt-2">
-                  <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} />
-                  {f.type === "date" ? "기간 선택(시작일~종료일)" : "시작·종료 선택 (체크 해제 시 한 번만 입력)"}
-                </label>
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} />
+                    {f.type === "date" ? "기간 선택(시작일~종료일)" : "시작·종료 선택 (체크 해제 시 한 번만 입력)"}
+                  </label>
+                  {(f.type === "time" || f.type === "datetime") && (
+                    <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <input type="checkbox" checked={!!f.allowAllDay} onChange={(e) => updField(cur.id, f.id, { allowAllDay: e.target.checked })} /> ‘종일’ 선택 허용
+                    </label>
+                  )}
+                </div>
               )}
               {f.type === "privacyConsent" && (
                 <div className="mt-2 space-y-2">

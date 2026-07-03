@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight, X, ImageIcon } from "lucide-react";
-import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
+import { slotInt, overlaps, textMatchesSpace, ALL_DAY } from "@/lib/space-rental";
 import type { FormSchema, FormField } from "@/lib/form-schema";
+import { DEFAULT_CONSENT_INTRO } from "@/lib/form-schema";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 
 interface PublicSpace { id: string; name: string; capacity?: number; photos?: string[]; }
@@ -14,8 +15,8 @@ const fmtSlot = (n: number) => {
   return `${s.slice(4, 6)}/${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
 };
 
-// 관리자가 설정한 설문 폼에서 신청자가 답할 수 있는 항목만 추출 (표준 블록·파일·서명 제외)
-const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement"];
+// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (표준 블록 중 개인정보동의만 지원, 파일·서명 등은 제외)
+const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent"];
 function surveyFields(schema: FormSchema | null): FormField[] {
   if (!schema?.steps) return [];
   return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
@@ -82,26 +83,35 @@ export default function SpaceRentalPage() {
 
   const timeInvalid = !!(form.start && form.end && slotInt(form.date, form.end) <= slotInt(form.date, form.start));
   const overCap = !!(space?.capacity && Number(form.headcount) > space.capacity);
+  // 관리자가 신청폼을 만들었으면 그 폼만 표시(완전히 관리자 폼). 없으면 기본 폼.
+  const formOnly = questions.length > 0;
+
+  const answerList = () => questions
+    .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
+    .filter((a) => a.value);
 
   const submit = async () => {
-    if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
-    if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
-    if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
-    if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
-    if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
-    if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
-    // 필수 설문 항목 검증
+    // 필수 설문 항목 검증(공통)
     for (const q of questions) {
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
     setBusy(true);
     try {
-      const answerList = questions
-        .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
-        .filter((a) => a.value);
+      // 관리자 폼만: 답변만 전송(서버가 bookingRole 태그로 장소·날짜·시간 추출)
+      // 기본 폼: 기존 필드 + 답변 전송
+      const body = formOnly
+        ? { answers: answerList() }
+        : { ...form, headcount: Number(form.headcount) || 0, answers: answerList() };
+      if (!formOnly) {
+        if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
+        if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
+        if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
+        if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
+        if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
+        if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
+      }
       const res = await fetch("/api/space-rental", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, headcount: Number(form.headcount) || 0, answers: answerList }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
@@ -178,6 +188,8 @@ export default function SpaceRentalPage() {
         ) : showForm ? (
           <div ref={formRef} className="card space-y-4">
             <h2 className="font-bold text-gray-800 flex items-center gap-2"><CalendarClock className="w-5 h-5 text-indigo-500" /> 신청서 작성</h2>
+            {/* 기본 폼: 관리자가 신청폼을 만들지 않았을 때만 표시. 만들었으면 그 폼만 노출(formOnly). */}
+            {!formOnly && (<>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">대여 공간 <span className="text-red-500">*</span></label>
@@ -257,13 +269,17 @@ export default function SpaceRentalPage() {
                 <textarea className="input-field h-20 resize-none" value={form.purpose} onChange={(e) => set("purpose", e.target.value)} placeholder="예: 소학회 정기 모임 / 스터디 / 회의 등" />
               </div>
             </div>
+            </>)}
 
-            {/* 관리자가 설정한 추가 설문 항목 */}
+            {/* 관리자가 '신청폼 편집'에서 만든 항목 (formOnly일 때 이것만 표시) */}
             {questions.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-                {questions.map((q) => (
-                  <div key={q.id} className={q.type === "longText" || q.type === "agreement" ? "sm:col-span-2" : ""}>
-                    <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>
+              <div className={`grid sm:grid-cols-2 gap-4 ${formOnly ? "" : "pt-2 border-t border-gray-100"}`}>
+                {questions.map((q) => {
+                  const wide = ["longText", "agreement", "privacyConsent"].includes(q.type);
+                  const allDay = answers[q.id] === ALL_DAY;
+                  return (
+                  <div key={q.id} className={wide ? "sm:col-span-2" : ""}>
+                    {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
                     {q.type === "longText" ? (
                       <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
                     ) : q.type === "select" ? (
@@ -279,23 +295,53 @@ export default function SpaceRentalPage() {
                           동의합니다.
                         </label>
                       </div>
-                    ) : (q.type === "time" || q.type === "datetime" || q.type === "date") && q.range ? (
-                      (() => {
-                        const it = q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "date";
-                        const [a = "", b = ""] = (answers[q.id] || "").split("~");
-                        return (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
-                            <span className="text-gray-400">~</span>
-                            <input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                    ) : q.type === "privacyConsent" ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                        <p className="text-sm font-semibold text-gray-800 mb-1">{q.label || "개인정보 수집·이용 동의"} {q.required && <span className="text-red-500">*</span>}</p>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.consentIntro?.trim() || DEFAULT_CONSENT_INTRO}</p>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} />
+                          {q.consentPrivacyLabel?.trim() || "위 내용에 동의합니다."}
+                        </label>
+                      </div>
+                    ) : (q.type === "time" || q.type === "datetime") ? (
+                      <div className="space-y-1.5">
+                        {q.allowAllDay && (
+                          <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                            <input type="checkbox" checked={allDay} onChange={(e) => setAnswer(q.id, e.target.checked ? ALL_DAY : "")} /> 종일
+                          </label>
+                        )}
+                        {allDay ? (
+                          <p className="text-sm text-gray-500">종일 사용</p>
+                        ) : q.range ? (() => {
+                          const it = q.type === "time" ? "time" : "datetime-local";
+                          const [a = "", b = ""] = (answers[q.id] || "").split("~");
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
+                              <span className="text-gray-400">~</span>
+                              <input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
+                            </div>
+                          );
+                        })() : (
+                          <input type={q.type === "time" ? "time" : "datetime-local"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
+                        )}
+                      </div>
+                    ) : (q.type === "date") && q.range ? (() => {
+                      const [a = "", b = ""] = (answers[q.id] || "").split("~");
+                      return (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input type="date" className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
+                          <span className="text-gray-400">~</span>
+                          <input type="date" className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
+                        </div>
+                      );
+                    })() : (
+                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

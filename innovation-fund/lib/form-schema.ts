@@ -72,6 +72,9 @@ export interface FormField {
   minLen?: number;         // shortText/longText: 최소 글자수(이상)
   maxLen?: number;         // shortText/longText: 최대 글자수(이하)
   range?: boolean;         // date/time/datetime: 기간(시작~종료) 선택 여부
+  allowAllDay?: boolean;   // time/datetime: 신청자에게 '종일' 선택 옵션 제공
+  // 공간대여 설문폼: 이 항목의 답을 예약 정보(장소·날짜·시간 등)로 연결 → 캘린더/시트 반영에 사용
+  bookingRole?: "space" | "date" | "time" | "applicantName" | "studentId" | "purpose" | "headcount";
   // privacyConsent(개인정보 수집·이용 동의): 관리자가 안내문·동의 항목 문구를 직접 수정
   consentIntro?: string;        // 안내 박스 본문(수집 항목·목적·보유기간 등). 미설정 시 기본 문구 사용
   consentPrivacyLabel?: string; // 동의 항목1 문구(개인정보 수집·이용)

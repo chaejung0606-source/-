@@ -308,16 +308,19 @@ export default function SpaceRentalAdminPage() {
 function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; onClose: () => void; onDone: () => void }) {
   const [f, setF] = useState({ spaceId: "", date: "", start: "", end: "", applicantName: "", studentId: "", phone: "", email: "", headcount: "", purpose: "" });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const [allDay, setAllDay] = useState(false);
   const [busy, setBusy] = useState(false);
+  const start = allDay ? "00:00" : f.start;
+  const end = allDay ? "23:59" : f.end;
 
   const submit = async () => {
-    if (!f.spaceId || !f.date || !f.start || !f.end) return alert("공간·사용일·시간을 입력해주세요.");
+    if (!f.spaceId || !f.date || !start || !end) return alert("공간·사용일·시간을 입력해주세요.");
     if (!f.applicantName.trim() || !f.studentId.trim()) return alert("신청자 이름·학번/소속을 입력해주세요.");
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, headcount: Number(f.headcount) || 0 }),
+        body: JSON.stringify({ ...f, start, end, headcount: Number(f.headcount) || 0 }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); return; }
@@ -342,9 +345,12 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div><label className="label">사용일 <span className="text-red-500">*</span></label><input type="date" className="input-field" value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
-            <div><label className="label">시작 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.start} onChange={(e) => set("start", e.target.value)} /></div>
-            <div><label className="label">종료 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.end} onChange={(e) => set("end", e.target.value)} /></div>
+            <div><label className="label">시작 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.start} disabled={allDay} onChange={(e) => set("start", e.target.value)} /></div>
+            <div><label className="label">종료 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.end} disabled={allDay} onChange={(e) => set("end", e.target.value)} /></div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer -mt-1">
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일 (00:00~23:59)
+          </label>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">신청자 이름 <span className="text-red-500">*</span></label><input className="input-field" value={f.applicantName} onChange={(e) => set("applicantName", e.target.value)} /></div>
             <div><label className="label">학번/소속 <span className="text-red-500">*</span></label><input className="input-field" value={f.studentId} onChange={(e) => set("studentId", e.target.value)} /></div>

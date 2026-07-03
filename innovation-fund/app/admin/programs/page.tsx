@@ -609,11 +609,12 @@ export default function ProgramsAdminPage() {
           <div className="card">
             <h2 className="section-title mb-1">공간대여 설문폼</h2>
             <p className="text-sm text-gray-500">공간대여 신청자가 <strong>기본 정보(공간·일시·인원·목적)</strong> 외에 추가로 답할 설문 항목을 구성합니다. 여기서 만든 항목이 공간대여 신청 화면에 그대로 표시됩니다.</p>
-            <p className="text-[11px] text-gray-400 mt-1">※ 한 줄 입력·서술형·숫자·날짜·드롭다운·서약(동의) 항목이 신청 화면에 노출됩니다. (파일·서명 등 표준 블록은 공간대여에서는 사용하지 않습니다.)</p>
+            <p className="text-[11px] text-gray-400 mt-1">※ 신청 화면에는 <strong>여기서 만든 항목만</strong> 표시됩니다. 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간</strong>을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘사용 시간’은 시간/날짜+시간 항목에 연결하세요.)</p>
           </div>
           <div className="card">
             <SchemaForm
               editable
+              showBookingRoles
               schema={spaceForm || emptySchema()}
               accent="#6366f1"
               onChange={(s) => { setSpaceForm(s); setSaved(false); }}

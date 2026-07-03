@@ -6,6 +6,7 @@ import type { Application, ApplicationType, ApplicationPhase, UploadedFile, Work
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import type { FormSchema, FormField } from "@/lib/form-schema";
 import { workLogGroupOfGrade } from "@/lib/form-schema";
+import { ALL_DAY } from "@/lib/space-rental";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
@@ -335,7 +336,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         if (!hasInput || blank) e.push(`• [${f.label || "표"}] 표의 빈 칸을 모두 채워주세요.`);
       } else if (["shortText", "longText", "number", "date", "time", "datetime", "select"].includes(f.type)) {
         const val = (answers[f.id] || "");
-        if ((f.type === "date" || f.type === "time" || f.type === "datetime") && f.range) {
+        if ((f.type === "date" || f.type === "time" || f.type === "datetime") && f.range && val !== ALL_DAY) {
           const [a = "", b = ""] = val.split("~");
           if (!a.trim() || !b.trim()) e.push(`• [${f.label || "항목"}] 시작과 종료를 모두 선택해주세요.`);
         } else if (!val.replace("~", "").trim()) { if (f.required ?? true) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
@@ -546,8 +547,17 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "time": case "datetime": {
         const inputType = f.type === "time" ? "time" : "datetime-local";
         const v = answers[f.id] || "";
-        if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2 flex-wrap"><input type={inputType} className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={inputType} className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }
-        return <div key={f.id}>{label}<input type={inputType} className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} /></div>;
+        const isAllDay = v === ALL_DAY;
+        return (
+          <div key={f.id}>{label}
+            {f.allowAllDay && <label className="flex items-center gap-2 text-xs text-gray-600 mb-1 mt-0.5"><input type="checkbox" checked={isAllDay} onChange={(e) => setAns(f.id, e.target.checked ? ALL_DAY : "")} /> 종일</label>}
+            {isAllDay ? (
+              <p className="text-sm text-gray-500">종일</p>
+            ) : f.range ? (() => { const [a = "", b = ""] = v.split("~"); return <div className="flex items-center gap-2 flex-wrap"><input type={inputType} className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={inputType} className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div>; })() : (
+              <input type={inputType} className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} />
+            )}
+          </div>
+        );
       }
       case "select": {
         const sel = answers[f.id] || "";

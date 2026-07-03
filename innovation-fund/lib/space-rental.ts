@@ -1,5 +1,6 @@
 // 공간대여 신청 — 지원금 신청과 별개. app_config에 보관(마이그레이션 불필요).
 // 이미 신청받은 건(구글 캘린더 공개 iCal)과 장소+시간이 겹치면 신청 차단.
+import type { FormSchema } from "./form-schema";
 export const SPACES_KEY = "space_rental_spaces";      // 대여 가능 장소 목록(관리자 관리)
 export const REQUESTS_KEY = "space_rental_requests";  // 접수된 공간대여 신청
 export const CONFIG_KEY = "space_rental_config";       // { calendarId, approveWebhook, form }
@@ -85,6 +86,42 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       calendarEventId: r.calendarEventId ? String(r.calendarEventId) : undefined,
     }))
     .filter((r) => r.id && r.date && r.start && r.end);
+}
+
+// 시간 항목 '종일' 선택값
+export const ALL_DAY = "종일";
+
+// 관리자 폼(설문)의 bookingRole 태그로 답변에서 예약 정보(장소·날짜·시간 등) 추출
+export interface DerivedBooking { spaceName?: string; date?: string; start?: string; end?: string; applicantName?: string; studentId?: string; purpose?: string; headcount?: number; }
+export function deriveBooking(form: FormSchema | null | undefined, answers: { id: string; value: string }[]): DerivedBooking {
+  const out: DerivedBooking = {};
+  if (!form?.steps) return out;
+  const byId = new Map(answers.map((a) => [a.id, String(a.value || "")]));
+  const fields = form.steps.flatMap((s) => s.fields || []);
+  const timePart = (x: string) => (x.includes("T") ? x.split("T")[1] : x); // datetime-local → HH:mm
+  const datePart = (x: string) => (x.includes("T") ? x.split("T")[0] : x);
+  for (const f of fields) {
+    if (!f.bookingRole) continue;
+    const v = (byId.get(f.id) || "").trim();
+    if (!v) continue;
+    switch (f.bookingRole) {
+      case "space": out.spaceName = v; break;
+      case "applicantName": out.applicantName = v; break;
+      case "studentId": out.studentId = v; break;
+      case "purpose": out.purpose = v; break;
+      case "headcount": out.headcount = Number(v) || 0; break;
+      case "date": out.date = datePart(v.split("~")[0]); break;
+      case "time": {
+        if (v === ALL_DAY) { out.start = "00:00"; out.end = "23:59"; break; }
+        const [a = "", b = ""] = v.split("~");
+        out.start = timePart(a);
+        out.end = b ? timePart(b) : timePart(a);
+        if (a.includes("T") && !out.date) out.date = datePart(a);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
