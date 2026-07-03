@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
   normalizeSpaces, normalizeRequests, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
-  calendarEmbedUrl, deriveBooking,
+  calendarEmbedUrl, deriveBooking, normPhone,
   type BookedSlot,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
@@ -28,12 +28,14 @@ async function readConfig() {
   return { admin, spaces, calendarId, form, requests };
 }
 
-// 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로
+// 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로 (날짜·시간이 있는 건만)
 function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlot[] {
-  return requests.filter((r) => r.status !== "rejected").map((r) => ({
-    start: slotInt(r.date, r.start), end: slotInt(r.date, r.end),
-    label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})`, source: "request" as const, spaceName: r.spaceName,
-  }));
+  return requests
+    .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
+    .map((r) => ({
+      start: slotInt(r.date, r.start), end: slotInt(r.date, r.end),
+      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})`, source: "request" as const, spaceName: r.spaceName,
+    }));
 }
 
 // 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
@@ -54,6 +56,37 @@ export async function GET() {
 //  (2) 관리자 폼만: answers만 전송 → 관리자 폼의 bookingRole 태그로 장소·날짜·시간 추출
 export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => ({}));
+
+  // ── 이용결과: 전화번호로 본인 신청 조회 ──
+  if (b.action === "lookupByPhone") {
+    const phone = normPhone(b.phone);
+    if (phone.length < 8) return NextResponse.json({ ok: false, error: "연락처를 정확히 입력해주세요." }, { status: 400 });
+    const { requests } = await readConfig();
+    const mine = requests
+      .filter((r) => normPhone(r.phone) === phone && r.status !== "rejected")
+      .map((r) => ({ id: r.id, spaceName: r.spaceName, date: r.date, start: r.start, end: r.end, status: r.status, hasResult: !!r.usageResult }));
+    return NextResponse.json({ ok: true, requests: mine });
+  }
+
+  // ── 이용결과 제출: 전화번호로 본인 확인 후 이용자 명단·서명·사진 저장 ──
+  if (b.action === "submitResult") {
+    const phone = normPhone(b.phone);
+    const id = String(b.requestId || "");
+    const users = Array.isArray(b.users) ? b.users.filter((u: unknown) => !!u && typeof u === "object").map((u: Record<string, unknown>) => ({ name: String(u.name || "").trim(), signature: String(u.signature || "") })).filter((u: { name: string }) => u.name) : [];
+    const photos = Array.isArray(b.photos) ? b.photos.map(String).filter(Boolean) : [];
+    if (!id || !phone) return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
+    if (users.length === 0 && photos.length === 0) return NextResponse.json({ ok: false, error: "이용자 명단(서명) 또는 이용 사진을 1건 이상 제출해주세요." }, { status: 400 });
+    const { admin, requests } = await readConfig();
+    const target = requests.find((r) => r.id === id);
+    if (!target) return NextResponse.json({ ok: false, error: "신청 건을 찾을 수 없습니다." }, { status: 404 });
+    if (normPhone(target.phone) !== phone) return NextResponse.json({ ok: false, error: "신청 시 입력한 연락처와 일치하지 않습니다." }, { status: 403 });
+    const usageResult = { submittedAt: new Date().toISOString(), users, photos, memo: String(b.memo || "").trim() || undefined };
+    const next = requests.map((r) => r.id === id ? { ...r, usageResult } : r);
+    const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   // 관리자가 설정한 설문 답변
   const answers = Array.isArray(b.answers)
     ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") }))
@@ -98,7 +131,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
   const entry = {
     id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, start, end,
-    applicantName, studentId, phone: String(b.phone || "").trim(), email: String(b.email || "").trim(),
+    applicantName, studentId, phone: String(b.phone || d.phone || "").trim(), email: String(b.email || "").trim(),
     purpose, headcount, answers, status: "pending" as const, createdAt: now,
   };
   const next = [entry, ...requests];

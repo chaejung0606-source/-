@@ -5,7 +5,7 @@ import type { FundCategory } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
-import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema, emptySchema } from "@/lib/form-schema";
+import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema, emptySchema, defaultSpaceRentalForm } from "@/lib/form-schema";
 
 // 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비
 type ProgKind = "labor" | "program" | "staff" | "club";
@@ -607,9 +607,14 @@ export default function ProgramsAdminPage() {
       {tab === "space" && (
         <div className="space-y-4">
           <div className="card">
-            <h2 className="section-title mb-1">공간대여 설문폼</h2>
-            <p className="text-sm text-gray-500">공간대여 신청자가 <strong>기본 정보(공간·일시·인원·목적)</strong> 외에 추가로 답할 설문 항목을 구성합니다. 여기서 만든 항목이 공간대여 신청 화면에 그대로 표시됩니다.</p>
-            <p className="text-[11px] text-gray-400 mt-1">※ 신청 화면에는 <strong>여기서 만든 항목만</strong> 표시됩니다. 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간</strong>을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘사용 시간’은 시간/날짜+시간 항목에 연결하세요.)</p>
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="section-title mb-1">공간대여 설문폼</h2>
+                <p className="text-sm text-gray-500">공간대여 신청 화면에 표시할 폼을 구성합니다. <strong>여기서 만든 항목만</strong> 신청자에게 보입니다.</p>
+              </div>
+              <button onClick={() => { if (!spaceForm || window.confirm("현재 공간대여 폼을 기본 폼(장소·일시·연락처·개인정보동의 포함)으로 덮어씁니다. 계속할까요?")) { setSpaceForm(defaultSpaceRentalForm()); setSaved(false); } }} className="btn-secondary text-sm">기본 폼 불러오기</button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1">※ 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong> 등을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘연락처’는 이용결과 제출 시 본인 확인에 사용됩니다.) <strong>개인정보 수집·이용 동의</strong> 항목도 여기서 추가·수정할 수 있습니다.</p>
           </div>
           <div className="card">
             <SchemaForm

@@ -285,6 +285,41 @@ export default function SpaceRentalAdminPage() {
               <textarea className="input-field h-20 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="보완요청 시 신청자에게 안내할 사유를 적어주세요." />
             </div>
 
+            {/* 이용결과 제출 내용 (신청자가 사용 후 제출) */}
+            {detail.usageResult && (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                <p className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-1"><ClipboardList className="w-4 h-4" /> 이용결과 (제출 {detail.usageResult.submittedAt ? new Date(detail.usageResult.submittedAt).toLocaleString("ko-KR") : ""})</p>
+                {detail.usageResult.users.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">이용자 명단 및 서명</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {detail.usageResult.users.map((u, i) => (
+                        <div key={i} className="rounded-lg border border-gray-200 bg-white p-2">
+                          <div className="text-xs font-medium text-gray-800 mb-1">{u.name}</div>
+                          {u.signature
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={u.signature} alt={`${u.name} 서명`} className="h-12 border border-gray-100 rounded bg-white" />
+                            : <span className="text-[11px] text-gray-400">서명 없음</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {detail.usageResult.photos.length > 0 && (
+                  <div className="mb-1">
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">이용 사진</p>
+                    <div className="flex flex-wrap gap-2">
+                      {detail.usageResult.photos.map((p, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <a key={i} href={p} target="_blank" rel="noopener noreferrer"><img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" /></a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {detail.usageResult.memo && <p className="text-xs text-gray-600 mt-1 whitespace-pre-line">비고: {detail.usageResult.memo}</p>}
+              </div>
+            )}
+
             <div className="flex flex-wrap justify-end gap-2 mt-4">
               <button onClick={() => removeRequest(detail.id)} className="btn-secondary text-sm text-gray-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
               <button onClick={() => updateStatus(detail.id, "supplement", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 flex items-center gap-1"><PencilLine className="w-4 h-4" /> 보완요청</button>

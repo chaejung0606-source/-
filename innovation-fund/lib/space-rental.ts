@@ -29,6 +29,14 @@ export const DEFAULT_SPACES: RentalSpace[] = [
   { id: "sp-eng5-106-3", name: "공과대학 5호관 (106-3호)", capacity: 6 },
 ];
 export type RentalStatus = "pending" | "approved" | "rejected" | "supplement";
+// 이용결과 제출 — 대여 공간 사용 후 이용자 명단·서명·이용 사진 제출
+export interface UsageUser { name: string; signature: string; } // signature: 데이터URL(그리기/업로드)
+export interface UsageResult {
+  submittedAt: string;
+  users: UsageUser[];   // 이용자 명단 및 서명
+  photos: string[];     // 대여공간 이용 사진 URL
+  memo?: string;
+}
 export interface RentalRequest {
   id: string;
   spaceId: string; spaceName: string;
@@ -43,6 +51,7 @@ export interface RentalRequest {
   createdAt: string;
   applicantId?: string;
   calendarEventId?: string;    // 캘린더 반영 시 이벤트 id(웹훅 응답)
+  usageResult?: UsageResult;   // 이용결과 제출(사용 후)
 }
 // 시간 겹침 판정용 슬롯 (KST 벽시계 정수 YYYYMMDDHHmm)
 export interface BookedSlot { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; uid?: string; summary?: string; location?: string; }
@@ -84,15 +93,26 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,
       calendarEventId: r.calendarEventId ? String(r.calendarEventId) : undefined,
+      usageResult: normalizeUsageResult(r.usageResult),
     }))
-    .filter((r) => r.id && r.date && r.start && r.end);
+    .filter((r) => r.id);
+}
+
+// 이용결과(이용자 명단·서명·사진) 정규화
+function normalizeUsageResult(v: unknown): UsageResult | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  const users = Array.isArray(o.users) ? (o.users as unknown[]).filter((u): u is Record<string, unknown> => !!u && typeof u === "object").map((u) => ({ name: String(u.name || ""), signature: String(u.signature || "") })) : [];
+  const photos = Array.isArray(o.photos) ? (o.photos as unknown[]).map(String).filter(Boolean) : [];
+  if (users.length === 0 && photos.length === 0 && !o.memo) return undefined;
+  return { submittedAt: String(o.submittedAt || ""), users, photos, memo: o.memo ? String(o.memo) : undefined };
 }
 
 // 시간 항목 '종일' 선택값
 export const ALL_DAY = "종일";
 
 // 관리자 폼(설문)의 bookingRole 태그로 답변에서 예약 정보(장소·날짜·시간 등) 추출
-export interface DerivedBooking { spaceName?: string; date?: string; start?: string; end?: string; applicantName?: string; studentId?: string; purpose?: string; headcount?: number; }
+export interface DerivedBooking { spaceName?: string; date?: string; start?: string; end?: string; applicantName?: string; studentId?: string; phone?: string; purpose?: string; headcount?: number; }
 export function deriveBooking(form: FormSchema | null | undefined, answers: { id: string; value: string }[]): DerivedBooking {
   const out: DerivedBooking = {};
   if (!form?.steps) return out;
@@ -110,6 +130,7 @@ export function deriveBooking(form: FormSchema | null | undefined, answers: { id
       case "space": out.spaceName = v; break;
       case "applicantName": out.applicantName = v; break;
       case "studentId": out.studentId = v; break;
+      case "phone": out.phone = v; break;
       case "purpose": out.purpose = v; break;
       case "headcount": out.headcount = Number(v) || 0; break;
       case "date": out.date = datePart(v.split("~")[0]); break;
@@ -125,6 +146,9 @@ export function deriveBooking(form: FormSchema | null | undefined, answers: { id
   }
   return out;
 }
+
+// 전화번호 비교용 정규화(숫자만)
+export const normPhone = (s: string) => String(s || "").replace(/\D/g, "");
 
 const pad = (n: number) => String(n).padStart(2, "0");
 // 'YYYY-MM-DD','HH:mm' → KST 벽시계 정수 YYYYMMDDHHmm

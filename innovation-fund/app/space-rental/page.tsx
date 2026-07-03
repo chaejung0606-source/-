@@ -6,6 +6,8 @@ import { slotInt, overlaps, textMatchesSpace, ALL_DAY } from "@/lib/space-rental
 import type { FormSchema, FormField } from "@/lib/form-schema";
 import { DEFAULT_CONSENT_INTRO } from "@/lib/form-schema";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
+import SignaturePad from "@/components/apply/SignaturePad";
+import { ClipboardCheck, Plus, Trash2, Upload } from "lucide-react";
 
 interface PublicSpace { id: string; name: string; capacity?: number; photos?: string[]; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
@@ -30,6 +32,7 @@ export default function SpaceRentalPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -211,9 +214,14 @@ export default function SpaceRentalPage() {
             <p className="text-gray-600">로그인 없이 신청할 수 있습니다. 대여 가능한 장소와 예약 현황을 확인하고 신청하세요.</p>
           </div>
           {!done && (
-            <button onClick={() => openForm()} className="btn-primary flex items-center gap-1.5 shrink-0">
-              신청하기 <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setResultOpen(true)} className="btn-secondary flex items-center gap-1.5">
+                <ClipboardCheck className="w-4 h-4" /> 이용결과 제출
+              </button>
+              <button onClick={() => openForm()} className="btn-primary flex items-center gap-1.5">
+                신청하기 <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -357,6 +365,9 @@ export default function SpaceRentalPage() {
         ) : null}
       </div>
 
+      {/* 이용결과 제출 모달 */}
+      {resultOpen && <UsageResultModal onClose={() => setResultOpen(false)} />}
+
       {/* 장소 사진 보기 모달 */}
       {photoSpace && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -381,6 +392,152 @@ export default function SpaceRentalPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 이용결과 제출 — 로그인 없이 연락처로 본인 신청 건 조회 후 이용자 명단·서명·이용 사진 제출
+interface MyBooking { id: string; spaceName: string; date: string; start: string; end: string; status: string; hasResult: boolean; }
+function UsageResultModal({ onClose }: { onClose: () => void }) {
+  const [phone, setPhone] = useState("");
+  const [stage, setStage] = useState<"phone" | "pick" | "form" | "done">("phone");
+  const [list, setList] = useState<MyBooking[]>([]);
+  const [picked, setPicked] = useState<MyBooking | null>(null);
+  const [users, setUsers] = useState<{ name: string; signature: string }[]>([{ name: "", signature: "" }]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [memo, setMemo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const lookup = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/space-rental", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "lookupByPhone", phone }) });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert(j.error || "조회 실패"); return; }
+      if (!j.requests?.length) { alert("해당 연락처로 접수된 공간대여 신청이 없습니다.\n신청 시 입력한 연락처를 확인해주세요."); return; }
+      setList(j.requests); setStage("pick");
+    } finally { setBusy(false); }
+  };
+
+  const uploadPhoto = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("사진 업로드 실패: " + (j.error || res.status)); return; }
+      setPhotos((p) => [...p, j.url]);
+    } finally { setUploading(false); }
+  };
+
+  const submit = async () => {
+    if (!picked) return;
+    const cleanUsers = users.filter((u) => u.name.trim());
+    if (cleanUsers.length === 0 && photos.length === 0) return alert("이용자 명단(서명) 또는 이용 사진을 1건 이상 제출해주세요.");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/space-rental", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos, memo }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
+      setStage("done");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="modal-backdrop absolute inset-0" onClick={onClose} />
+      <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8 flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-indigo-500" /> 이용결과 제출</h2>
+
+        {stage === "phone" && (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-gray-600">공간대여 신청 시 입력한 <strong>연락처</strong>로 본인 신청 건을 조회합니다. (로그인 불필요)</p>
+            <div>
+              <label className="label">연락처 <span className="text-red-500">*</span></label>
+              <input className="input-field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" onKeyDown={(e) => { if (e.key === "Enter") lookup(); }} />
+            </div>
+            <div className="flex justify-end"><button onClick={lookup} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "조회 중..." : "내 신청 조회"}</button></div>
+          </div>
+        )}
+
+        {stage === "pick" && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-600">이용결과를 제출할 신청 건을 선택하세요.</p>
+            {list.map((r) => (
+              <button key={r.id} onClick={() => { setPicked(r); setStage("form"); }} className="w-full text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
+                <div className="font-semibold text-sm text-gray-800">{r.spaceName || "(공간)"}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{r.date} {r.start}~{r.end} · {r.status === "approved" ? "승인" : r.status === "pending" ? "대기" : r.status}{r.hasResult ? " · 이미 제출됨(재제출 시 갱신)" : ""}</div>
+              </button>
+            ))}
+            <button onClick={() => setStage("phone")} className="text-xs text-gray-500 hover:underline mt-1">← 연락처 다시 입력</button>
+          </div>
+        )}
+
+        {stage === "form" && picked && (
+          <div className="mt-4 space-y-4">
+            <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3 text-sm text-gray-700">
+              <strong>{picked.spaceName}</strong> · {picked.date} {picked.start}~{picked.end}
+            </div>
+            {/* 이용자 명단 및 서명 */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="label mb-0">이용자 명단 및 서명</label>
+                <button onClick={() => setUsers((u) => [...u, { name: "", signature: "" }])} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3.5 h-3.5" /> 이용자 추가</button>
+              </div>
+              <div className="space-y-3">
+                {users.map((u, i) => (
+                  <div key={i} className="rounded-xl border border-gray-200 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input className="input-field flex-1" value={u.name} onChange={(e) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, name: e.target.value } : x))} placeholder="이용자 이름" />
+                      {users.length > 1 && <button onClick={() => setUsers((arr) => arr.filter((_, k) => k !== i))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>}
+                    </div>
+                    <SignaturePad onChange={(sig) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, signature: sig } : x))} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* 이용 사진 */}
+            <div>
+              <label className="label">대여공간 이용 사진</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                    <button onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow">✕</button>
+                  </div>
+                ))}
+                <label className="w-16 h-16 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex flex-col items-center justify-center text-[11px] text-center">
+                  {uploading ? "…" : <><Upload className="w-4 h-4" />사진</>}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="label">비고 (선택)</label>
+              <textarea className="input-field h-16 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항이 있으면 적어주세요." />
+            </div>
+            <div className="flex justify-between">
+              <button onClick={() => setStage("pick")} className="btn-secondary text-sm">← 목록</button>
+              <button onClick={submit} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "제출 중..." : "이용결과 제출"}</button>
+            </div>
+          </div>
+        )}
+
+        {stage === "done" && (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">✅</div>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">이용결과가 제출되었습니다.</h3>
+            <p className="text-sm text-gray-500 mb-5">제출해 주셔서 감사합니다.</p>
+            <button onClick={onClose} className="btn-primary">닫기</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

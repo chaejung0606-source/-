@@ -24,6 +24,7 @@ const BOOKING_ROLE_LABELS: { value: string; label: string }[] = [
   { value: "time", label: "사용 시간" },
   { value: "applicantName", label: "신청자 이름" },
   { value: "studentId", label: "학번/소속" },
+  { value: "phone", label: "연락처(이용결과 조회용)" },
   { value: "purpose", label: "사용 목적" },
   { value: "headcount", label: "사용 인원" },
 ];
