@@ -547,13 +547,22 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
       case "time": case "datetime": {
         const inputType = f.type === "time" ? "time" : "datetime-local";
         const v = answers[f.id] || "";
-        const isAllDay = v === ALL_DAY;
+        const [va = "", vb = ""] = v.split("~");
+        // 종일 체크 상태는 별도 키로 추적. datetime 종일이면 날짜만 입력받아 날짜를 보존.
+        const allDayOn = answers["__allday__" + f.id] === "1" || v === ALL_DAY;
+        const setAllDay = (on: boolean) => setAnswers((a) => ({ ...a, ["__allday__" + f.id]: on ? "1" : "", [f.id]: on && f.type === "time" ? ALL_DAY : "" }));
         return (
           <div key={f.id}>{label}
-            {f.allowAllDay && <label className="flex items-center gap-2 text-xs text-gray-600 mb-1 mt-0.5"><input type="checkbox" checked={isAllDay} onChange={(e) => setAns(f.id, e.target.checked ? ALL_DAY : "")} /> 종일</label>}
-            {isAllDay ? (
+            {f.allowAllDay && <label className="flex items-center gap-2 text-xs text-gray-600 mb-1 mt-0.5"><input type="checkbox" checked={allDayOn} onChange={(e) => setAllDay(e.target.checked)} /> 종일</label>}
+            {allDayOn && f.type === "time" ? (
               <p className="text-sm text-gray-500">종일</p>
-            ) : f.range ? (() => { const [a = "", b = ""] = v.split("~"); return <div className="flex items-center gap-2 flex-wrap"><input type={inputType} className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={inputType} className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div>; })() : (
+            ) : allDayOn ? (
+              f.range
+                ? <div className="flex items-center gap-2 flex-wrap"><input type="date" className="input-field" value={va} onChange={(e) => setAns(f.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={vb} onChange={(e) => setAns(f.id, `${va}~${e.target.value}`)} /></div>
+                : <input type="date" className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} />
+            ) : f.range ? (
+              <div className="flex items-center gap-2 flex-wrap"><input type={inputType} className="input-field" value={va} onChange={(e) => setAns(f.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type={inputType} className="input-field" value={vb} onChange={(e) => setAns(f.id, `${va}~${e.target.value}`)} /></div>
+            ) : (
               <input type={inputType} className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} />
             )}
           </div>

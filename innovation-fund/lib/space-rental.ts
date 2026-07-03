@@ -136,8 +136,15 @@ export function deriveBooking(form: FormSchema | null | undefined, answers: { id
       case "headcount": out.headcount = Number(v) || 0; break;
       case "date": out.date = datePart(v.split("~")[0]); break;
       case "time": {
-        if (v === ALL_DAY) { out.start = "00:00"; out.end = "23:59"; break; }
         const [a = "", b = ""] = v.split("~");
+        // 종일: 시간 표기가 없음(순수 '종일' 또는 날짜만). 날짜가 있으면 날짜를 살리고 시간은 전일(00:00~23:59).
+        const hasClock = a.includes(":") || a.includes("T");
+        if (v === ALL_DAY || !hasClock) {
+          if (a.includes("-") && !out.date) out.date = datePart(a);
+          if (b.includes("-")) out.endDate = datePart(b);
+          out.start = "00:00"; out.end = "23:59";
+          break;
+        }
         out.start = timePart(a);
         out.end = b ? timePart(b) : timePart(a);
         // 날짜+시간 항목이면 시작/종료 날짜도 반영(일자가 다른 범위 대응)

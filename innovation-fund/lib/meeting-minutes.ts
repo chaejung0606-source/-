@@ -75,6 +75,7 @@ export async function buildMinutesDocx(m: Meeting): Promise<Uint8Array> {
     `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblBorders>` +
     ["top", "left", "bottom", "right", "insideH", "insideV"].map((s) => `<w:${s} w:val="single" w:sz="6" w:space="0" w:color="999999"/>`).join("") +
     `</w:tblBorders></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="1900"/><w:gridCol w:w="7100"/></w:tblGrid>` +
     tableRow("회의안건", m.agenda) +
     tableRow("회의일시", m.datetime) +
     tableRow("회의장소", m.place) +

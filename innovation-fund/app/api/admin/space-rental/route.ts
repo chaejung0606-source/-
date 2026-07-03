@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireMenu } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, type RentalRequest,
+  normalizeSpaces, normalizeRequests, slotInt, type RentalRequest,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
 
@@ -117,6 +117,11 @@ export async function PATCH(req: NextRequest) {
       purpose: str("purpose", target.purpose),
       headcount: e.headcount != null ? Number(e.headcount) || 0 : target.headcount,
     };
+    // 같은 날 예약인데 종료가 시작보다 빠르면 반려(여러 날 범위는 endDate가 있어 예외)
+    if (!edited.endDate && /^\d{4}-\d{2}-\d{2}$/.test(edited.date) && /^\d{2}:\d{2}$/.test(edited.start) && /^\d{2}:\d{2}$/.test(edited.end)
+      && slotInt(edited.date, edited.end) <= slotInt(edited.date, edited.start)) {
+      return NextResponse.json({ ok: false, error: "종료 일시가 시작 일시보다 늦어야 합니다." }, { status: 400 });
+    }
     // 캘린더/시트 반영: 이벤트가 이미 있으면 update, 없으면(승인건이면) create
     let calendarReflected = false, newEventId = edited.calendarEventId;
     if (cfg.approveWebhook) {

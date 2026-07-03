@@ -127,7 +127,6 @@ export default function SpaceRentalPage() {
 
   // 설문 항목 입력 컨트롤 렌더
   const renderInput = (q: FormField) => {
-    const allDay = answers[q.id] === ALL_DAY;
     if (q.type === "longText") return <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
     if (q.type === "select") return (
       <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>
@@ -154,17 +153,30 @@ export default function SpaceRentalPage() {
     );
     if (q.type === "time" || q.type === "datetime") {
       const it = q.type === "time" ? "time" : "datetime-local";
+      // 종일 체크 상태는 별도 키로 추적(전송 안 됨). datetime 종일이면 날짜만 입력받아 날짜를 보존한다.
+      const allDayOn = answers["__allday__" + q.id] === "1";
+      const setAllDay = (on: boolean) => setAnswers((a) => ({ ...a, ["__allday__" + q.id]: on ? "1" : "", [q.id]: on && q.type === "time" ? ALL_DAY : "" }));
+      const [va = "", vb = ""] = (answers[q.id] || "").split("~");
       return (
         <div className="space-y-1.5">
           {q.allowAllDay && (
             <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={allDay} onChange={(e) => setAnswer(q.id, e.target.checked ? ALL_DAY : "")} /> 종일
+              <input type="checkbox" checked={allDayOn} onChange={(e) => setAllDay(e.target.checked)} /> 종일
             </label>
           )}
-          {allDay ? <p className="text-sm text-gray-500">종일 사용</p> : q.range ? (() => {
-            const [a = "", b = ""] = (answers[q.id] || "").split("~");
-            return <div className="flex items-center gap-2 flex-wrap"><input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} /></div>;
-          })() : <input type={it} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />}
+          {allDayOn && q.type === "time" ? (
+            <p className="text-sm text-gray-500">종일 사용</p>
+          ) : allDayOn ? ( // datetime 종일 → 날짜만 선택
+            q.range ? (
+              <div className="flex items-center gap-2 flex-wrap"><input type="date" className="input-field" value={va} onChange={(e) => setAnswer(q.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={vb} onChange={(e) => setAnswer(q.id, `${va}~${e.target.value}`)} /></div>
+            ) : (
+              <input type="date" className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
+            )
+          ) : q.range ? (
+            <div className="flex items-center gap-2 flex-wrap"><input type={it} className="input-field" value={va} onChange={(e) => setAnswer(q.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type={it} className="input-field" value={vb} onChange={(e) => setAnswer(q.id, `${va}~${e.target.value}`)} /></div>
+          ) : (
+            <input type={it} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
+          )}
         </div>
       );
     }
