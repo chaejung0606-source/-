@@ -11,6 +11,7 @@ export const GRANTABLE_MENUS: { key: string; label: string }[] = [
   { key: "/admin/virtual-students", label: "가상학과 학생" },
   { key: "/admin/programs", label: "신청폼 편집" },
   { key: "/admin/space-rental", label: "공간대여 신청" },
+  { key: "/admin/meeting-minutes", label: "회의록 작성" },
   { key: "/admin/content", label: "유형별 지급 기준" },
   { key: "/admin/certificates", label: "자격증 목록" },
   { key: "/admin/site-settings", label: "사이트 설정" },
