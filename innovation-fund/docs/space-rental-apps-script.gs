@@ -70,7 +70,7 @@ function doPost(e) {
 function updateEvent_(d) {
   var cal = CalendarApp.getCalendarById(CALENDAR_ID);
   if (!cal) throw new Error("캘린더를 찾을 수 없습니다.");
-  var start = parseDT_(d.date, d.start), end = parseDT_(d.date, d.end);
+  var start = parseDT_(d.date, d.start), end = parseDT_(d.endDate || d.date, d.end);
   var title = d.title || ("[공간대여] " + (d.spaceName || ""));
   var ev = d.eventId ? cal.getEventById(d.eventId) : null;
   if (!ev) {
@@ -96,7 +96,7 @@ function createEvent_(d) {
   var cal = CalendarApp.getCalendarById(CALENDAR_ID);
   if (!cal) throw new Error("캘린더를 찾을 수 없습니다. CALENDAR_ID와 권한을 확인하세요.");
   var start = parseDT_(d.date, d.start);
-  var end = parseDT_(d.date, d.end);
+  var end = parseDT_(d.endDate || d.date, d.end); // 여러 날 범위면 종료일 사용
   var title = d.title || ("[공간대여] " + (d.spaceName || ""));
   var ev = cal.createEvent(title, start, end, {
     location: d.location || d.spaceName || "",

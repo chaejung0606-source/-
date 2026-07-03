@@ -26,6 +26,7 @@ export default function SpaceRentalAdminPage() {
   const [resultForm, setResultForm] = useState<FormSchema | null>(null);
   const [formKind, setFormKind] = useState<"apply" | "result">("apply");
   const [formSaved, setFormSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
 
@@ -79,6 +80,19 @@ export default function SpaceRentalAdminPage() {
   };
   const removePhoto = (i: number, pi: number) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, photos: (x.photos || []).filter((_, k) => k !== pi) } : x));
 
+  // 웹훅 연결 테스트 — 구글 캘린더에 [웹훅 테스트] 이벤트가 생기는지 확인
+  const testWebhook = async () => {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/admin/space-rental", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "testWebhook", approveWebhook: approveWebhook.trim() }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (j.ok) alert("✅ 웹훅 연결 성공!\n구글 캘린더에 '[웹훅 테스트]' 이벤트(내일 10~11시)가 생성되었습니다. 확인 후 삭제하세요." + (j.eventId ? `\n(eventId: ${j.eventId})` : ""));
+      else alert("❌ 웹훅 연결 실패\n\n오류: " + (j.error || `HTTP ${res.status}`) + (j.raw ? `\n\n응답: ${j.raw}` : "") + "\n\n확인: ① URL 저장 여부 ② Apps Script 최신 코드 재배포 ③ 배포 액세스 '모든 사용자' ④ 캘린더 '일정 변경' 권한");
+    } finally { setTesting(false); }
+  };
+
   const saveConfig = async () => {
     const clean = spaces.map((s) => ({ ...s, name: s.name.trim() })).filter((s) => s.name);
     const res = await fetch("/api/admin/space-rental", {
@@ -98,7 +112,11 @@ export default function SpaceRentalAdminPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status, adminMemo }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
-    if (status === "approved") alert(j.calendarReflected ? "승인되어 구글 캘린더·시트에 반영을 요청했습니다." : "승인되었습니다. (캘린더 자동 반영 웹훅 미설정 — 수동 등록 필요)\n플랫폼 캘린더에는 즉시 반영됩니다.");
+    if (status === "approved") {
+      if (j.calendarReflected) alert("승인되어 구글 캘린더·시트에 반영을 요청했습니다.");
+      else if (j.webhookError) alert("승인되었으나 구글 캘린더 반영에 실패했습니다.\n\n오류: " + j.webhookError + "\n\n플랫폼 캘린더에는 즉시 반영됩니다. (Apps Script 재배포·권한·웹훅 URL을 확인하세요)");
+      else alert("승인되었습니다. (캘린더 자동 반영 웹훅 미설정 — 수동 등록 필요)\n플랫폼 캘린더에는 즉시 반영됩니다.");
+    }
   };
   const removeRequest = async (id: string) => {
     if (!confirm("이 신청을 삭제하시겠습니까?")) return;
@@ -125,7 +143,9 @@ export default function SpaceRentalAdminPage() {
       if (!j.ok) { alert("수정 실패: " + (j.error || res.status)); return; }
       setRequests((rs) => rs.map((r) => r.id === detail.id ? { ...r, ...edit } as RentalRequest : r));
       setDetail((d) => d ? { ...d, ...edit } as RentalRequest : d);
-      alert(j.calendarReflected ? "수정되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다." : "수정되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
+      if (j.calendarReflected) alert("수정되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다.");
+      else if (j.webhookError) alert("수정되었으나 구글 캘린더 반영에 실패했습니다.\n\n오류: " + j.webhookError + "\n\n플랫폼 캘린더에는 반영됩니다.");
+      else alert("수정되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
     } finally { setSavingEdit(false); }
   };
 
@@ -245,8 +265,11 @@ export default function SpaceRentalAdminPage() {
             </div>
             <div>
               <label className="label">승인 시 구글시트·캘린더 자동 반영 웹훅 URL (구글 Apps Script)</label>
-              <input className="input-field font-mono text-xs" value={approveWebhook} onChange={(e) => setApproveWebhook(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
-              <p className="text-[11px] text-gray-400 mt-1">신청을 <strong>승인</strong>하면 이 웹훅으로 상세 정보를 보내 구글시트·캘린더에 자동 반영합니다. (미설정 시 수동 등록 — 플랫폼 캘린더에는 즉시 반영)</p>
+              <div className="flex items-center gap-2">
+                <input className="input-field font-mono text-xs flex-1" value={approveWebhook} onChange={(e) => setApproveWebhook(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" />
+                <button onClick={testWebhook} disabled={testing} className="btn-secondary text-sm whitespace-nowrap disabled:opacity-60">{testing ? "테스트 중..." : "연결 테스트"}</button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">신청을 <strong>승인</strong>하면 이 웹훅으로 상세 정보를 보내 구글시트·캘린더에 자동 반영합니다. <strong>연결 테스트</strong>로 구글 캘린더에 [웹훅 테스트] 이벤트가 생기는지 먼저 확인하세요. (미설정 시 수동 등록 — 플랫폼 캘린더에는 즉시 반영)</p>
             </div>
           </div>
         </div>
@@ -399,21 +422,23 @@ export default function SpaceRentalAdminPage() {
 
 // 관리자가 직접 공간대여를 신청 (공개 신청 API 재사용)
 function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; onClose: () => void; onDone: () => void }) {
-  const [f, setF] = useState({ spaceId: "", date: "", start: "", end: "", applicantName: "", studentId: "", phone: "", email: "", headcount: "", purpose: "" });
+  const [f, setF] = useState({ spaceId: "", date: "", endDate: "", start: "", end: "", applicantName: "", studentId: "", phone: "", email: "", headcount: "", purpose: "" });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [allDay, setAllDay] = useState(false);
   const [busy, setBusy] = useState(false);
   const start = allDay ? "00:00" : f.start;
   const end = allDay ? "23:59" : f.end;
+  const endDate = f.endDate || f.date; // 종료일 미입력 시 시작일과 동일(하루)
 
   const submit = async () => {
     if (!f.spaceId || !f.date || !start || !end) return alert("공간·사용일·시간을 입력해주세요.");
+    if (endDate < f.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
     if (!f.applicantName.trim() || !f.studentId.trim()) return alert("신청자 이름·학번/소속을 입력해주세요.");
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, start, end, headcount: Number(f.headcount) || 0 }),
+        body: JSON.stringify({ ...f, date: f.date, endDate, start, end, headcount: Number(f.headcount) || 0 }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); return; }
@@ -436,10 +461,11 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
               {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div><label className="label">사용일 <span className="text-red-500">*</span></label><input type="date" className="input-field" value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
-            <div><label className="label">시작 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.start} disabled={allDay} onChange={(e) => set("start", e.target.value)} /></div>
-            <div><label className="label">종료 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.end} disabled={allDay} onChange={(e) => set("end", e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">시작일 <span className="text-red-500">*</span></label><input type="date" className="input-field" value={f.date} onChange={(e) => set("date", e.target.value)} /></div>
+            <div><label className="label">종료일 <span className="text-[11px] font-normal text-gray-400">(하루면 비움/동일)</span></label><input type="date" className="input-field" value={f.endDate} min={f.date || undefined} onChange={(e) => set("endDate", e.target.value)} /></div>
+            <div><label className="label">시작 시간 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.start} disabled={allDay} onChange={(e) => set("start", e.target.value)} /></div>
+            <div><label className="label">종료 시간 <span className="text-red-500">*</span></label><input type="time" className="input-field" value={f.end} disabled={allDay} onChange={(e) => set("end", e.target.value)} /></div>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer -mt-1">
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일 (00:00~23:59)
