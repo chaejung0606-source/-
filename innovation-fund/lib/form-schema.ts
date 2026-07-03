@@ -7,6 +7,8 @@ export type FormFieldType =
   | "longText"      // 서술형
   | "number"        // 숫자/금액
   | "date"          // 날짜
+  | "time"          // 시간(시:분) — range 옵션 시 시작·종료
+  | "datetime"      // 날짜+시간 — range 옵션 시 시작·종료
   | "select"        // 드롭다운
   | "table"         // 표(관리자가 머리글·예시 작성, 신청자가 칸 입력)
   | "file"          // 파일 업로드
@@ -27,6 +29,8 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   longText: "서술형",
   number: "숫자/금액",
   date: "날짜",
+  time: "시간",
+  datetime: "날짜+시간",
   select: "드롭다운",
   table: "표",
   file: "파일 업로드",
@@ -67,7 +71,12 @@ export interface FormField {
   uploadNotice?: string;   // file: 업로드 직전 띄울 안내창 문구(예: 재학증명서는 직인 날인본 제출)
   minLen?: number;         // shortText/longText: 최소 글자수(이상)
   maxLen?: number;         // shortText/longText: 최대 글자수(이하)
-  range?: boolean;         // date: 기간(시작일~종료일) 선택 여부
+  range?: boolean;         // date/time/datetime: 기간(시작~종료) 선택 여부
+  // privacyConsent(개인정보 수집·이용 동의): 관리자가 안내문·동의 항목 문구를 직접 수정
+  consentIntro?: string;        // 안내 박스 본문(수집 항목·목적·보유기간 등). 미설정 시 기본 문구 사용
+  consentPrivacyLabel?: string; // 동의 항목1 문구(개인정보 수집·이용)
+  consentTruthLabel?: string;   // 동의 항목2 문구(자료 사실 확인)
+  consentAccountLabel?: string; // 동의 항목3 문구(본인 계좌) — 지원금 신청 시에만 노출
   unitPrice?: number;      // workLog: 시간당 단가(원, 고정) — 근무시간 합계 × 단가 = 합계 자동 계산
   unitPriceMode?: "flat" | "byGrade"; // workLog: 단가 방식(고정 / 구분별)
   unitPriceByGrade?: Record<string, number>; // workLog: 구분별 시간당 단가 (키: 재학생/대학원생)
@@ -95,6 +104,12 @@ export interface FormSchema {
 export function newSchemaId(prefix = "s"): string {
   return prefix + "-" + Math.random().toString(36).slice(2, 9);
 }
+
+// 개인정보 수집·이용 동의 — 기본 안내문·동의 항목 문구(관리자가 수정 가능, 미설정 시 사용)
+export const DEFAULT_CONSENT_INTRO = "• 수집 항목: 이름, 학번, 학적유형, 소속(대학·캠퍼스·학과·전공), 연락처, 이메일, 신청 내용 및 증빙 서류, 서명, 본인 명의 계좌정보(은행·예금주·계좌번호)\n• 수집 목적: 지원 신청 접수, 자격 검토·심의, 지급 및 정산 관리\n• 보유 기간: 지원금 지급 완료 후 5년\n※ 아래 항목에 모두 동의해야 신청을 진행할 수 있습니다.";
+export const DEFAULT_CONSENT_PRIVACY = "개인정보 수집·이용에 동의합니다.";
+export const DEFAULT_CONSENT_TRUTH = "제출한 자료가 사실과 다를 경우 지원 취소 및 환수 조치가 가능함을 확인했습니다.";
+export const DEFAULT_CONSENT_ACCOUNT = "본인 명의 계좌로만 지급 가능하며, 입력한 예금주와 제출하는 통장 사본의 예금주가 동일함을 확인했습니다.";
 
 // 구버전 ReportField → FormField 변환
 function fieldFromReport(f: ReportField): FormField {

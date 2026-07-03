@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2 } from "lucide-react";
 import type { FormSchema, FormField, FormStep, FormFieldType } from "@/lib/form-schema";
-import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GROUPS, newSchemaId } from "@/lib/form-schema";
+import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GROUPS, newSchemaId, DEFAULT_CONSENT_INTRO, DEFAULT_CONSENT_PRIVACY, DEFAULT_CONSENT_TRUTH, DEFAULT_CONSENT_ACCOUNT } from "@/lib/form-schema";
 import TableField, { defaultTableCells } from "./TableField";
 
 // 스키마 기반 신청 폼.
@@ -26,7 +26,7 @@ const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
 // 항목 추가 메뉴 구성 — 입력 항목 / 표준 블록(필수요소 포함)
 const ADD_GROUPS: { title: string; types: FormFieldType[] }[] = [
   { title: "필수·표준 항목", types: ["applicantInfo", "privacyConsent", "account", "signature"] },
-  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "select", "table", "file", "agreement"] },
+  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "time", "datetime", "select", "table", "file", "agreement"] },
   { title: "활동·비용·근무 항목", types: ["eventLocation", "workLog", "transport", "registration", "lodging"] },
 ];
 
@@ -72,6 +72,24 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           )}
         </div>
       );
+    case "time":
+    case "datetime": {
+      const it = f.type === "time" ? "time" : "datetime-local";
+      return (
+        <div>
+          <label className="label">{f.label || "(제목 없음)"}{req}</label>
+          {f.range ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input type={it} className="input-field bg-gray-50" disabled={disabled} />
+              <span className="text-gray-400">~</span>
+              <input type={it} className="input-field bg-gray-50" disabled={disabled} />
+            </div>
+          ) : (
+            <input type={it} className="input-field bg-gray-50" disabled={disabled} />
+          )}
+        </div>
+      );
+    }
     case "longText":
       return (<div><label className="label">{f.label || "(제목 없음)"}{req}</label><textarea className="input-field h-20 resize-none bg-gray-50" placeholder={f.placeholder || ""} disabled={disabled} /></div>);
     case "select":
@@ -129,12 +147,11 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           <label className="label">{f.label || "개인정보 수집·이용 및 신청 동의"}{req}</label>
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 leading-relaxed space-y-1">
             <p className="font-semibold text-gray-800">개인정보 수집·이용 안내</p>
-            <p>• 수집 항목: 이름, 학번, 소속, 학과, 연락처, 이메일, 계좌정보</p>
-            <p>• 수집 목적: 지원 신청 접수 및 지급 관리 · 보유 기간: 지급 완료 후 5년</p>
+            <p className="whitespace-pre-line">{f.consentIntro?.trim() || DEFAULT_CONSENT_INTRO}</p>
             <div className="mt-2 space-y-1">
-              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 개인정보 수집·이용에 동의합니다. <span className="text-red-500">[필수]</span></label>
-              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 제출 자료가 사실과 다를 경우 지원 취소·환수에 동의합니다. <span className="text-red-500">[필수]</span></label>
-              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> 본인 명의 계좌로만 지급됨을 확인합니다. <span className="text-red-500">[필수]</span></label>
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> {f.consentPrivacyLabel?.trim() || DEFAULT_CONSENT_PRIVACY} <span className="text-red-500">[필수]</span></label>
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> {f.consentTruthLabel?.trim() || DEFAULT_CONSENT_TRUTH} <span className="text-red-500">[필수]</span></label>
+              <label className="flex items-start gap-2 text-gray-700"><input type="checkbox" disabled className="mt-0.5" /> {f.consentAccountLabel?.trim() || DEFAULT_CONSENT_ACCOUNT} <span className="text-red-500">[필수]</span></label>
             </div>
           </div>
         </div>
@@ -397,10 +414,26 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
               {f.type === "agreement" && (
                 <textarea className="input-field text-xs mt-2 h-16 resize-none" value={f.text || ""} onChange={(e) => updField(cur.id, f.id, { text: e.target.value })} placeholder="서약 본문" />
               )}
-              {f.type === "date" && (
+              {(f.type === "date" || f.type === "time" || f.type === "datetime") && (
                 <label className="flex items-center gap-1.5 text-xs text-gray-600 mt-2">
-                  <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} /> 기간 선택(시작일~종료일)
+                  <input type="checkbox" checked={!!f.range} onChange={(e) => updField(cur.id, f.id, { range: e.target.checked })} />
+                  {f.type === "date" ? "기간 선택(시작일~종료일)" : "시작·종료 선택 (체크 해제 시 한 번만 입력)"}
                 </label>
+              )}
+              {f.type === "privacyConsent" && (
+                <div className="mt-2 space-y-2">
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">개인정보 수집·이용 안내문 (신청자에게 표시)</p>
+                    <textarea className="input-field text-xs h-24 resize-none" value={f.consentIntro ?? ""} onChange={(e) => updField(cur.id, f.id, { consentIntro: e.target.value })} placeholder={DEFAULT_CONSENT_INTRO} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-500 mb-1">동의 항목 문구</p>
+                    <input className="input-field text-xs mb-1" value={f.consentPrivacyLabel ?? ""} onChange={(e) => updField(cur.id, f.id, { consentPrivacyLabel: e.target.value })} placeholder={DEFAULT_CONSENT_PRIVACY} />
+                    <input className="input-field text-xs mb-1" value={f.consentTruthLabel ?? ""} onChange={(e) => updField(cur.id, f.id, { consentTruthLabel: e.target.value })} placeholder={DEFAULT_CONSENT_TRUTH} />
+                    <input className="input-field text-xs" value={f.consentAccountLabel ?? ""} onChange={(e) => updField(cur.id, f.id, { consentAccountLabel: e.target.value })} placeholder={DEFAULT_CONSENT_ACCOUNT} />
+                  </div>
+                  <p className="text-[11px] text-gray-400">※ 비워두면 기본 문구가 사용됩니다. 세 번째(본인 계좌) 항목은 지원금 신청 단계에서만 표시됩니다.</p>
+                </div>
               )}
               {f.type === "workLog" && (
                 <div className="mt-2 space-y-2">
@@ -488,7 +521,7 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                   </div>
                 );
               })()}
-              {!STANDARD_TYPES.includes(f.type) && !["select", "table", "agreement", "signature", "file", "date"].includes(f.type) && (
+              {!STANDARD_TYPES.includes(f.type) && !["select", "table", "agreement", "signature", "file", "date", "time", "datetime"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
               )}
               {f.type === "file" && (

@@ -1,5 +1,6 @@
 "use client";
 import { CheckCircle } from "lucide-react";
+import { DEFAULT_CONSENT_INTRO, DEFAULT_CONSENT_PRIVACY, DEFAULT_CONSENT_TRUTH, DEFAULT_CONSENT_ACCOUNT } from "@/lib/form-schema";
 
 export interface ConsentValues { privacy: boolean; truth: boolean; account: boolean; }
 
@@ -7,16 +8,21 @@ interface Props {
   values: ConsentValues;
   onChange: (v: ConsentValues) => void;
   isPre?: boolean;  // 지원신청(활동 전): 계좌 관련 동의 제외
+  // 관리자가 '신청폼 편집'에서 수정한 안내문·동의 항목 문구(미설정 시 기본 문구)
+  intro?: string;
+  privacyLabel?: string;
+  truthLabel?: string;
+  accountLabel?: string;
 }
 
 // 기본정보 바로 아래에서 동의받아야 하는 모든 항목을 한 번에 수집.
-export default function ConsentChecklist({ values, onChange, isPre = false }: Props) {
+export default function ConsentChecklist({ values, onChange, isPre = false, intro, privacyLabel, truthLabel, accountLabel }: Props) {
   const set = (k: keyof ConsentValues, v: boolean) => onChange({ ...values, [k]: v });
 
   const items = [
-    { key: "privacy" as const, label: "개인정보 수집·이용에 동의합니다." },
-    { key: "truth" as const, label: "제출한 자료가 사실과 다를 경우 지원 취소 및 환수 조치가 가능함을 확인했습니다." },
-    ...(isPre ? [] : [{ key: "account" as const, label: "본인 명의 계좌로만 지급 가능하며, 입력한 예금주와 제출하는 통장 사본의 예금주가 동일함을 확인했습니다." }]),
+    { key: "privacy" as const, label: privacyLabel?.trim() || DEFAULT_CONSENT_PRIVACY },
+    { key: "truth" as const, label: truthLabel?.trim() || DEFAULT_CONSENT_TRUTH },
+    ...(isPre ? [] : [{ key: "account" as const, label: accountLabel?.trim() || DEFAULT_CONSENT_ACCOUNT }]),
   ];
   const allAgreed = items.every((i) => values[i.key]);
   const setAll = (v: boolean) => onChange({ privacy: v, truth: v, account: isPre ? values.account : v });
@@ -24,12 +30,9 @@ export default function ConsentChecklist({ values, onChange, isPre = false }: Pr
   return (
     <div className="card">
       <h2 className="section-title">개인정보 수집·이용 및 신청 동의</h2>
-      <div className="rounded-2xl p-4 text-xs text-gray-600 mb-4 leading-relaxed" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+      <div className="rounded-2xl p-4 text-xs text-gray-600 mb-4 leading-relaxed whitespace-pre-line" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
         <p className="font-semibold text-gray-800 mb-1">개인정보 수집·이용 안내</p>
-        <p>• 수집 항목: 이름, 학번, 학적유형, 소속(대학·캠퍼스·학과·전공), 연락처, 이메일, 신청 내용 및 증빙 서류(재학증명서·신분증·통장 사본·성과/참여 증빙 등), 서명{isPre ? "" : ", 본인 명의 계좌정보(은행·예금주·계좌번호)"}</p>
-        <p>• 수집 목적: 지원 신청 접수, 자격 검토·심의, 지급 및 정산 관리</p>
-        <p>• 보유 기간: 지원금 지급 완료 후 5년</p>
-        <p className="mt-1">※ 아래 항목에 모두 동의해야 신청을 진행할 수 있습니다.</p>
+        {intro?.trim() || DEFAULT_CONSENT_INTRO}
       </div>
 
       {/* 전체 동의 */}

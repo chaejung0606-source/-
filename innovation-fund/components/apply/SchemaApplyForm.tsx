@@ -333,11 +333,11 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           if (!fixed) { hasInput = true; if (!String(cell || "").trim()) blank = true; }
         }));
         if (!hasInput || blank) e.push(`• [${f.label || "표"}] 표의 빈 칸을 모두 채워주세요.`);
-      } else if (["shortText", "longText", "number", "date", "select"].includes(f.type)) {
+      } else if (["shortText", "longText", "number", "date", "time", "datetime", "select"].includes(f.type)) {
         const val = (answers[f.id] || "");
-        if (f.type === "date" && f.range) {
+        if ((f.type === "date" || f.type === "time" || f.type === "datetime") && f.range) {
           const [a = "", b = ""] = val.split("~");
-          if (!a.trim() || !b.trim()) e.push(`• [${f.label || "항목"}] 시작일과 종료일을 모두 선택해주세요.`);
+          if (!a.trim() || !b.trim()) e.push(`• [${f.label || "항목"}] 시작과 종료를 모두 선택해주세요.`);
         } else if (!val.replace("~", "").trim()) { if (f.required ?? true) e.push(`• [${f.label || "항목"}] 항목을 작성해주세요.`); }
         else if (f.type === "shortText" || f.type === "longText") {
           const len = val.length;
@@ -358,7 +358,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     const formAnswers = {
       programId, programName,
       fields: activeFields(allFields)
-        .filter((f) => ["shortText", "longText", "number", "date", "select", "agreement", "table", "signature", "file"].includes(f.type))
+        .filter((f) => ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "table", "signature", "file"].includes(f.type))
         .map((f) => {
           let value = answers[f.id] || "";
           if (f.type === "signature") value = signaturesByField[f.id] || "";
@@ -518,7 +518,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           </div>
         );
       }
-      case "privacyConsent": return <ConsentChecklist key={f.id} values={consent} onChange={setConsent} isPre={isPre || !hasAccount} />;
+      case "privacyConsent": return <ConsentChecklist key={f.id} values={consent} onChange={setConsent} isPre={isPre || !hasAccount} intro={f.consentIntro} privacyLabel={f.consentPrivacyLabel} truthLabel={f.consentTruthLabel} accountLabel={f.consentAccountLabel} />;
       case "signature": return <div key={f.id}><SignatureField label={(f.label || "서명") + (f.required !== false ? " *" : "")} value={signaturesByField[f.id] || ""} onChange={(s) => setSignaturesByField((m) => ({ ...m, [f.id]: s }))} /></div>;
       case "file": return <div key={f.id}>{label}<FileField label={f.label || "파일"} notice={f.uploadNotice} files={filesByField[f.id] || []} onChange={(fs) => setFilesByField((m) => ({ ...m, [f.id]: fs }))} /></div>;
       case "workLog": return <div key={f.id}>{label}<WorkLogField field={f} entries={workLogByField[f.id] || []} onChange={(en) => setWorkLogByField((m) => ({ ...m, [f.id]: en }))} group={group} isPre={isPre} /></div>;
@@ -542,6 +542,12 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         const v = answers[f.id] || "";
         if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2"><input type="date" className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }
         return <div key={f.id}>{label}<input type="date" className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} /></div>;
+      }
+      case "time": case "datetime": {
+        const inputType = f.type === "time" ? "time" : "datetime-local";
+        const v = answers[f.id] || "";
+        if (f.range) { const [a = "", b = ""] = v.split("~"); return <div key={f.id}>{label}<div className="flex items-center gap-2 flex-wrap"><input type={inputType} className="input-field" value={a} onChange={(e) => setAns(f.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type={inputType} className="input-field" value={b} onChange={(e) => setAns(f.id, `${a}~${e.target.value}`)} /></div></div>; }
+        return <div key={f.id}>{label}<input type={inputType} className="input-field" value={v} onChange={(e) => setAns(f.id, e.target.value)} /></div>;
       }
       case "select": {
         const sel = answers[f.id] || "";

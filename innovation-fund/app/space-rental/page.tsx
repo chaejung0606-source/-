@@ -15,7 +15,7 @@ const fmtSlot = (n: number) => {
 };
 
 // 관리자가 설정한 설문 폼에서 신청자가 답할 수 있는 항목만 추출 (표준 블록·파일·서명 제외)
-const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "select", "agreement"];
+const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement"];
 function surveyFields(schema: FormSchema | null): FormField[] {
   if (!schema?.steps) return [];
   return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
@@ -279,8 +279,20 @@ export default function SpaceRentalPage() {
                           동의합니다.
                         </label>
                       </div>
+                    ) : (q.type === "time" || q.type === "datetime" || q.type === "date") && q.range ? (
+                      (() => {
+                        const it = q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "date";
+                        const [a = "", b = ""] = (answers[q.id] || "").split("~");
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input type={it} className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} />
+                            <span className="text-gray-400">~</span>
+                            <input type={it} className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} />
+                          </div>
+                        );
+                      })()
                     ) : (
-                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                      <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
                     )}
                   </div>
                 ))}
