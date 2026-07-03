@@ -23,6 +23,8 @@ export default function SpaceRentalAdminPage() {
   const [approveWebhook, setApproveWebhook] = useState("");
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [spaceForm, setSpaceForm] = useState<FormSchema | null>(null);
+  const [resultForm, setResultForm] = useState<FormSchema | null>(null);
+  const [formKind, setFormKind] = useState<"apply" | "result">("apply");
   const [formSaved, setFormSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
@@ -40,19 +42,23 @@ export default function SpaceRentalAdminPage() {
       setApproveWebhook(d.approveWebhook || "");
       setRequests(Array.isArray(d.requests) ? d.requests : []);
       setSpaceForm(d.form && typeof d.form === "object" ? d.form : null);
+      setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
-  // 공간대여 설문폼 저장
-  const saveForm = async (schema: FormSchema) => {
+  // 공간대여 폼 저장 (신청폼 or 이용결과폼)
+  const saveForm = async () => {
+    const body = formKind === "apply" ? { form: spaceForm || emptySchema() } : { resultForm: resultForm || emptySchema() };
     const res = await fetch("/api/admin/space-rental", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form: schema }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (j.ok) { setFormSaved(true); setTimeout(() => setFormSaved(false), 2500); }
     else alert("저장 실패: " + (j.error || res.status));
   };
+  const curForm = formKind === "apply" ? spaceForm : resultForm;
+  const setCurForm = (s: FormSchema) => (formKind === "apply" ? setSpaceForm(s) : setResultForm(s));
 
   const addSpace = () => setSpaces((s) => [...s, { id: "sp-" + Math.random().toString(36).slice(2, 9), name: "" }]);
   const setSpace = (i: number, patch: Partial<RentalSpace>) => setSpaces((s) => s.map((x, idx) => idx === i ? { ...x, ...patch } : x));
@@ -247,26 +253,31 @@ export default function SpaceRentalAdminPage() {
       )}
 
       {/* ── 공간대여 캘린더 ── */}
-      {/* ── 공간대여 신청폼 (설문폼 편집) ── */}
+      {/* ── 공간대여 신청폼 (신청폼 / 이용결과폼 편집) ── */}
       {tab === "form" && (
         <div className="space-y-4">
           <div className="card">
             <div className="flex items-start justify-between gap-2 flex-wrap">
-              <div>
-                <h2 className="section-title mb-1">공간대여 신청폼</h2>
-                <p className="text-sm text-gray-500">공간대여 신청 화면에 표시할 폼을 구성합니다. <strong>여기서 만든 항목만</strong> 신청자에게 보입니다.</p>
+              <div className="flex gap-2">
+                {([["apply", "신청 폼"], ["result", "이용결과 폼"]] as const).map(([k, lbl]) => (
+                  <button key={k} onClick={() => setFormKind(k)} className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${formKind === k ? "bg-indigo-500 text-white border-indigo-500" : "bg-white/70 border-gray-200 text-gray-600"}`}>{lbl}</button>
+                ))}
               </div>
               <div className="flex items-center gap-2">
                 {formSaved && <span className="text-green-600 text-sm font-medium">✓ 저장됨</span>}
-                <button onClick={() => { if (!spaceForm || window.confirm("현재 공간대여 폼을 기본 폼(장소·일시·연락처·개인정보동의 포함)으로 덮어씁니다. 계속할까요?")) setSpaceForm(defaultSpaceRentalForm()); }} className="btn-secondary text-sm">기본 폼 불러오기</button>
-                <button onClick={() => saveForm(spaceForm || emptySchema())} className="btn-primary text-sm flex items-center gap-1.5"><Save className="w-4 h-4" /> 저장</button>
+                {formKind === "apply" && <button onClick={() => { if (!spaceForm || window.confirm("현재 신청 폼을 기본 폼(장소·일시·연락처·개인정보동의 포함)으로 덮어씁니다. 계속할까요?")) setSpaceForm(defaultSpaceRentalForm()); }} className="btn-secondary text-sm">기본 폼 불러오기</button>}
+                <button onClick={saveForm} className="btn-primary text-sm flex items-center gap-1.5"><Save className="w-4 h-4" /> 저장</button>
               </div>
             </div>
-            <p className="text-[11px] text-gray-400 mt-1">※ 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong> 등을 지정하면, 그 답변으로 구글 캘린더·구글시트·플랫폼 캘린더에 예약이 반영됩니다. (‘연락처’는 이용결과 제출 시 본인 확인에 사용됩니다.) <strong>개인정보 수집·이용 동의</strong> 항목도 여기서 추가·수정할 수 있습니다.</p>
+            {formKind === "apply" ? (
+              <p className="text-[11px] text-gray-400 mt-2">공간대여 <strong>신청 화면</strong>에 표시할 폼입니다. 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong>를 지정하면 구글 캘린더·시트·플랫폼 캘린더에 반영됩니다. 개인정보 동의 항목도 추가·수정할 수 있습니다.</p>
+            ) : (
+              <p className="text-[11px] text-gray-400 mt-2"><strong>이용결과 제출</strong> 화면에 표시할 추가 설문입니다. 기본 항목(이용자 명단·서명, 이용 사진, 비고)에 더해 여기서 만든 질문이 함께 표시되며, 답변은 구글시트에 함께 기록됩니다.</p>
+            )}
           </div>
           <div className="card">
-            <SchemaForm editable showBookingRoles schema={spaceForm || emptySchema()} accent="#6366f1" onChange={(s) => setSpaceForm(s)} />
-            <p className="text-[11px] text-gray-400 mt-3">수정한 뒤 위 <strong>‘저장’</strong>을 누르면 공간대여 신청 화면에 반영됩니다.</p>
+            <SchemaForm editable showBookingRoles={formKind === "apply"} schema={curForm || emptySchema()} accent="#6366f1" onChange={setCurForm} />
+            <p className="text-[11px] text-gray-400 mt-3">수정한 뒤 위 <strong>‘저장’</strong>을 누르면 반영됩니다.</p>
           </div>
         </div>
       )}
@@ -354,6 +365,13 @@ export default function SpaceRentalAdminPage() {
                         <a key={i} href={p} target="_blank" rel="noopener noreferrer"><img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" /></a>
                       ))}
                     </div>
+                  </div>
+                )}
+                {(detail.usageResult.answers && detail.usageResult.answers.length > 0) && (
+                  <div className="mb-1 text-sm space-y-0.5">
+                    {detail.usageResult.answers.map((a) => (
+                      <div key={a.id} className="flex gap-3"><span className="w-28 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
+                    ))}
                   </div>
                 )}
                 {detail.usageResult.memo && <p className="text-xs text-gray-600 mt-1 whitespace-pre-line">비고: {detail.usageResult.memo}</p>}

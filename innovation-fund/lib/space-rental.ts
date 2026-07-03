@@ -35,6 +35,7 @@ export interface UsageResult {
   submittedAt: string;
   users: UsageUser[];   // 이용자 명단 및 서명
   photos: string[];     // 대여공간 이용 사진 URL
+  answers?: { id: string; label: string; value: string }[]; // 관리자 설정 이용결과 설문 답변
   memo?: string;
 }
 export interface RentalRequest {
@@ -105,8 +106,9 @@ function normalizeUsageResult(v: unknown): UsageResult | undefined {
   const o = v as Record<string, unknown>;
   const users = Array.isArray(o.users) ? (o.users as unknown[]).filter((u): u is Record<string, unknown> => !!u && typeof u === "object").map((u) => ({ name: String(u.name || ""), signature: String(u.signature || "") })) : [];
   const photos = Array.isArray(o.photos) ? (o.photos as unknown[]).map(String).filter(Boolean) : [];
-  if (users.length === 0 && photos.length === 0 && !o.memo) return undefined;
-  return { submittedAt: String(o.submittedAt || ""), users, photos, memo: o.memo ? String(o.memo) : undefined };
+  const answers = Array.isArray(o.answers) ? (o.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined;
+  if (users.length === 0 && photos.length === 0 && (!answers || answers.length === 0) && !o.memo) return undefined;
+  return { submittedAt: String(o.submittedAt || ""), users, photos, answers, memo: o.memo ? String(o.memo) : undefined };
 }
 
 // 시간 항목 '종일' 선택값

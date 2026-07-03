@@ -29,6 +29,10 @@ var SHEET_ID = "";                 // 비워두면 스크립트가 시트를 자
 var SHEET_NAME = "공간대여신청";     // 기록할 시트(탭) 이름 (없으면 자동 생성)
 var HEADERS = ["승인일시", "장소", "사용일", "시작", "종료", "신청자", "학번/소속", "연락처", "이메일", "인원", "사용목적", "접수일시", "캘린더이벤트ID"];
 var PROP_KEY = "SPACE_RENTAL_SHEET_ID"; // 자동 생성한 시트 ID를 기억해 두는 스크립트 속성 키
+var RESULT_SHEET_NAME = "공간대여이용결과";     // 이용결과 기록 탭
+var RESULT_HEADERS = ["제출일시", "장소", "사용일", "시작", "종료", "신청자", "학번/소속", "연락처", "이용자명단", "서명파일", "사진파일", "설문답변", "비고"];
+var RESULT_FOLDER_NAME = "공간대여 이용결과 파일"; // 서명·사진을 저장할 드라이브 폴더
+var RESULT_FOLDER_PROP = "SPACE_RENTAL_RESULT_FOLDER_ID";
 // ───────────────────────────────────────────────────────────
 
 function doPost(e) {
@@ -52,6 +56,9 @@ function doPost(e) {
       try { deleteEvent_(data.eventId); } catch (ce) { /* 캘린더 삭제 실패 무시 */ }
       deleteRow_(data.eventId);
       return json_({ ok: true });
+    }
+    if (action === "usageResult") {
+      return json_(appendUsageResult_(data));
     }
     return json_({ ok: false, error: "unknown action" });
   } catch (err) {
@@ -171,6 +178,63 @@ function deleteRow_(eventId) {
 }
 // (호환) 기존 호출부 유지
 function appendRow_(d, eventId) { upsertRow_(d, eventId); }
+
+// ── 이용결과: 구글시트 기록 + 서명/사진 구글드라이브 저장 ──
+function getResultSheet_() {
+  var sh0 = getRecordSheet_();               // 같은 스프레드시트 사용
+  var ss = sh0.getParent();
+  var sh = ss.getSheetByName(RESULT_SHEET_NAME);
+  if (!sh) { sh = ss.insertSheet(RESULT_SHEET_NAME); sh.appendRow(RESULT_HEADERS); }
+  return sh;
+}
+function getResultFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty(RESULT_FOLDER_PROP);
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* 재생성 */ } }
+  var folder = DriveApp.createFolder(RESULT_FOLDER_NAME);
+  props.setProperty(RESULT_FOLDER_PROP, folder.getId());
+  return folder;
+}
+// dataURL(data:image/png;base64,...) → Blob
+function dataUrlToBlob_(dataUrl, name) {
+  var m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+  if (!m) return null;
+  var bytes = Utilities.base64Decode(m[2]);
+  return Utilities.newBlob(bytes, m[1], name);
+}
+function appendUsageResult_(d) {
+  var folder = getResultFolder_();
+  var stamp = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyyMMdd_HHmmss");
+  var tag = (d.applicantName || "신청자") + "_" + (d.date || "");
+  // 서명 저장(dataURL)
+  var sigLinks = [];
+  var users = d.users || [];
+  var names = [];
+  for (var i = 0; i < users.length; i++) {
+    names.push(users[i].name || "");
+    var blob = users[i].signature ? dataUrlToBlob_(users[i].signature, "서명_" + tag + "_" + (i + 1) + ".png") : null;
+    if (blob) { var f = folder.createFile(blob); sigLinks.push(f.getUrl()); }
+  }
+  // 사진 저장(URL 다운로드)
+  var photoLinks = [];
+  var photos = d.photos || [];
+  for (var j = 0; j < photos.length; j++) {
+    try {
+      var resp = UrlFetchApp.fetch(photos[j], { muteHttpExceptions: true });
+      if (resp.getResponseCode() === 200) {
+        var pblob = resp.getBlob().setName("사진_" + tag + "_" + (j + 1));
+        photoLinks.push(folder.createFile(pblob).getUrl());
+      }
+    } catch (e) { /* 개별 사진 실패 무시 */ }
+  }
+  var answers = (d.answers || []).map(function (a) { return (a.label || "") + ": " + (a.value || ""); }).join("\n");
+  getResultSheet_().appendRow([
+    new Date(), d.spaceName || "", d.date || "", d.start || "", d.end || "",
+    d.applicantName || "", d.studentId || "", d.phone || "",
+    names.join(", "), sigLinks.join("\n"), photoLinks.join("\n"), answers, d.memo || "",
+  ]);
+  return { ok: true, signatures: sigLinks.length, photos: photoLinks.length };
+}
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);

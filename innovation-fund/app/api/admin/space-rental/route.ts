@@ -9,7 +9,7 @@ import type { FormSchema } from "@/lib/form-schema";
 
 export const dynamic = "force-dynamic";
 
-interface RentalConfig { calendarId?: string; approveWebhook?: string; form?: FormSchema; }
+interface RentalConfig { calendarId?: string; approveWebhook?: string; form?: FormSchema; resultForm?: FormSchema; }
 async function getConfig(admin: ReturnType<typeof supabaseAdmin>): Promise<RentalConfig> {
   const { data } = await admin.from("app_config").select("value").eq("key", CONFIG_KEY).maybeSingle();
   return (data?.value && typeof data.value === "object") ? data.value as RentalConfig : {};
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
     calendarId: cfg.calendarId || DEFAULT_CALENDAR_ID,
     approveWebhook: cfg.approveWebhook || "",
     form: cfg.form || null,
+    resultForm: cfg.resultForm || null,
     requests: normalizeRequests(rq?.value).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
   });
 }
@@ -78,12 +79,13 @@ export async function POST(req: NextRequest) {
     const { error } = await admin.from("app_config").upsert({ key: SPACES_KEY, value: spaces }, { onConflict: "key" });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
-  if (b.calendarId != null || b.approveWebhook != null || b.form != null) {
+  if (b.calendarId != null || b.approveWebhook != null || b.form != null || b.resultForm != null) {
     const cur = await getConfig(admin);
     const value: RentalConfig = {
       calendarId: (b.calendarId != null ? String(b.calendarId).trim() : cur.calendarId) || DEFAULT_CALENDAR_ID,
       approveWebhook: b.approveWebhook != null ? String(b.approveWebhook).trim() : cur.approveWebhook,
       form: b.form != null ? (b.form as FormSchema) : cur.form,
+      resultForm: b.resultForm != null ? (b.resultForm as FormSchema) : cur.resultForm,
     };
     await admin.from("app_config").upsert({ key: CONFIG_KEY, value }, { onConflict: "key" });
   }

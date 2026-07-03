@@ -29,6 +29,7 @@ export default function SpaceRentalPage() {
   const [booked, setBooked] = useState<Booked[]>([]);
   const [calendarError, setCalendarError] = useState(false);
   const [survey, setSurvey] = useState<FormSchema | null>(null);
+  const [resultForm, setResultForm] = useState<FormSchema | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
@@ -58,6 +59,7 @@ export default function SpaceRentalPage() {
       setBooked(Array.isArray(d.booked) ? d.booked : []);
       setCalendarError(!!d.calendarError);
       setSurvey(d.form && typeof d.form === "object" ? d.form : null);
+      setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -227,11 +229,11 @@ export default function SpaceRentalPage() {
           </div>
           {!done && (
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setResultOpen(true)} className="btn-secondary flex items-center gap-1.5">
-                <ClipboardCheck className="w-4 h-4" /> 이용결과 제출
-              </button>
               <button onClick={() => openForm()} className="btn-primary flex items-center gap-1.5">
                 신청하기 <ChevronRight className="w-4 h-4" />
+              </button>
+              <button onClick={() => setResultOpen(true)} className="btn-secondary flex items-center gap-1.5">
+                <ClipboardCheck className="w-4 h-4" /> 이용결과 제출
               </button>
             </div>
           )}
@@ -378,7 +380,7 @@ export default function SpaceRentalPage() {
       </div>
 
       {/* 이용결과 제출 모달 */}
-      {resultOpen && <UsageResultModal onClose={() => setResultOpen(false)} />}
+      {resultOpen && <UsageResultModal resultForm={resultForm} onClose={() => setResultOpen(false)} />}
 
       {/* 장소 사진 보기 모달 */}
       {photoSpace && (
@@ -410,7 +412,7 @@ export default function SpaceRentalPage() {
 
 // 이용결과 제출 — 로그인 없이 연락처로 본인 신청 건 조회 후 이용자 명단·서명·이용 사진 제출
 interface MyBooking { id: string; spaceName: string; date: string; start: string; end: string; status: string; hasResult: boolean; }
-function UsageResultModal({ onClose }: { onClose: () => void }) {
+function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | null; onClose: () => void }) {
   const [phone, setPhone] = useState("");
   const [stage, setStage] = useState<"phone" | "pick" | "form" | "done">("phone");
   const [list, setList] = useState<MyBooking[]>([]);
@@ -418,8 +420,11 @@ function UsageResultModal({ onClose }: { onClose: () => void }) {
   const [users, setUsers] = useState<{ name: string; signature: string }[]>([{ name: "", signature: "" }]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const rQuestions = surveyFields(resultForm);
+  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
 
   const lookup = async () => {
     setBusy(true);
@@ -446,12 +451,16 @@ function UsageResultModal({ onClose }: { onClose: () => void }) {
   const submit = async () => {
     if (!picked) return;
     const cleanUsers = users.filter((u) => u.name.trim());
-    if (cleanUsers.length === 0 && photos.length === 0) return alert("이용자 명단(서명) 또는 이용 사진을 1건 이상 제출해주세요.");
+    for (const q of rQuestions) {
+      if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
+    }
+    const answerList = rQuestions.map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() })).filter((a) => a.value);
+    if (cleanUsers.length === 0 && photos.length === 0 && answerList.length === 0) return alert("이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요.");
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos, memo }),
+        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos, answers: answerList, memo }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
@@ -530,6 +539,24 @@ function UsageResultModal({ onClose }: { onClose: () => void }) {
                 </label>
               </div>
             </div>
+            {/* 관리자가 설정한 이용결과 설문 항목 */}
+            {rQuestions.map((q) => (
+              <div key={q.id}>
+                {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
+                {q.type === "longText" ? (
+                  <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                ) : q.type === "select" ? (
+                  <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}><option value="">선택하세요</option>{(q.options || []).filter((o) => o.trim()).map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                ) : q.type === "agreement" ? (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+                    {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer"><input type="checkbox" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> 동의합니다.</label>
+                  </div>
+                ) : (
+                  <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
+                )}
+              </div>
+            ))}
             <div>
               <label className="label">비고 (선택)</label>
               <textarea className="input-field h-16 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항이 있으면 적어주세요." />
