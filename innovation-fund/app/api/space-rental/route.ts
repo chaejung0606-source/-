@@ -33,7 +33,7 @@ function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlo
   return requests
     .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
     .map((r) => ({
-      start: slotInt(r.date, r.start), end: slotInt(r.date, r.end),
+      start: slotInt(r.date, r.start), end: slotInt(r.endDate || r.date, r.end),
       label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})`, source: "request" as const, spaceName: r.spaceName,
     }));
 }
@@ -99,6 +99,9 @@ export async function POST(req: NextRequest) {
   const date = String(b.date || d.date || "");
   const start = String(b.start || d.start || "");
   const end = String(b.end || d.end || "");
+  // 종료일 — 날짜+시간 범위에서 시작일과 다른 경우. 없으면 시작일과 동일.
+  const endDateRaw = String(b.endDate || d.endDate || "");
+  const endDate = /^\d{4}-\d{2}-\d{2}$/.test(endDateRaw) ? endDateRaw : date;
   const purpose = String(b.purpose || d.purpose || "").trim();
   const headcount = Number(b.headcount ?? d.headcount) || 0;
   const applicantName = String(b.applicantName || d.applicantName || "").trim();
@@ -115,8 +118,9 @@ export async function POST(req: NextRequest) {
 
   // 시간이 모두 있으면 유효성·충돌·수용인원 검증(캘린더 반영 대상)
   if (hasDateTime) {
-    const reqStart = slotInt(date, start), reqEnd = slotInt(date, end);
-    if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 시간이 시작 시간보다 늦어야 합니다." }, { status: 400 });
+    // 종료일이 시작일보다 뒤면(여러 날 범위) 종료시간은 시작시간보다 이를 수 있음 → 날짜까지 포함해 비교
+    const reqStart = slotInt(date, start), reqEnd = slotInt(endDate, end);
+    if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 일시가 시작 일시보다 늦어야 합니다." }, { status: 400 });
     if (space?.capacity && headcount > space.capacity) return NextResponse.json({ ok: false, error: `수용 인원(${space.capacity}명)을 초과했습니다.` }, { status: 400 });
     if (space) {
       let calendar: BookedSlot[] = [];
@@ -130,7 +134,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date().toISOString();
   const entry = {
-    id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, start, end,
+    id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, endDate: endDate !== date ? endDate : undefined, start, end,
     applicantName, studentId, phone: String(b.phone || d.phone || "").trim(), email: String(b.email || "").trim(),
     purpose, headcount, answers, status: "pending" as const, createdAt: now,
   };

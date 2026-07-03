@@ -160,7 +160,7 @@ export default function SpaceRentalAdminPage() {
                     <tr key={r.id}>
                       <td><span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span></td>
                       <td className="font-medium whitespace-nowrap">{r.spaceName}</td>
-                      <td className="whitespace-nowrap">{r.date} {r.start}~{r.end}</td>
+                      <td className="whitespace-nowrap">{r.date} {r.start}~{r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}{r.end}</td>
                       <td className="whitespace-nowrap">{r.applicantName} <span className="text-gray-400 text-xs">{r.studentId}</span></td>
                       <td className="text-center">{r.headcount || "-"}</td>
                       <td className="text-center whitespace-nowrap">

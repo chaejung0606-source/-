@@ -40,7 +40,8 @@ export interface UsageResult {
 export interface RentalRequest {
   id: string;
   spaceId: string; spaceName: string;
-  date: string;   // YYYY-MM-DD
+  date: string;    // YYYY-MM-DD (시작일)
+  endDate?: string; // YYYY-MM-DD (종료일 — 시작일과 다른 경우, 날짜+시간 범위)
   start: string;  // HH:mm
   end: string;    // HH:mm
   applicantName: string; studentId: string; phone: string; email: string;
@@ -84,7 +85,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
   return v.filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
     .map((r) => ({
       id: String(r.id || ""), spaceId: String(r.spaceId || ""), spaceName: String(r.spaceName || ""),
-      date: String(r.date || ""), start: String(r.start || ""), end: String(r.end || ""),
+      date: String(r.date || ""), endDate: r.endDate ? String(r.endDate) : undefined, start: String(r.start || ""), end: String(r.end || ""),
       applicantName: String(r.applicantName || ""), studentId: String(r.studentId || ""),
       phone: String(r.phone || ""), email: String(r.email || ""),
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
@@ -112,7 +113,7 @@ function normalizeUsageResult(v: unknown): UsageResult | undefined {
 export const ALL_DAY = "종일";
 
 // 관리자 폼(설문)의 bookingRole 태그로 답변에서 예약 정보(장소·날짜·시간 등) 추출
-export interface DerivedBooking { spaceName?: string; date?: string; start?: string; end?: string; applicantName?: string; studentId?: string; phone?: string; purpose?: string; headcount?: number; }
+export interface DerivedBooking { spaceName?: string; date?: string; endDate?: string; start?: string; end?: string; applicantName?: string; studentId?: string; phone?: string; purpose?: string; headcount?: number; }
 export function deriveBooking(form: FormSchema | null | undefined, answers: { id: string; value: string }[]): DerivedBooking {
   const out: DerivedBooking = {};
   if (!form?.steps) return out;
@@ -139,7 +140,9 @@ export function deriveBooking(form: FormSchema | null | undefined, answers: { id
         const [a = "", b = ""] = v.split("~");
         out.start = timePart(a);
         out.end = b ? timePart(b) : timePart(a);
+        // 날짜+시간 항목이면 시작/종료 날짜도 반영(일자가 다른 범위 대응)
         if (a.includes("T") && !out.date) out.date = datePart(a);
+        if (b.includes("T")) out.endDate = datePart(b);
         break;
       }
     }
