@@ -98,7 +98,10 @@ export default function SiteSettingsPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-800">사이트 설정</h1>
-        <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
+        {/* 상단 저장은 푸터·사이드바 설정에만 적용. 팝업·파일 저장 경로 탭은 자체 저장 버튼 사용 */}
+        {(tab === "푸터 설정" || tab === "사이드바 링크") && (
+          <button onClick={save} className="btn-primary flex items-center gap-2"><Save className="w-4 h-4" /> 저장</button>
+        )}
       </div>
       <p className="text-gray-500 text-sm mb-4">홈 화면의 푸터(연락처)와 우측 바로가기 링크를 수정합니다. 저장하면 사이트에 즉시 반영됩니다.</p>
       {saved && <div className="mb-4 text-green-600 text-sm font-medium">✓ 저장되었습니다.</div>}

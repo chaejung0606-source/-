@@ -179,7 +179,10 @@ export default function ProgramsAdminPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-800">신청폼 편집</h1>
-        <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}</button>
+        {/* 유형별 지급 기준·자격증 목록 탭은 각 패널에 자체 저장 버튼이 있어 상단 저장 숨김 */}
+        {tab !== "content" && tab !== "certs" && (
+          <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : `저장${saved ? "됨 ✓" : ""}`}</button>
+        )}
       </div>
 
       {/* 하위 메뉴 */}
