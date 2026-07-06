@@ -354,145 +354,7 @@ export default function ApplicationDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <div className="card">
-            <h2 className="section-title">기본 정보</h2>
-            <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-              {basicRows.map(([k, v]) => (
-                <div key={k} className="flex gap-2">
-                  <dt className="text-gray-500 min-w-[80px] flex-shrink-0">{k}</dt>
-                  <dd className="font-medium">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          <div className="card">
-            <h2 className="section-title">계좌 정보</h2>
-            <dl className="grid sm:grid-cols-3 gap-3 text-sm">
-              {([["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]] as [string, string][]).map(([k, v]) => (
-                <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
-              ))}
-            </dl>
-            {/* 통장 사본 (관리자 직접 확인용) */}
-            {(() => {
-              const bb = app.files.find((f) => f.type === "bankbook");
-              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>;
-              const isImg = bb.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(bb.name);
-              return (
-                <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 — 직접 확인 후 아래 ‘관리자 확인 입력’란에 계좌·예금주를 작성하세요.</p>
-                  {bb.url && isImg ? (
-                    <a href={bb.url} target="_blank" rel="noopener noreferrer" title="클릭하면 원본 크기로 보기">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={bb.url} alt="통장 사본" className="max-h-48 rounded-lg border border-gray-200 bg-white" />
-                    </a>
-                  ) : bb.url ? (
-                    <a href={bb.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">통장 사본 새 창에서 보기</a>
-                  ) : (
-                    <span className="text-gray-400 text-xs">미리보기 없음</span>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-
-          {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
-            <div className="card">
-              <h2 className="section-title">신청서 작성 내용 (관리자 폼)</h2>
-              <dl className="space-y-2 text-sm">
-                {app.formAnswers.fields.map((f) => {
-                  const grid = f.type === "table" ? parseTableGrid(f.value) : null;
-                  const isSig = f.type === "signature";
-                  const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
-                  return (
-                    <div key={f.id} className="flex gap-2">
-                      <dt className="text-gray-500 min-w-[120px] flex-shrink-0">{f.label}</dt>
-                      <dd className="font-medium whitespace-pre-line min-w-0 flex-1 break-all">
-                        {grid ? (
-                          <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
-                            {grid.map((row, r) => (
-                              <tr key={r}>{row.map((cell, c) => (
-                                <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
-                              ))}</tr>
-                            ))}
-                          </tbody></table></div>
-                        ) : isSig ? (
-                          sigImg
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
-                            : (f.value ? "서명 완료" : "미서명")
-                        ) : (f.value || "-")}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </div>
-          )}
-
-          <div className="card">
-            <h2 className="section-title">신청 상세 내용</h2>
-            <dl className="space-y-2 text-sm">
-              {getDetail().map(([k, v]) => (
-                <div key={k} className="flex gap-2">
-                  <dt className="text-gray-500 min-w-[100px] flex-shrink-0">{k}</dt>
-                  <dd className="font-medium min-w-0 flex-1 break-all whitespace-pre-line">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className="mt-4 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
-              <div>
-                <dt className="text-gray-500">신청 금액</dt>
-                <dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">자동 산정 금액</dt>
-                <dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd>
-              </div>
-              {app.approvedAmount !== undefined && (
-                <div>
-                  <dt className="text-gray-500">최종 승인 금액</dt>
-                  <dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <h2 className="section-title">첨부파일</h2>
-            {app.files.length === 0 ? (
-              <p className="text-gray-400 text-sm">첨부파일 없음</p>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {app.files.map((f) => {
-                  const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
-                  const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
-                  return (
-                    <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
-                      className="rounded-2xl overflow-hidden text-left hover:ring-2 hover:ring-indigo-300 transition" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
-                      <div className="flex items-center gap-2 px-3 py-2 text-xs">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                        <span className="font-medium truncate flex-1">{f.name}</span>
-                        <span className="text-gray-400">{DOCUMENT_TYPE_LABELS[f.type]}</span>
-                      </div>
-                      <div className="bg-white/60 flex items-center justify-center" style={{ height: 160 }}>
-                        {f.url && isImage ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
-                        ) : f.url && isPdf ? (
-                          <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
-                        ) : (
-                          <span className="text-gray-400 text-xs">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 관리자 확인 입력 — 첨부파일 아래. 미입력 시 빨강, 저장 후 초록 */}
+          {/* ① 관리자 확인 입력 (최상단). 미입력 시 빨강, 저장 후 초록 */}
           {(() => {
             const confirmed = !!(app.verifiedAccount?.accountNumber || app.verifiedAccount?.residentNumber);
             const theme = confirmed
@@ -533,6 +395,152 @@ export default function ApplicationDetailPage() {
               </div>
             );
           })()}
+
+          {/* ② 신청자가 작성한 신청서 (보기 전용 — 수정 불가) */}
+          {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
+            <div className="card">
+              <h2 className="section-title">신청자가 작성한 신청서 <span className="text-xs font-normal text-gray-400">(보기 전용 · 수정 불가)</span></h2>
+              <div className="space-y-3">
+                {app.formAnswers.fields.map((f) => {
+                  const grid = f.type === "table" ? parseTableGrid(f.value) : null;
+                  const isSig = f.type === "signature";
+                  const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
+                  return (
+                    <div key={f.id}>
+                      <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
+                      {grid ? (
+                        <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
+                          {grid.map((row, r) => (
+                            <tr key={r}>{row.map((cell, c) => (
+                              <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
+                            ))}</tr>
+                          ))}
+                        </tbody></table></div>
+                      ) : isSig ? (
+                        sigImg
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
+                          : <div className="text-sm text-gray-500">{f.value ? "서명 완료" : "미서명"}</div>
+                      ) : (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
+                          {f.value || <span className="text-gray-400">미작성</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-3">※ 신청자가 제출한 신청서 내용 그대로입니다. 이 화면에서는 수정할 수 없습니다. 첨부한 파일은 아래 ‘첨부파일’에서 미리 볼 수 있습니다.</p>
+            </div>
+          )}
+
+          {/* ③ 첨부파일 (클릭하면 미리보기) */}
+          <div className="card">
+            <h2 className="section-title">첨부파일</h2>
+            {app.files.length === 0 ? (
+              <p className="text-gray-400 text-sm">첨부파일 없음</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {app.files.map((f) => {
+                  const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
+                  const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
+                  return (
+                    <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
+                      className="rounded-2xl overflow-hidden text-left hover:ring-2 hover:ring-indigo-300 transition" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
+                      <div className="flex items-center gap-2 px-3 py-2 text-xs">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                        <span className="font-medium truncate flex-1">{f.name}</span>
+                        <span className="text-gray-400">{DOCUMENT_TYPE_LABELS[f.type]}</span>
+                      </div>
+                      <div className="bg-white/60 flex items-center justify-center" style={{ height: 160 }}>
+                        {f.url && isImage ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
+                        ) : f.url && isPdf ? (
+                          <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ④ 기본 정보 */}
+          <div className="card">
+            <h2 className="section-title">기본 정보</h2>
+            <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+              {basicRows.map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-gray-500 min-w-[80px] flex-shrink-0">{k}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          {/* ⑤ 계좌 정보 (통장 사본) */}
+          <div className="card">
+            <h2 className="section-title">계좌 정보</h2>
+            <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+              {([["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]] as [string, string][]).map(([k, v]) => (
+                <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
+              ))}
+            </dl>
+            {/* 통장 사본 (관리자 직접 확인용) */}
+            {(() => {
+              const bb = app.files.find((f) => f.type === "bankbook");
+              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>;
+              const isImg = bb.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(bb.name);
+              return (
+                <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)" }}>
+                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 — 직접 확인 후 위 ‘관리자 확인 입력’란에 계좌·예금주를 작성하세요.</p>
+                  {bb.url && isImg ? (
+                    <a href={bb.url} target="_blank" rel="noopener noreferrer" title="클릭하면 원본 크기로 보기">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={bb.url} alt="통장 사본" className="max-h-48 rounded-lg border border-gray-200 bg-white" />
+                    </a>
+                  ) : bb.url ? (
+                    <a href={bb.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">통장 사본 새 창에서 보기</a>
+                  ) : (
+                    <span className="text-gray-400 text-xs">미리보기 없음</span>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ⑥ 신청 상세 내용 (금액 등) */}
+          <div className="card">
+            <h2 className="section-title">신청 상세 내용</h2>
+            <dl className="space-y-2 text-sm">
+              {getDetail().map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <dt className="text-gray-500 min-w-[100px] flex-shrink-0">{k}</dt>
+                  <dd className="font-medium min-w-0 flex-1 break-all whitespace-pre-line">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
+              <div>
+                <dt className="text-gray-500">신청 금액</dt>
+                <dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">자동 산정 금액</dt>
+                <dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd>
+              </div>
+              {app.approvedAmount !== undefined && (
+                <div>
+                  <dt className="text-gray-500">최종 승인 금액</dt>
+                  <dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4">
