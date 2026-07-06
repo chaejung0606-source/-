@@ -46,19 +46,6 @@ export default function CostSection({ value, onChange, parts, showTotal }: Props
     return { path, name: f.name };
   };
 
-  // ① 등록비 증빙 업로드
-  const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = (e.target.files || [])[0];
-    e.target.value = "";
-    if (!f) return;
-    setUploading(true);
-    try {
-      const r = await uploadDoc(f);
-      if (r) update({ registrationProofPath: r.path, registrationProofName: r.name });
-    } finally { setUploading(false); }
-  };
-  const removeProof = () => update({ registrationProofPath: undefined, registrationProofName: undefined });
-
   // 교통비 행별 증빙
   const handleTransportProof = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = (e.target.files || [])[0];
@@ -104,30 +91,10 @@ export default function CostSection({ value, onChange, parts, showTotal }: Props
       {show("registration") && (
       <div className="card space-y-4">
         <h2 className="section-title">{num ? "① 등록비" : "등록비"}</h2>
-        <div className="grid sm:grid-cols-2 gap-4 items-end">
-          <div>
-            <label className="label">등록비용 (원)</label>
-            <MoneyInput value={v.registrationFee || 0} onChange={(n) => update({ registrationFee: n })} />
-          </div>
-          <div>
-            <label className="label">증빙 업로드</label>
-            {v.registrationProofPath ? (
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2.5">
-                <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
-                <span className="text-sm flex-1 truncate">{v.registrationProofName || "증빙 파일"}</span>
-                <button type="button" onClick={removeProof} className="text-gray-400 hover:text-red-500">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label className={`btn-secondary cursor-pointer flex items-center justify-center gap-2 ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
-                <Upload className="w-4 h-4" /> {uploading ? "업로드 중..." : "증빙 파일 선택"}
-                <input type="file" className="hidden" onChange={handleProofUpload} accept={ACCEPT_DOC} disabled={uploading} />
-              </label>
-            )}
-          </div>
+        <div>
+          <label className="label">등록비용 (원)</label>
+          <MoneyInput value={v.registrationFee || 0} onChange={(n) => update({ registrationFee: n })} />
         </div>
-        <p className="text-xs text-gray-500">증빙: 학회 참가확인서 등 업로드</p>
       </div>
       )}
 
