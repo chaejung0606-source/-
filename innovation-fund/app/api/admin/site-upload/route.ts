@@ -4,9 +4,10 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
-// 관리자: 사이드바에 노출할 파일(PDF·이미지) 업로드 → documents 버킷 site/ 경로에 저장
+// 관리자: 사이드바 노출 파일 / 신청폼 다운로드 제공 파일 업로드 → documents 버킷 site/ 경로에 저장
+// PDF·이미지 외에 신청서 양식으로 자주 쓰는 문서(HWP·워드·엑셀·PPT·한글·ZIP 등)도 허용.
 const OK_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
-const OK_EXT = ["pdf", "png", "jpg", "jpeg", "webp", "gif"];
+const OK_EXT = ["pdf", "png", "jpg", "jpeg", "webp", "gif", "hwp", "hwpx", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip"];
 
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin(req))) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });

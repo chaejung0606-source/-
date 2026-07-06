@@ -37,11 +37,13 @@ async function callWebhook(webhook: string | undefined, action: "create" | "upda
   const body = JSON.stringify(calendarPayload(action, r));
   try {
     let res = await fetch(webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body, redirect: "manual" });
+    // Apps Script /exec 는 POST 본문을 처리(doPost 실행)한 뒤 302로 googleusercontent 로 리다이렉트하고,
+    // 실제 결과(JSON)는 그 주소에서 GET 으로 제공된다. 리다이렉트를 POST로 재전송하면 405가 나므로 GET으로 따라간다.
     let hops = 0;
-    while (res.status >= 300 && res.status < 400 && hops < 3) {
+    while (res.status >= 300 && res.status < 400 && hops < 5) {
       const loc = res.headers.get("location");
       if (!loc) break;
-      res = await fetch(loc, { method: "POST", headers: { "Content-Type": "application/json" }, body, redirect: "manual" });
+      res = await fetch(loc, { method: "GET", redirect: "manual" });
       hops++;
     }
     const text = await res.text().catch(() => "");

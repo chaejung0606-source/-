@@ -29,6 +29,27 @@ async function readConfig() {
   return { admin, spaces, calendarId, form, resultForm, approveWebhook: cfg.approveWebhook, requests };
 }
 
+// 신청 건에서 대조 가능한 전화번호(정규화) 모음 — bookingRole=phone 미태그 폼 대비 답변값도 포함
+function requestPhones(r: ReturnType<typeof normalizeRequests>[number]): string[] {
+  const set = new Set<string>();
+  const p = normPhone(r.phone);
+  if (p.length >= 8) set.add(p);
+  // 답변값 중 전화번호 형태(10~11자리, 010/01x 등)만 대조 대상에 추가 — 8자리 학번 등과의 오매칭 방지
+  for (const a of r.answers || []) {
+    const ap = normPhone(a.value);
+    if (ap.length >= 10 && ap.length <= 11 && ap.startsWith("0")) set.add(ap);
+  }
+  return [...set];
+}
+const phoneMatches = (r: ReturnType<typeof normalizeRequests>[number], phone: string) => requestPhones(r).includes(phone);
+
+// 장소명이 서로 가리키는 같은 공간인지(정규화 후 동일하거나 한쪽이 다른 쪽을 포함)
+function sameSpace(a: string, b: string): boolean {
+  const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
+  const x = norm(a), y = norm(b);
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+}
+
 // 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로 (날짜·시간이 있는 건만)
 function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlot[] {
   return requests
@@ -64,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (phone.length < 8) return NextResponse.json({ ok: false, error: "연락처를 정확히 입력해주세요." }, { status: 400 });
     const { requests } = await readConfig();
     const mine = requests
-      .filter((r) => normPhone(r.phone) === phone && r.status !== "rejected")
+      .filter((r) => phoneMatches(r, phone) && r.status !== "rejected")
       .map((r) => ({ id: r.id, spaceName: r.spaceName, date: r.date, start: r.start, end: r.end, status: r.status, hasResult: !!r.usageResult }));
     return NextResponse.json({ ok: true, requests: mine });
   }
@@ -81,7 +102,7 @@ export async function POST(req: NextRequest) {
     const { admin, approveWebhook, requests } = await readConfig();
     const target = requests.find((r) => r.id === id);
     if (!target) return NextResponse.json({ ok: false, error: "신청 건을 찾을 수 없습니다." }, { status: 404 });
-    if (normPhone(target.phone) !== phone) return NextResponse.json({ ok: false, error: "신청 시 입력한 연락처와 일치하지 않습니다." }, { status: 403 });
+    if (!phoneMatches(target, phone)) return NextResponse.json({ ok: false, error: "신청 시 입력한 연락처와 일치하지 않습니다." }, { status: 403 });
     const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, memo: String(b.memo || "").trim() || undefined };
     const next = requests.map((r) => r.id === id ? { ...r, usageResult } : r);
     const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
@@ -139,13 +160,16 @@ export async function POST(req: NextRequest) {
     const reqStart = slotInt(date, start), reqEnd = slotInt(endDate, end);
     if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 일시가 시작 일시보다 늦어야 합니다." }, { status: 400 });
     if (space?.capacity && headcount > space.capacity) return NextResponse.json({ ok: false, error: `수용 인원(${space.capacity}명)을 초과했습니다.` }, { status: 400 });
-    if (space) {
+    // 같은 장소·시간대에 이미 접수(대기/승인)됐거나 캘린더에 예약된 건과 겹치면 차단.
+    // 장소가 정확히 매칭되지 않아도 장소명 기준으로 검사한다.
+    const targetSpaceName = space?.name || spaceName;
+    if (targetSpaceName) {
       let calendar: BookedSlot[] = [];
       try { calendar = await fetchCalendarSlots(calendarId); } catch { /* 캘린더 접근 실패 시 접수건만으로 검증 */ }
       const all = [...calendar, ...requestSlots(requests)];
       const conflict = all.find((s) => overlaps(reqStart, reqEnd, s.start, s.end)
-        && (s.source === "request" ? s.spaceName === space!.name : textMatchesSpace(s.label, space!.name)));
-      if (conflict) return NextResponse.json({ ok: false, error: "이미 신청된 시간대입니다. 다른 시간을 선택해주세요.", conflict: conflict.label }, { status: 409 });
+        && (s.source === "request" ? sameSpace(s.spaceName || "", targetSpaceName) : textMatchesSpace(s.label, targetSpaceName)));
+      if (conflict) return NextResponse.json({ ok: false, error: "이미 신청·예약된 장소·시간대입니다. 다른 시간을 선택해주세요.", conflict: conflict.label }, { status: 409 });
     }
   }
 

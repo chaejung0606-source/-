@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2 } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2, Download } from "lucide-react";
 import type { FormSchema, FormField, FormStep, FormFieldType } from "@/lib/form-schema";
 import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GROUPS, newSchemaId, DEFAULT_CONSENT_INTRO, DEFAULT_CONSENT_PRIVACY, DEFAULT_CONSENT_TRUTH, DEFAULT_CONSENT_ACCOUNT } from "@/lib/form-schema";
 import TableField, { defaultTableCells } from "./TableField";
@@ -40,9 +40,38 @@ const FIELD_DEFAULT_REQUIRED: Partial<Record<FormFieldType, boolean>> = {
 // 항목 추가 메뉴 구성 — 입력 항목 / 표준 블록(필수요소 포함)
 const ADD_GROUPS: { title: string; types: FormFieldType[] }[] = [
   { title: "필수·표준 항목", types: ["applicantInfo", "privacyConsent", "account", "signature"] },
-  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "time", "datetime", "select", "table", "file", "agreement"] },
+  { title: "입력 항목", types: ["shortText", "longText", "number", "date", "time", "datetime", "select", "table", "file", "fileDownload", "agreement"] },
   { title: "활동·비용·근무 항목", types: ["eventLocation", "workLog", "transport", "registration", "lodging"] },
 ];
+
+// fileDownload 항목 편집기 — 관리자가 제공할 파일 업로드(문서/PDF/이미지) + 설명 문구
+function FileDownloadEditor({ f, onPatch }: { f: FormField; onPatch: (p: Partial<FormField>) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const upload = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch("/api/admin/site-upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("업로드 실패: " + (j.error || "")); return; }
+      onPatch({ downloadUrl: `/api/site-file?path=${encodeURIComponent(j.path)}`, downloadName: j.name });
+    } finally { setUploading(false); }
+  };
+  return (
+    <div className="mt-2 space-y-2">
+      <textarea className="input-field text-xs h-14 resize-none" value={f.text || ""} onChange={(e) => onPatch({ text: e.target.value })} placeholder="파일 설명(선택) — 예: 아래 신청서 양식을 내려받아 작성 후 첨부하세요." />
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="btn-secondary text-xs cursor-pointer">
+          {uploading ? "업로드 중..." : (f.downloadUrl ? "파일 교체" : "파일 업로드")}
+          <input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(file); e.currentTarget.value = ""; }} />
+        </label>
+        {f.downloadName && <span className="text-xs text-gray-600 truncate max-w-[220px]">{f.downloadName}</span>}
+        {f.downloadUrl && <button onClick={() => onPatch({ downloadUrl: undefined, downloadName: undefined })} className="text-xs text-red-500 hover:underline">제거</button>}
+      </div>
+      <p className="text-[11px] text-gray-400">PDF·이미지·문서(HWP·DOCX·XLSX·ZIP 등, 20MB 이하)를 올리면 신청자가 내려받을 수 있습니다.</p>
+    </div>
+  );
+}
 
 function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
   const req = f.required ? <span className="text-red-500"> *</span> : null;
@@ -126,6 +155,20 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
           <div className="upload-card p-5 text-center text-gray-400 text-sm bg-gray-50 flex flex-col items-center gap-1">
             <Upload className="w-6 h-6 opacity-60" /> 파일을 끌어다 놓거나 클릭하여 업로드
           </div>
+        </div>
+      );
+    case "fileDownload":
+      return (
+        <div>
+          <label className="label">{f.label || "파일 다운로드"}{req}</label>
+          {f.text && <p className="text-xs text-gray-500 whitespace-pre-line mb-1">{f.text}</p>}
+          {f.downloadUrl ? (
+            <a href={f.downloadUrl} download={f.downloadName || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+              <Download className="w-4 h-4" /> {f.downloadName || "파일 다운로드"}
+            </a>
+          ) : (
+            <div className="upload-card p-4 text-center text-gray-400 text-sm bg-gray-50">등록된 파일이 없습니다. (아래에서 파일을 업로드하세요)</div>
+          )}
         </div>
       );
     case "agreement":
@@ -547,11 +590,14 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                   </div>
                 );
               })()}
-              {!STANDARD_TYPES.includes(f.type) && !["select", "table", "agreement", "signature", "file", "date", "time", "datetime"].includes(f.type) && (
+              {!STANDARD_TYPES.includes(f.type) && !["select", "table", "agreement", "signature", "file", "fileDownload", "date", "time", "datetime"].includes(f.type) && (
                 <input className="input-field text-xs mt-2" value={f.placeholder || ""} onChange={(e) => updField(cur.id, f.id, { placeholder: e.target.value })} placeholder="입력 도움말(placeholder) — 선택" />
               )}
               {f.type === "file" && (
                 <input className="input-field text-xs mt-2" value={f.uploadNotice || ""} onChange={(e) => updField(cur.id, f.id, { uploadNotice: e.target.value })} placeholder="업로드 안내창 문구(선택) — 예: 재학증명서는 직인 날인본으로 제출" />
+              )}
+              {f.type === "fileDownload" && (
+                <FileDownloadEditor f={f} onPatch={(p) => updField(cur.id, f.id, p)} />
               )}
               {(f.type === "shortText" || f.type === "longText") && (
                 <div className="flex items-center flex-wrap gap-2 mt-2 text-xs text-gray-600">

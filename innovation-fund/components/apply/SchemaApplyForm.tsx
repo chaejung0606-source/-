@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check, Save } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, ChevronLeft, ChevronRight, Check, Save, Download } from "lucide-react";
 import type { Application, ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, CostDetail, EventLocation } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal } from "@/types";
 import type { FormSchema, FormField } from "@/lib/form-schema";
@@ -588,6 +588,16 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         </div>
       );
       case "table": return <div key={f.id}>{label}<TableField field={f} value={answers[f.id]} onChange={(v) => setAns(f.id, v)} /></div>;
+      case "fileDownload": return (
+        <div key={f.id}>{label}
+          {f.text && <p className="text-sm text-gray-500 whitespace-pre-line mb-1">{f.text}</p>}
+          {f.downloadUrl ? (
+            <a href={f.downloadUrl} download={f.downloadName || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+              <Download className="w-4 h-4" /> {f.downloadName || "파일 다운로드"}
+            </a>
+          ) : <p className="text-sm text-gray-400">등록된 파일이 없습니다.</p>}
+        </div>
+      );
       default: return null;
     }
   };

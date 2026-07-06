@@ -7,7 +7,7 @@ import type { FormSchema, FormField } from "@/lib/form-schema";
 import { DEFAULT_CONSENT_INTRO } from "@/lib/form-schema";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 import SignaturePad from "@/components/apply/SignaturePad";
-import { ClipboardCheck, Plus, Trash2, Upload } from "lucide-react";
+import { ClipboardCheck, Plus, Trash2, Upload, Download } from "lucide-react";
 
 interface PublicSpace { id: string; name: string; capacity?: number; photos?: string[]; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
@@ -101,6 +101,7 @@ export default function SpaceRentalPage() {
   const submit = async () => {
     // 필수 설문 항목 검증(공통) — 현재 노출 중인 조건부 하위질문 포함
     for (const q of activeQs(questions)) {
+      if (q.type === "fileDownload") continue; // 다운로드 제공 항목은 입력값이 없음
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
     setBusy(true);
@@ -129,6 +130,16 @@ export default function SpaceRentalPage() {
 
   // 설문 항목 입력 컨트롤 렌더
   const renderInput = (q: FormField) => {
+    if (q.type === "fileDownload") return (
+      <div>
+        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line mb-1">{q.text}</p>}
+        {q.downloadUrl ? (
+          <a href={q.downloadUrl} download={q.downloadName || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+            <Download className="w-4 h-4" /> {q.downloadName || "파일 다운로드"}
+          </a>
+        ) : <p className="text-sm text-gray-400">등록된 파일이 없습니다.</p>}
+      </div>
+    );
     if (q.type === "longText") return <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
     if (q.type === "select") return (
       <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>

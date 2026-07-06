@@ -12,6 +12,7 @@ export type FormFieldType =
   | "select"        // 드롭다운
   | "table"         // 표(관리자가 머리글·예시 작성, 신청자가 칸 입력)
   | "file"          // 파일 업로드
+  | "fileDownload"  // 파일 다운로드(관리자가 올린 파일을 신청자가 내려받기)
   | "agreement"     // 서약(동의)
   | "signature"     // 서명
   | "applicantInfo" // 표준 블록: 기본정보(이름·학번·학과 등)
@@ -34,6 +35,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   select: "드롭다운",
   table: "표",
   file: "파일 업로드",
+  fileDownload: "파일 다운로드(제공)",
   agreement: "서약(동의)",
   signature: "서명",
   applicantInfo: "기본정보(표준)",
@@ -69,6 +71,8 @@ export interface FormField {
   text?: string;           // agreement 본문
   placeholder?: string;
   uploadNotice?: string;   // file: 업로드 직전 띄울 안내창 문구(예: 재학증명서는 직인 날인본 제출)
+  downloadUrl?: string;    // fileDownload: 신청자에게 제공할 파일 URL(/api/site-file?path=...)
+  downloadName?: string;   // fileDownload: 표시용 파일명
   minLen?: number;         // shortText/longText: 최소 글자수(이상)
   maxLen?: number;         // shortText/longText: 최대 글자수(이하)
   range?: boolean;         // date/time/datetime: 기간(시작~종료) 선택 여부
