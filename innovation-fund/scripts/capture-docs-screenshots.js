@@ -1,14 +1,15 @@
 /**
  * 매뉴얼용 화면 캡처 자동화 (Playwright)
  * ------------------------------------------------------------------
- * 실행 환경: Supabase 백엔드가 연결되고 앱이 떠 있는 상태 + 테스트 계정.
+ * 실행 환경: Supabase 백엔드가 연결되고 앱이 떠 있는 상태 + 테스트 학생 계정.
  *
- *   npm i -D playwright   # 최초 1회 (브라우저는 PLAYWRIGHT_BROWSERS_PATH 사용)
+ *   npm i -D playwright && npx playwright install chromium   # 최초 1회
  *   BASE_URL=http://localhost:3000 \
  *   TEST_USER_ID=학번 TEST_USER_PW=비번 \
- *   TEST_ADMIN_ID=아이디 TEST_ADMIN_PW=비번 \
  *   node scripts/capture-docs-screenshots.js
  *
+ * ※ 개인정보 보호: 관리자 화면은 실제 학생 개인정보가 표시되므로 캡처하지 않는다.
+ *   화면 캡처는 신청자(사용자) 매뉴얼 전용이며, 공개 화면 + 테스트 학생 본인 데이터만 담긴다.
  * 결과: docs/images/*.png (기존 이미지 갱신). 실패 목록은 콘솔에 출력.
  * 각 캡처는 클릭 순서/입력 위치 번호를 화면에 오버레이로 표시할 수 있다(annotate).
  * ------------------------------------------------------------------
@@ -21,7 +22,6 @@ const OUT_DIR = path.join(__dirname, "..", "docs", "images");
 const EXEC = process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined; // 사내/원격 크로미움 지정 시
 
 const USER = { id: process.env.TEST_USER_ID || "", pw: process.env.TEST_USER_PW || "" };
-const ADMIN = { id: process.env.TEST_ADMIN_ID || "", pw: process.env.TEST_ADMIN_PW || "" };
 
 // 캡처 대상 정의. auth: none | user | admin
 // annotate: [{ selector, n, note }] → 해당 요소 위에 번호 뱃지를 그려 클릭 순서/입력 위치 표시
@@ -36,24 +36,14 @@ const SHOTS = [
   { name: "space-rental", url: "/space-rental", auth: "none" },
   { name: "menu-fund", url: "/menu/fund", auth: "none" },
 
-  // ---- 로그인 사용자 ----
+  // ---- 로그인 사용자 (테스트 학생 계정 — 본인 데이터만 노출) ----
   { name: "apply-type-select", url: "/apply", auth: "user" },
   { name: "apply-pre-select", url: "/apply?mode=pre", auth: "user" },
   { name: "mypage", url: "/mypage", auth: "user" },
   { name: "apply-complete", url: "/apply/complete?receipt=DEMO-000&date=2026-07-06&type=%EC%84%B1%EC%A0%81%20%EC%9A%B0%EC%88%98%20%EC%A7%80%EC%9B%90%EA%B8%88&amount=1000000&phase=fund", auth: "user" },
 
-  // ---- 관리자 ----
-  { name: "admin-login", url: "/admin/login", auth: "none" },
-  { name: "admin-dashboard", url: "/admin/dashboard", auth: "admin" },
-  { name: "admin-applications", url: "/admin/applications", auth: "admin" },
-  { name: "admin-applicants", url: "/admin/applicants", auth: "admin" },
-  { name: "admin-programs", url: "/admin/programs", auth: "admin" },
-  { name: "admin-certificates", url: "/admin/certificates", auth: "admin" },
-  { name: "admin-content", url: "/admin/content", auth: "admin" },
-  { name: "admin-virtual-students", url: "/admin/virtual-students", auth: "admin" },
-  { name: "admin-space-rental", url: "/admin/space-rental", auth: "admin" },
-  { name: "admin-admins", url: "/admin/admins", auth: "admin" },
-  { name: "admin-site-settings", url: "/admin/site-settings", auth: "admin" },
+  // ※ 관리자 화면은 실제 학생 개인정보(PII)가 표시되므로 캡처하지 않는다.
+  //   관리자 매뉴얼(admin-guide.md)은 화면 캡처 없이 텍스트로 운영한다.
 ];
 
 async function ping(url) {
@@ -69,19 +59,6 @@ async function loginUser(page) {
   await page.click('button:has-text("로그인")');
   await page.waitForTimeout(1500);
 }
-// 관리자 로그인
-async function loginAdmin(page) {
-  if (!ADMIN.id || !ADMIN.pw) throw new Error("TEST_ADMIN_ID/PW 미설정");
-  await page.goto(BASE_URL + "/admin/login", { waitUntil: "networkidle" });
-  const ids = await page.$$('input');
-  // 아이디/비밀번호 필드 순서로 채움 (관리자 로그인 폼 구조에 맞게 조정 가능)
-  if (ids[0]) await ids[0].fill(ADMIN.id);
-  const pw = await page.$('input[type="password"]');
-  if (pw) await pw.fill(ADMIN.pw);
-  await page.click('button:has-text("로그인")');
-  await page.waitForTimeout(1500);
-}
-
 // 번호 뱃지 오버레이 (클릭 순서/입력 위치 표시)
 async function annotate(page, marks) {
   if (!marks || !marks.length) return;
@@ -117,7 +94,7 @@ async function annotate(page, marks) {
   const ctx = { none: await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "ko-KR" }) };
   try {
     if (USER.id) { ctx.user = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "ko-KR" }); await loginUser(await ctx.user.newPage()); }
-    if (ADMIN.id) { ctx.admin = await browser.newContext({ viewport: { width: 1440, height: 960 }, locale: "ko-KR" }); await loginAdmin(await ctx.admin.newPage()); }
+    // 관리자 캡처는 하지 않으므로 admin 세션은 생성하지 않는다(개인정보 보호).
   } catch (e) { console.warn("로그인 준비 경고:", e.message); }
 
   for (const shot of SHOTS) {
