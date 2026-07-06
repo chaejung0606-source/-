@@ -7,7 +7,9 @@ import {
 } from "@/lib/md-courses";
 
 interface MDCourseGrade { name: string; grade: string; isBase: boolean; }
-interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; }
+interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; custom?: boolean; }
+// 교과목 드롭다운에서 '직접입력'을 나타내는 특수값
+const CUSTOM_COURSE = "__custom__";
 interface GradeDetail {
   subType: "microdegree" | "minor" | "double";
   courseName: string; credits: number; gpa: number; microDegreeCompleted: boolean;
@@ -329,9 +331,11 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                   return (
                   <div key={i} className="rounded-xl p-2.5 space-y-2" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.8)" }}>
                     <div className="grid grid-cols-12 gap-2 items-center">
-                      <select className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })}>
+                      <select className="input-field !min-h-[40px] col-span-12 sm:col-span-6" value={c.custom ? CUSTOM_COURSE : c.name}
+                        onChange={(e) => e.target.value === CUSTOM_COURSE ? setCourse(i, { custom: true, name: "" }) : setCourse(i, { custom: false, name: e.target.value })}>
                         <option value="">교과목 선택</option>
                         {courseOptions.filter((name) => name === c.name || !usedNames.has(name)).map((name) => <option key={name} value={name}>{name}</option>)}
+                        <option value={CUSTOM_COURSE}>✏️ 직접입력</option>
                       </select>
                       <select className="input-field !min-h-[40px] col-span-5 sm:col-span-2" value={c.credits || 1} onChange={(e) => setCourse(i, { credits: Number(e.target.value) })}>
                         {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n}학점</option>)}
@@ -341,6 +345,9 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                       </select>
                       <button type="button" onClick={() => removeCourse(i)} className="btn-danger !h-9 !px-2 col-span-2 sm:col-span-1 flex items-center justify-center">✕</button>
                     </div>
+                    {c.custom && (
+                      <input className="input-field !min-h-[38px] !text-sm" placeholder="교과목명을 직접 입력하세요" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })} />
+                    )}
                     <div className="grid grid-cols-12 gap-2 items-center">
                       <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.mdProgramId || ""} onChange={(e) => setCourse(i, { mdProgramId: e.target.value, excluded: e.target.value ? c.excluded : false })}>
                         <option value="">MD 이수과목 아님</option>
