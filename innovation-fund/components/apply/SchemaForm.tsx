@@ -275,9 +275,8 @@ function FieldView({ f, disabled }: { f: FormField; disabled: boolean }) {
       return (
         <div>
           <label className="label">{f.label || "등록비"}{req}</label>
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 grid sm:grid-cols-2 gap-2 items-end">
-            <div><span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field bg-white" placeholder="0" disabled /></div>
-            <div className="upload-card p-3 text-center text-gray-400 text-xs bg-white flex items-center justify-center gap-1"><Upload className="w-4 h-4 opacity-60" /> 증빙(참가확인서 등) 업로드</div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <span className="text-[11px] text-gray-500">등록비용(원)</span><input className="input-field bg-white" placeholder="0" disabled />
           </div>
         </div>
       );
