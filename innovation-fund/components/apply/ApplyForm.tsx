@@ -88,7 +88,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   // 기본 정보
   const [basicInfo, setBasicInfo] = useState({
-    name: "", studentId: "", university: "강원대학교", campus: "춘천", department: "", grade: "1",
+    // campus는 빈 값으로 시작해 프로필의 실제 캠퍼스가 자동 반영되도록 한다("춘천" 고정 방지)
+    name: "", studentId: "", university: "강원대학교", campus: "", department: "", grade: "1",
     academicStatus: "재학", phone: "", email: "", applicationDate: new Date().toISOString().split("T")[0],
     bankName: "", accountNumber: "", accountHolder: "",
     gradCompletion: "재학", completedYears: "", currentSemester: "",
@@ -162,7 +163,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
           ...b,
           name: b.name || u.name,
           studentId: b.studentId || u.studentId,
-          campus: b.campus || u.campus || b.campus,
+          campus: b.campus || u.campus || "춘천",
           department: b.department || u.department,
           phone: b.phone || formatPhone(u.phone),
           email: b.email || u.email,

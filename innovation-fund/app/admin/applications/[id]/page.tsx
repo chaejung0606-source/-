@@ -110,18 +110,19 @@ export default function ApplicationDetailPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    await fetch(`/api/applications/${id}`, {
+    const res = await fetch(`/api/applications/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         reviewStatus,
-        paymentStatus,
         adminMemo,
-        approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount),
         verifiedAccount: vAccount,
+        // 승인 금액·지급 상태는 지출관리자 전용(서버에서도 차단) — 프로그램 관리자는 전송하지 않음
+        ...(myRole === "program" ? {} : { paymentStatus, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) }),
       }),
-    });
+    }).catch(() => null);
     setSaving(false);
+    if (!res || !res.ok) { alert(res?.status === 403 ? "저장 실패: 승인 금액·지급 상태는 지출관리자만 변경할 수 있습니다." : "저장에 실패했습니다. 잠시 후 다시 시도해주세요."); return; }
     setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) } : a));
     // 저장 후에는 화면에서 계좌·주민번호를 마스킹 표시
     if (vAccount.accountNumber || vAccount.residentNumber) setEditAccount(false);
@@ -549,8 +550,8 @@ export default function ApplicationDetailPage() {
                 </select>
               </div>
               <div>
-                <label className="label">지급 상태</label>
-                <select className="input-field" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}>
+                <label className="label">지급 상태 {myRole === "program" && <span className="text-xs text-gray-400 font-normal">(지출관리자 전용)</span>}</label>
+                <select className="input-field" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)} disabled={myRole === "program"}>
                   {statusCfg.payment.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
                 </select>
               </div>
@@ -581,13 +582,14 @@ export default function ApplicationDetailPage() {
                 </div>
               )}
               <div>
-                <label className="label">최종 승인 금액 (원)</label>
+                <label className="label">최종 승인 금액 (원) {myRole === "program" && <span className="text-xs text-gray-400 font-normal">(지출관리자 전용)</span>}</label>
                 <input
                   className="input-field"
                   type="number"
                   value={approvedAmount}
                   onChange={(e) => setApprovedAmount(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder={String(app.calculatedAmount)}
+                  disabled={myRole === "program"}
                 />
               </div>
               <div>

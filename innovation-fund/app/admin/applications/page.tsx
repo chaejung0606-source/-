@@ -203,13 +203,22 @@ export default function ApplicationsPage() {
     if (sel.length === 0) { alert("먼저 보낼 항목을 선택하세요."); return; }
     const verb = stage === "expense" ? "지출관리자에게 전달" : "프로그램 관리자에게 반송";
     if (!confirm(`${sel.length}건을 ${verb}할까요?`)) return;
-    await Promise.all(sel.map((a) => fetch(`/api/applications/${a.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(stage === "program" ? { reviewStage: "program", handoffNote: note || "" } : { reviewStage: "expense" }),
-    })));
-    setApps((prev) => prev.map((a) => selected.has(a.id) ? { ...a, reviewStage: stage, handoffNote: stage === "program" ? (note || "") : a.handoffNote } : a));
+    // 건별 성공 여부를 확인해 성공한 건만 화면에 반영(실패를 성공으로 표시하지 않음)
+    const results = await Promise.all(sel.map(async (a) => {
+      try {
+        const res = await fetch(`/api/applications/${a.id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(stage === "program" ? { reviewStage: "program", handoffNote: note || "" } : { reviewStage: "expense" }),
+        });
+        return { id: a.id, ok: res.ok };
+      } catch { return { id: a.id, ok: false }; }
+    }));
+    const okIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
+    setApps((prev) => prev.map((a) => okIds.has(a.id) ? { ...a, reviewStage: stage, handoffNote: stage === "program" ? (note || "") : a.handoffNote } : a));
     setSelected(new Set());
-    alert(`${sel.length}건을 ${verb}했습니다.`);
+    const failCount = sel.length - okIds.size;
+    if (failCount > 0) alert(`${okIds.size}건 ${verb} 완료, ${failCount}건은 실패했습니다. 목록을 새로고침한 뒤 다시 시도해주세요.`);
+    else alert(`${sel.length}건을 ${verb}했습니다.`);
   };
   const sendToExpense = () => handoff("expense");
   const returnToProgram = () => {
