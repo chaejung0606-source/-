@@ -79,7 +79,10 @@ export default function GuidePage() {
             </div>
           </>
         )}
-        <p className="text-[11px] text-gray-400 text-center mt-8">강원대학교 데이터보안·활용 혁신융합대학사업단 · 이용안내</p>
+        <p className="text-[11px] text-gray-400 text-center mt-8">
+          강원대학교 데이터보안·활용 혁신융합대학사업단 · 이용안내
+          <br />플랫폼 {process.env.NEXT_PUBLIC_BUILD_VERSION || ""} · 업데이트 {process.env.NEXT_PUBLIC_BUILD_DATE || ""} 기준 (신청 방법 안내는 현재 신청폼 기준 실시간 표시)
+        </p>
       </main>
     </div>
   );
