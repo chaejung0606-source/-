@@ -174,6 +174,7 @@ export default function SpaceRentalPage() {
   const [calendarError, setCalendarError] = useState(false);
   const [survey, setSurvey] = useState<FormSchema | null>(null);
   const [resultForm, setResultForm] = useState<FormSchema | null>(null);
+  const [reqList, setReqList] = useState<MyBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
@@ -201,6 +202,7 @@ export default function SpaceRentalPage() {
       setCalendarError(!!d.calendarError);
       setSurvey(d.form && typeof d.form === "object" ? d.form : null);
       setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
+      setReqList(Array.isArray(d.requests) ? d.requests : []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -476,7 +478,7 @@ export default function SpaceRentalPage() {
       </div>
 
       {/* 이용결과 제출 모달 */}
-      {resultOpen && <UsageResultModal resultForm={resultForm} onClose={() => setResultOpen(false)} />}
+      {resultOpen && <UsageResultModal resultForm={resultForm} requests={reqList} onClose={() => { setResultOpen(false); load(); }} />}
 
       {/* 장소 사진 보기 모달 */}
       {photoSpace && (
@@ -506,12 +508,10 @@ export default function SpaceRentalPage() {
   );
 }
 
-// 이용결과 제출 — 로그인 없이 연락처로 본인 신청 건 조회 후 이용자 명단·서명·이용 사진 제출
-interface MyBooking { id: string; spaceName: string; date: string; start: string; end: string; status: string; hasResult: boolean; }
-function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | null; onClose: () => void }) {
-  const [phone, setPhone] = useState("");
-  const [stage, setStage] = useState<"phone" | "pick" | "form" | "done">("phone");
-  const [list, setList] = useState<MyBooking[]>([]);
+// 이용결과 제출 — 전체 신청목록에서 건을 선택해 이용자 명단·서명·이용 사진·서류 제출
+interface MyBooking { id: string; spaceName: string; date: string; endDate?: string; start: string; end: string; applicantName?: string; studentId?: string; status: string; hasResult: boolean; }
+function UsageResultModal({ resultForm, requests, onClose }: { resultForm: FormSchema | null; requests: MyBooking[]; onClose: () => void }) {
+  const [stage, setStage] = useState<"pick" | "form" | "done">("pick");
   const [picked, setPicked] = useState<MyBooking | null>(null);
   const [users, setUsers] = useState<{ name: string; signature: string }[]>([{ name: "", signature: "" }]);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -523,17 +523,6 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
   const rQuestions = surveyFields(resultForm);
   // 관리자가 이용결과 폼을 만들었으면 그 폼만 표시(기본 명단·사진·비고 블록 숨김)
   const resultOnly = rQuestions.length > 0;
-
-  const lookup = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/space-rental", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "lookupByPhone", phone }) });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert(j.error || "조회 실패"); return; }
-      if (!j.requests?.length) { alert("해당 연락처로 접수된 공간대여 신청이 없습니다.\n신청 시 입력한 연락처를 확인해주세요."); return; }
-      setList(j.requests); setStage("pick");
-    } finally { setBusy(false); }
-  };
 
   const uploadPhoto = async (file: File) => {
     setUploading(true);
@@ -573,7 +562,7 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos: cleanPhotos, answers: answerList, files: rFiles, memo: resultOnly ? "" : memo }),
+        body: JSON.stringify({ action: "submitResult", requestId: picked.id, users: cleanUsers, photos: cleanPhotos, answers: answerList, files: rFiles, memo: resultOnly ? "" : memo }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
@@ -588,27 +577,31 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
         <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8 flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-indigo-500" /> 이용결과 제출</h2>
 
-        {stage === "phone" && (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-gray-600">공간대여 신청 시 입력한 <strong>연락처</strong>로 본인 신청 건을 조회합니다. (로그인 불필요)</p>
-            <div>
-              <label className="label">연락처 <span className="text-red-500">*</span></label>
-              <input className="input-field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" onKeyDown={(e) => { if (e.key === "Enter") lookup(); }} />
-            </div>
-            <div className="flex justify-end"><button onClick={lookup} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "조회 중..." : "내 신청 조회"}</button></div>
-          </div>
-        )}
-
         {stage === "pick" && (
           <div className="mt-4 space-y-2">
-            <p className="text-sm text-gray-600">이용결과를 제출할 신청 건을 선택하세요.</p>
-            {list.map((r) => (
-              <button key={r.id} onClick={() => { setPicked(r); setStage("form"); }} className="w-full text-left rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40 p-3 transition">
-                <div className="font-semibold text-sm text-gray-800">{r.spaceName || "(공간)"}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{r.date} {r.start}~{r.end} · {r.status === "approved" ? "승인" : r.status === "pending" ? "대기" : r.status}{r.hasResult ? " · 이미 제출됨(재제출 시 갱신)" : ""}</div>
-              </button>
+            <p className="text-sm text-gray-600">신청목록에서 <strong>본인 신청 건</strong>을 찾아 [이용결과 제출]을 눌러주세요.</p>
+            {requests.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">접수된 공간대여 신청이 없습니다.</p>
+            ) : requests.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm text-gray-800 truncate">
+                    {r.spaceName || "(공간 미정)"}
+                    {r.applicantName && <span className="ml-2 font-normal text-gray-600">{r.applicantName}</span>}
+                    {r.studentId && <span className="ml-1 font-normal text-xs text-gray-400">{r.studentId}</span>}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {r.date ? `${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : "일정 미정"}
+                    {" · "}{r.status === "approved" ? "승인" : r.status === "pending" ? "대기" : r.status === "supplement" ? "보완요청" : r.status}
+                    {r.hasResult ? " · 이미 제출됨(재제출 시 갱신)" : ""}
+                  </div>
+                </div>
+                <button onClick={() => { setPicked(r); setStage("form"); }}
+                  className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-lg ${r.hasResult ? "bg-gray-100 text-gray-500 hover:bg-gray-200" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
+                  {r.hasResult ? "다시 제출" : "이용결과 제출"}
+                </button>
+              </div>
             ))}
-            <button onClick={() => setStage("phone")} className="text-xs text-gray-500 hover:underline mt-1">← 연락처 다시 입력</button>
           </div>
         )}
 

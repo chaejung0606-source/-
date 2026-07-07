@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
   normalizeSpaces, normalizeRequests, normalizeFiles, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
-  calendarEmbedUrl, deriveBooking, normPhone,
+  calendarEmbedUrl, deriveBooking,
   type BookedSlot,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
@@ -29,20 +29,6 @@ async function readConfig() {
   return { admin, spaces, calendarId, form, resultForm, approveWebhook: cfg.approveWebhook, requests };
 }
 
-// 신청 건에서 대조 가능한 전화번호(정규화) 모음 — bookingRole=phone 미태그 폼 대비 답변값도 포함
-function requestPhones(r: ReturnType<typeof normalizeRequests>[number]): string[] {
-  const set = new Set<string>();
-  const p = normPhone(r.phone);
-  if (p.length >= 8) set.add(p);
-  // 답변값 중 전화번호 형태(10~11자리, 010/01x 등)만 대조 대상에 추가 — 8자리 학번 등과의 오매칭 방지
-  for (const a of r.answers || []) {
-    const ap = normPhone(a.value);
-    if (ap.length >= 10 && ap.length <= 11 && ap.startsWith("0")) set.add(ap);
-  }
-  return [...set];
-}
-const phoneMatches = (r: ReturnType<typeof normalizeRequests>[number], phone: string) => requestPhones(r).includes(phone);
-
 // 장소명이 서로 가리키는 같은 공간인지(정규화 후 동일하거나 한쪽이 다른 쪽을 포함)
 function sameSpace(a: string, b: string): boolean {
   const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
@@ -61,6 +47,7 @@ function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlo
 }
 
 // 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
+// + 이용결과 제출용 신청목록(개인 연락처 등 민감정보 제외, 학번은 일부 마스킹)
 export async function GET() {
   const { spaces, calendarId, form, resultForm, requests } = await readConfig();
   let calendar: BookedSlot[] = [];
@@ -69,7 +56,15 @@ export async function GET() {
   const booked = [...calendar, ...requestSlots(requests)];
   // 신청자에게는 이름·수용인원·사진만 노출 (그 외 세부정보 비공개)
   const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photos: s.photos }));
-  return NextResponse.json({ spaces: publicSpaces, booked, calendarError, form, resultForm, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
+  const publicRequests = requests
+    .filter((r) => r.status !== "rejected")
+    .map((r) => ({
+      id: r.id, spaceName: r.spaceName, date: r.date, endDate: r.endDate, start: r.start, end: r.end,
+      applicantName: r.applicantName,
+      studentId: r.studentId ? r.studentId.slice(0, 4) + "*".repeat(Math.max(0, r.studentId.length - 4)) : "",
+      status: r.status, hasResult: !!r.usageResult, createdAt: r.createdAt,
+    }));
+  return NextResponse.json({ spaces: publicSpaces, booked, calendarError, form, resultForm, requests: publicRequests, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
 }
 
 // 신청자: 공간대여 신청 — 로그인 불필요(공개). 서버측 충돌 검증.
@@ -79,31 +74,18 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => ({}));
 
-  // ── 이용결과: 전화번호로 본인 신청 조회 ──
-  if (b.action === "lookupByPhone") {
-    const phone = normPhone(b.phone);
-    if (phone.length < 8) return NextResponse.json({ ok: false, error: "연락처를 정확히 입력해주세요." }, { status: 400 });
-    const { requests } = await readConfig();
-    const mine = requests
-      .filter((r) => phoneMatches(r, phone) && r.status !== "rejected")
-      .map((r) => ({ id: r.id, spaceName: r.spaceName, date: r.date, start: r.start, end: r.end, status: r.status, hasResult: !!r.usageResult }));
-    return NextResponse.json({ ok: true, requests: mine });
-  }
-
-  // ── 이용결과 제출: 전화번호로 본인 확인 후 이용자 명단·서명·사진 저장 ──
+  // ── 이용결과 제출: 신청목록에서 건을 선택해 이용자 명단·서명·사진·서류 저장 ──
   if (b.action === "submitResult") {
-    const phone = normPhone(b.phone);
     const id = String(b.requestId || "");
     const users = Array.isArray(b.users) ? b.users.filter((u: unknown) => !!u && typeof u === "object").map((u: Record<string, unknown>) => ({ name: String(u.name || "").trim(), signature: String(u.signature || "") })).filter((u: { name: string }) => u.name) : [];
     const photos = Array.isArray(b.photos) ? b.photos.map(String).filter(Boolean) : [];
     const rAnswers = Array.isArray(b.answers) ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })).filter((a: { value: string }) => a.value) : [];
     const rFiles = normalizeFiles(b.files);
-    if (!id || !phone) return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
+    if (!id) return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
     if (users.length === 0 && photos.length === 0 && rAnswers.length === 0 && !rFiles) return NextResponse.json({ ok: false, error: "이용자 명단(서명)·이용 사진·설문·서류 중 하나 이상 제출해주세요." }, { status: 400 });
     const { admin, approveWebhook, requests } = await readConfig();
     const target = requests.find((r) => r.id === id);
     if (!target) return NextResponse.json({ ok: false, error: "신청 건을 찾을 수 없습니다." }, { status: 404 });
-    if (!phoneMatches(target, phone)) return NextResponse.json({ ok: false, error: "신청 시 입력한 연락처와 일치하지 않습니다." }, { status: 403 });
     const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, files: rFiles, memo: String(b.memo || "").trim() || undefined };
     const next = requests.map((r) => r.id === id ? { ...r, usageResult } : r);
     const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
