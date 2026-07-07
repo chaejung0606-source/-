@@ -508,10 +508,17 @@ export default function ApplicationDetailPage() {
               <div className="card">
                 <h2 className="section-title">신청자가 작성한 신청서 <span className="text-xs font-normal text-gray-400">(보기 전용 · 수정 불가 · 파일 클릭 시 미리보기)</span></h2>
 
-                {/* 기본 정보 */}
+                {/* 기본 정보 — 고정형 신청폼은 계좌 입력도 기본 정보 단계에 포함되므로 함께 표시 */}
                 {sub("기본 정보")}
                 <div className="grid sm:grid-cols-2 gap-3">
                   {basicRows.map(([k, v]) => fv(k, String(v ?? "")))}
+                  {!isSchemaApp && (
+                    <>
+                      {fv("은행", app.bankInfo.bankName)}
+                      {fv("계좌번호", app.bankInfo.accountNumber)}
+                      {fv("예금주", app.bankInfo.accountHolder)}
+                    </>
+                  )}
                 </div>
 
                 {/* 신청 내용 — 신청폼 편집의 단계 구분(파란 소제목) 그대로 묶어서 표시 */}
@@ -558,46 +565,52 @@ export default function ApplicationDetailPage() {
                   </div>
                 ))}
 
-                {/* 신청 상세 내용 (유형별 고정 양식 항목·비용 내역 — 스키마 폼 신청은 값 있는 항목만) */}
+                {/* 신청 내용 (유형별 항목·비용 내역) — 고정형 폼의 2단계 제목 '신청 내용' 그대로.
+                    스키마 폼 신청은 답변에 없는 비용·자동 산출 값만 보충 표시 */}
                 {detailRows.length > 0 && (
                   <>
-                    {sub(isSchemaApp ? "신청 상세 내용 (비용·자동 산출)" : "신청 상세 내용")}
+                    {sub(isSchemaApp ? "신청 상세 내용 (비용·자동 산출)" : "신청 내용")}
                     <div className="space-y-3">
                       {detailRows.map(([k, v]) => fv(k, String(v ?? "")))}
                     </div>
                   </>
                 )}
 
-                {/* 계좌 정보 + 통장 사본 */}
-                {sub("계좌 정보")}
-                <div className="grid sm:grid-cols-3 gap-3">
-                  {fv("은행", app.bankInfo.bankName)}
-                  {fv("계좌번호", app.bankInfo.accountNumber)}
-                  {fv("예금주", app.bankInfo.accountHolder)}
-                </div>
-                <div className="mt-2">
-                  <div className="text-[13px] font-semibold text-gray-700 mb-1">통장 사본</div>
-                  {bankbook ? (
-                    <div className="flex flex-wrap gap-2">{fileThumb(bankbook)}</div>
-                  ) : (
-                    <p className="text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>
-                  )}
-                </div>
+                {/* 계좌 정보 + 통장 사본 — 스키마 폼 신청만 별도 표시(고정형 폼은 기본 정보에 포함) */}
+                {isSchemaApp && (
+                  <>
+                    {sub("계좌 정보")}
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      {fv("은행", app.bankInfo.bankName)}
+                      {fv("계좌번호", app.bankInfo.accountNumber)}
+                      {fv("예금주", app.bankInfo.accountHolder)}
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-[13px] font-semibold text-gray-700 mb-1">통장 사본</div>
+                      {bankbook ? (
+                        <div className="flex flex-wrap gap-2">{fileThumb(bankbook)}</div>
+                      ) : (
+                        <p className="text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>
+                      )}
+                    </div>
+                  </>
+                )}
 
-                {/* 기타 첨부파일 (위 항목에 표시되지 않은 파일) */}
+                {/* 서류 업로드 — 고정형 폼은 3단계 제목 그대로 전체 파일 표시,
+                    스키마 폼은 위 답변 항목에 인라인되지 않은 나머지 파일만 */}
                 {(() => {
-                  const rest = app.files.filter((f) => !usedIds.has(f.id));
+                  const rest = isSchemaApp ? app.files.filter((f) => !usedIds.has(f.id)) : app.files;
                   if (rest.length === 0) return null;
                   return (
                     <>
-                      {sub("첨부파일")}
+                      {sub(isSchemaApp ? "첨부파일" : "서류 업로드")}
                       <div className="flex flex-wrap gap-2">{rest.map(fileThumb)}</div>
                     </>
                   );
                 })()}
 
                 {/* 동의 및 서명 (공통 제출 항목 — 폼 답변과 별도로 저장되는 동의·신청인 서명) */}
-                {sub("동의 및 서명")}
+                {sub(isSchemaApp ? "동의 및 서명" : "동의 및 제출")}
                 <div className="grid sm:grid-cols-3 gap-3">
                   {fv("개인정보 수집·이용 동의", app.privacyConsent ? "동의함" : "미동의")}
                   {fv("사실 확인 동의", app.truthConsent ? "동의함" : "미동의")}
