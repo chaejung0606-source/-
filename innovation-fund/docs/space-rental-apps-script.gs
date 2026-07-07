@@ -66,42 +66,46 @@ function doPost(e) {
   }
 }
 
-// 캘린더 이벤트 수정(없으면 새로 생성) → 이벤트 ID 반환
+// 캘린더 이벤트 수정 → 이벤트 ID 반환
+// 반복(매주/매월) 설정이 바뀔 수 있으므로, 기존 이벤트(단일/반복 시리즈)를 지우고
+// 현재 값으로 다시 만드는 방식이 가장 안전하다. (새 이벤트 ID를 반환하면 플랫폼이 저장)
 function updateEvent_(d) {
-  var cal = CalendarApp.getCalendarById(CALENDAR_ID);
-  if (!cal) throw new Error("캘린더를 찾을 수 없습니다.");
-  var start = parseDT_(d.date, d.start), end = parseDT_(d.endDate || d.date, d.end);
-  var title = d.title || ("[공간대여] " + (d.spaceName || ""));
-  var ev = d.eventId ? cal.getEventById(d.eventId) : null;
-  if (!ev) {
-    ev = cal.createEvent(title, start, end, { location: d.location || d.spaceName || "", description: d.description || "" });
-    return ev.getId();
-  }
-  ev.setTitle(title); ev.setTime(start, end);
-  ev.setLocation(d.location || d.spaceName || ""); ev.setDescription(d.description || "");
-  return ev.getId();
+  try { deleteEvent_(d.eventId); } catch (e) { /* 기존 이벤트가 이미 없어도 진행 */ }
+  return createEvent_(d);
 }
 
-// 캘린더 이벤트 삭제
+// 캘린더 이벤트 삭제 — 반복 시리즈면 시리즈 전체 삭제
 function deleteEvent_(eventId) {
   if (!eventId) return;
   var cal = CalendarApp.getCalendarById(CALENDAR_ID);
   if (!cal) return;
+  try {
+    var series = cal.getEventSeriesById(eventId);
+    if (series) { series.deleteEventSeries(); return; }
+  } catch (e) { /* 시리즈가 아니면 단일 이벤트로 시도 */ }
   var ev = cal.getEventById(eventId);
   if (ev) ev.deleteEvent();
 }
 
 // 캘린더 이벤트 생성 → 이벤트 ID 반환
+// d.repeat = { freq: "weekly"|"monthly", until: "YYYY-MM-DD" } 가 있으면
+// 구글 캘린더 반복 일정(EventSeries)으로 등록: 매주(같은 요일)/매월(같은 일), 반복 종료일까지.
 function createEvent_(d) {
   var cal = CalendarApp.getCalendarById(CALENDAR_ID);
   if (!cal) throw new Error("캘린더를 찾을 수 없습니다. CALENDAR_ID와 권한을 확인하세요.");
   var start = parseDT_(d.date, d.start);
   var end = parseDT_(d.endDate || d.date, d.end); // 여러 날 범위면 종료일 사용
   var title = d.title || ("[공간대여] " + (d.spaceName || ""));
-  var ev = cal.createEvent(title, start, end, {
-    location: d.location || d.spaceName || "",
-    description: d.description || "",
-  });
+  var opts = { location: d.location || d.spaceName || "", description: d.description || "" };
+  if (d.repeat && d.repeat.freq && d.repeat.until) {
+    var until = parseDT_(d.repeat.until, "23:59"); // 반복 종료일 포함
+    var rec = d.repeat.freq === "monthly"
+      ? CalendarApp.newRecurrence().addMonthlyRule().until(until)   // 매월 같은 일 (없는 달은 구글이 건너뜀)
+      : CalendarApp.newRecurrence().addWeeklyRule().until(until);   // 매주 같은 요일
+    var series = cal.createEventSeries(title, start, end, rec, opts);
+    return series.getId();
+  }
+  var ev = cal.createEvent(title, start, end, opts);
   return ev.getId();
 }
 
@@ -142,14 +146,17 @@ function getRecordSheet_() {
   return sh;
 }
 
-// 한 줄 값 구성 (헤더 순서와 동일 · 13열)
+// 한 줄 값 구성 (헤더 순서와 동일 · 13열) — 반복 대여는 사용목적에 [매주/매월 반복 ~종료일] 표기
 function rowValues_(d, eventId) {
+  var repeatTag = d.repeat && d.repeat.freq
+    ? " [" + (d.repeat.freq === "monthly" ? "매월" : "매주") + " 반복 ~" + (d.repeat.until || "") + "]"
+    : "";
   return [
     new Date(),
     d.spaceName || d.location || "",
     d.date || "", d.start || "", d.end || "",
     d.applicantName || "", d.studentId || "", d.phone || "", d.email || "",
-    d.headcount || "", d.purpose || "",
+    d.headcount || "", (d.purpose || "") + repeatTag,
     d.createdAt || "", eventId || "",
   ];
 }

@@ -17,13 +17,16 @@ async function getConfig(admin: ReturnType<typeof supabaseAdmin>): Promise<Renta
 
 // 웹훅 payload (캘린더 이벤트 + 구글시트 상세)
 function calendarPayload(action: "create" | "update" | "delete", r: RentalRequest) {
+  const repeatText = r.repeat ? `\n반복: ${r.repeat.freq === "weekly" ? "매주" : "매월"} (~${r.repeat.until})` : "";
   return {
     action,
     eventId: r.calendarEventId || "",
     title: `[공간대여] ${r.spaceName} · ${r.applicantName}`,
     location: r.spaceName,
     date: r.date, endDate: r.endDate || r.date, start: r.start, end: r.end,
-    description: `신청자: ${r.applicantName} (${r.studentId})\n인원: ${r.headcount}명\n목적: ${r.purpose}\n연락처: ${r.phone}`,
+    // repeat: Apps Script가 구글 캘린더 반복 일정(EventSeries)으로 등록하는 데 사용
+    repeat: r.repeat ? { freq: r.repeat.freq, until: r.repeat.until } : undefined,
+    description: `신청자: ${r.applicantName} (${r.studentId})\n인원: ${r.headcount}명\n목적: ${r.purpose}\n연락처: ${r.phone}${repeatText}`,
     spaceName: r.spaceName, applicantName: r.applicantName, studentId: r.studentId,
     phone: r.phone, email: r.email, headcount: r.headcount, purpose: r.purpose,
     createdAt: r.createdAt,
@@ -163,6 +166,8 @@ export async function PATCH(req: NextRequest) {
       if (edited.calendarEventId) {
         const wr = await callWebhook(cfg.approveWebhook, "update", edited);
         calendarReflected = wr.ok; webhookError = wr.error;
+        // 반복 변경 등으로 Apps Script가 이벤트를 재생성한 경우 새 이벤트 ID로 교체
+        if (wr.eventId) newEventId = wr.eventId;
       } else if (edited.status === "approved") {
         const wr = await callWebhook(cfg.approveWebhook, "create", edited);
         calendarReflected = wr.ok; webhookError = wr.error;
