@@ -216,12 +216,37 @@ export default function ApplicationDetailPage() {
       ["담당 업무", app.staffDetail.taskDescription],
       ...costRows(app.staffDetail.costDetail, app.staffDetail.transport, app.staffDetail.extraCosts),
     ];
-    if (app.gradeDetail) return [
-      ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[app.gradeDetail.subType]],
-      ["이수 과정명", app.gradeDetail.courseName],
-      ["이수 학점", String(app.gradeDetail.credits)],
-      ["평점 평균", String(app.gradeDetail.gpa)],
-    ];
+    if (app.gradeDetail) {
+      const g = app.gradeDetail;
+      const rows: [string, string][] = [
+        ["세부 유형", { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" }[g.subType]],
+      ];
+      if (g.subType === "microdegree") {
+        rows.push(
+          ["학과", g.mdDepartment || "-"],
+          ["MD 과정명", g.mdProgramName || g.courseName || "-"],
+          ["이수 교과목·성적", (g.mdCourses || []).length
+            ? (g.mdCourses || []).map((c) => `${c.name} — ${c.grade}${c.isBase ? " (기초/전공)" : ""}`).join("\n")
+            : (g.courseName || "-")],
+          ["평점 평균", String(g.gpa)],
+        );
+      } else {
+        // 부전공/복수전공 — 신청자가 입력한 전공·교과목 내역·자격 확인을 모두 표시
+        rows.push(
+          ["전공명", g.minorMajorName || "-"],
+          ["미래융합가상학과 이수(예정)자", g.minorIsMirae ? "확인함" : "미확인"],
+          ["이수 교과목 내역", (g.minorCourses || []).length
+            ? (g.minorCourses || []).map((c) =>
+                `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${c.mdProgramId ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
+              ).join("\n")
+            : "-"],
+          ["인정 이수 학점", `${g.minorMajorCredits ?? g.credits}학점 (기준 ${g.subType === "minor" ? 21 : 36}학점)`],
+          ["평점 평균", `${g.gpa} / 4.5`],
+          ["마이크로디그리(MD) 이수", g.minorMdCompleted ? `이수${g.minorMdName ? ` — ${g.minorMdName}` : ""}` : "미이수"],
+        );
+      }
+      return rows;
+    }
     if (app.contestDetail) return [
       ["대회명", app.contestDetail.contestName],
       ["주제", app.contestDetail.contestTheme],
