@@ -50,7 +50,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     updateDate: process.env.NEXT_PUBLIC_BUILD_DATE || new Date().toISOString().slice(0, 16).replace("T", " "),
   },
   sidebarLinks: [
-    { id: "guide", label: "이용\n안내", href: "/guide", iconName: "BookOpen", color: "#6366f1", inWindow: true },
+    { id: "guide", label: "이용\n안내", href: "/guide", iconName: "BookOpen", color: "#6366f1" },
     { id: "1", label: "사업단\n홈페이지", href: "https://sducoss.ac.kr/ko/index", iconName: "Globe", color: "#4f8cff" },
     { id: "2", label: "LMS\n사이트", href: "https://lms.sducoss.ac.kr/login.php", iconName: "BookOpen", color: "#2dd4bf" },
     { id: "3", label: "이루리\n로그인", href: "https://iruri.kangwon.ac.kr", iconName: "GraduationCap", color: "#a78bfa" },

@@ -25,7 +25,7 @@
 | 공간대여 신청 | `/space-rental` | 공간대여 신청 | 공간대여 | `app/space-rental/page.tsx`, `app/api/space-rental/route.ts` | Ⅷ-1~3 | 2026-07-07 | 겹침 차단 강화(v1.1.179) |
 | 공간대여 이용결과 제출 | `/space-rental` | 이용결과 제출 | 공간대여 | `app/space-rental/page.tsx`(UsageResultModal) | Ⅷ-4 | 2026-07-07 | — |
 | 공간대여 캘린더 | `/`, `/space-rental` | 예약 현황 | 공간대여 | `components/home/SpaceCalendar.tsx` | Ⅳ-4, Ⅷ-2 | 2026-07-07 | — |
-| 이용안내(동적 신청 안내) | `/guide` | 이용안내(작은 창) | 전체 | `app/guide/page.tsx`, `components/home/ApplyGuideDynamic.tsx`, 관리자 편집(`GuidePanel`) | 매뉴얼 전반의 “실시간 기준” 참조처 | 2026-07-07 | 신규(동적 안내 추가) |
+| 이용안내(동적 신청 안내) | `/guide` | 이용안내(새 탭) | 전체 | `app/guide/page.tsx`, `components/home/ApplyGuideDynamic.tsx`, 관리자 편집(`GuidePanel`) | 매뉴얼 전반의 “실시간 기준” 참조처 | 2026-07-07 | 신규(동적 안내 추가) |
 | 개인정보 처리방침 | `/privacy` | 처리방침 | 전체 | `app/privacy/page.tsx` | Ⅲ-2 ⑧ | 2026-07-07 | — |
 | 자격증 목록 | `/` | 자격증 목록 | 자격증 | `components/home/CertList.tsx`, 관리자 편집(cert-list) | Ⅵ-2 바 | 2026-07-07 | — |
 | 사이드바 바로가기·팝업 공지 | `/` | 바로가기/팝업 | 전체 | `lib/site-config.ts`, `/api/popup` | Ⅳ-5 | 2026-07-07 | — |

@@ -47,7 +47,7 @@ export default function GuidePanel({ onSiteConfigChanged }: { onSiteConfigChange
     } finally { setSaving(false); }
   };
 
-  // 사이드바에 '이용안내' 작은창 링크 추가
+  // 사이드바에 '이용안내' 링크 추가 (새 탭으로 열림)
   const [linking, setLinking] = useState(false);
   const addSidebarLink = async () => {
     setLinking(true);
@@ -60,7 +60,7 @@ export default function GuidePanel({ onSiteConfigChanged }: { onSiteConfigChange
         alert("이미 사이드바에 이용안내 링크가 있습니다. ('사이드바 링크' 탭에서 확인하세요)");
         return;
       }
-      const newLink = { id: "guide-" + Date.now(), label: "이용\n안내", href: "/guide", iconName: "BookOpen", color: "#6366f1", inWindow: true };
+      const newLink = { id: "guide-" + Date.now(), label: "이용\n안내", href: "/guide", iconName: "BookOpen", color: "#6366f1" };
       const next = { ...cfg, sidebarLinks: [...links, newLink] };
       const res = await fetch("/api/site-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
       if (!res.ok) { alert("추가 실패: HTTP " + res.status); return; }
@@ -69,7 +69,7 @@ export default function GuidePanel({ onSiteConfigChanged }: { onSiteConfigChange
       // 부모(사이트 설정 페이지)의 config 상태를 새로고침 — '사이드바 링크' 탭에 바로 보이고,
       // 이후 상단 [저장]이 옛 상태로 덮어써 링크가 사라지는 문제를 방지한다.
       onSiteConfigChanged?.();
-      alert("사이드바에 '이용안내' 링크를 추가했습니다. '사이드바 링크' 탭과 홈 화면 우측 바로가기에서 확인하세요.");
+      alert("사이드바에 '이용안내' 링크를 추가했습니다. 홈 화면 우측 바로가기에서 새 탭으로 열립니다.");
     } finally { setLinking(false); }
   };
 
@@ -78,7 +78,7 @@ export default function GuidePanel({ onSiteConfigChanged }: { onSiteConfigChange
   return (
     <div className="space-y-4">
       <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-800">
-        신청자 <b>이용안내</b>를 편집합니다. 저장하면 <b>/guide</b> 페이지에 즉시 반영되고, 사이드바 ‘이용안내’를 누르면 <b>플랫폼 작은 창</b>으로 열립니다.
+        신청자 <b>이용안내</b>를 편집합니다. 저장하면 <b>/guide</b> 페이지에 즉시 반영되고, 사이드바 ‘이용안내’를 누르면 <b>새 탭</b>으로 열립니다. (작은 창으로 바꾸려면 ‘사이드바 링크’ 탭에서 ‘작은 창으로 보기’ 체크)
         {!customized && <span className="block mt-1 text-xs text-indigo-600">현재는 <b>기본 안내(코드 제공)</b>가 표시 중입니다. 여기서 수정·저장하면 그 내용으로 대체됩니다. (수정 전에는 기능 추가 시 기본 안내가 자동 갱신됩니다.)</span>}
       </div>
 
