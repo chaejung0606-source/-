@@ -17,8 +17,10 @@ const fmtSlot = (n: number) => {
   return `${s.slice(4, 6)}/${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
 };
 
-// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (표준 블록 중 개인정보동의·파일다운로드 지원, 파일 업로드·서명은 제외)
-const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent", "fileDownload"];
+// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (개인정보동의·파일다운로드·파일 업로드 지원, 서명은 제외)
+const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent", "fileDownload", "file"];
+// 폼 파일 항목으로 업로드된 서류 (필드별)
+interface UploadedDoc { name: string; url: string; }
 function surveyFields(schema: FormSchema | null): FormField[] {
   if (!schema?.steps) return [];
   return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
@@ -28,14 +30,47 @@ function activeQs(list: FormField[], answers: Record<string, string>): FormField
   return list.flatMap((q) => q.type === "select" ? [q, ...activeQs(q.branches?.[answers[q.id] || ""] || [], answers)] : [q]);
 }
 
-// 설문 항목 렌더 — 신청폼·이용결과폼 공용 (드롭다운 조건부 하위질문 재귀, 종일·범위·동의·파일다운로드 지원)
-function SurveyQuestion({ q, answers, setAnswers }: {
+// 설문 항목 렌더 — 신청폼·이용결과폼 공용 (드롭다운 조건부 하위질문 재귀, 종일·범위·동의·파일다운로드·파일 업로드 지원)
+function SurveyQuestion({ q, answers, setAnswers, docsByField, setDocsByField }: {
   q: FormField;
   answers: Record<string, string>;
   setAnswers: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  docsByField?: Record<string, UploadedDoc[]>;
+  setDocsByField?: React.Dispatch<React.SetStateAction<Record<string, UploadedDoc[]>>>;
 }) {
   const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  // 파일 항목: /api/space-rental/upload(kind=doc)로 올리고 필드별 목록에 추가
+  const uploadDoc = async (file: File) => {
+    if (!setDocsByField) return;
+    setUploadingDoc(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("kind", "doc");
+      const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("파일 업로드 실패: " + (j.error || res.status)); return; }
+      setDocsByField((m) => ({ ...m, [q.id]: [...(m[q.id] || []), { name: j.name || file.name, url: j.url }] }));
+    } finally { setUploadingDoc(false); }
+  };
   const renderInput = () => {
+    if (q.type === "file") {
+      const docs = docsByField?.[q.id] || [];
+      return (
+        <div className="space-y-1.5">
+          {docs.map((d, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/70 px-3 py-2 text-sm">
+              <span className="flex-1 truncate text-gray-700">{d.name}</span>
+              <button type="button" onClick={() => setDocsByField?.((m) => ({ ...m, [q.id]: (m[q.id] || []).filter((_, k) => k !== i) }))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          ))}
+          <label className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 cursor-pointer">
+            <Upload className="w-4 h-4" /> {uploadingDoc ? "업로드 중..." : "파일 선택 (HWP·PDF·이미지 등)"}
+            <input type="file" accept=".hwp,.hwpx,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDoc(f); e.target.value = ""; }} />
+          </label>
+        </div>
+      );
+    }
     if (q.type === "fileDownload") return (
       <div>
         {q.text && <p className="text-xs text-gray-600 whitespace-pre-line mb-1">{q.text}</p>}
@@ -114,7 +149,7 @@ function SurveyQuestion({ q, answers, setAnswers }: {
       {renderInput()}
       {subs.length > 0 && (
         <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
-          {subs.map((sf) => <SurveyQuestion key={sf.id} q={sf} answers={answers} setAnswers={setAnswers} />)}
+          {subs.map((sf) => <SurveyQuestion key={sf.id} q={sf} answers={answers} setAnswers={setAnswers} docsByField={docsByField} setDocsByField={setDocsByField} />)}
         </div>
       )}
     </div>
@@ -138,9 +173,9 @@ export default function SpaceRentalPage() {
     applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "",
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  // 관리자 설정 설문 답변 (fieldId → 값)
+  // 관리자 설정 설문 답변 (fieldId → 값) + 파일 항목 업로드 서류 (fieldId → 파일들)
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
+  const [docsByField, setDocsByField] = useState<Record<string, UploadedDoc[]>>({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -188,23 +223,31 @@ export default function SpaceRentalPage() {
   // 관리자가 신청폼을 만들었으면 그 폼만 표시(완전히 관리자 폼). 없으면 기본 폼.
   const formOnly = questions.length > 0;
 
+  // 파일 항목 답변값은 업로드한 파일명(시트 기록용), 실제 파일은 files로 별도 전송
   const answerList = () => activeQs(questions, answers)
-    .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
+    .map((q) => ({ id: q.id, label: q.label, value: q.type === "file" ? (docsByField[q.id] || []).map((d) => d.name).join(", ") : (answers[q.id] || "").trim() }))
     .filter((a) => a.value);
+  const fileList = () => activeQs(questions, answers)
+    .filter((q) => q.type === "file")
+    .flatMap((q) => (docsByField[q.id] || []).map((d) => ({ ...d, label: q.label })));
 
   const submit = async () => {
     // 필수 설문 항목 검증(공통) — 현재 노출 중인 조건부 하위질문 포함
     for (const q of activeQs(questions, answers)) {
       if (q.type === "fileDownload") continue; // 다운로드 제공 항목은 입력값이 없음
+      if (q.type === "file") {
+        if (q.required && !(docsByField[q.id] || []).length) return alert(`'${q.label}' 파일을 업로드해주세요.`);
+        continue;
+      }
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
     setBusy(true);
     try {
-      // 관리자 폼만: 답변만 전송(서버가 bookingRole 태그로 장소·날짜·시간 추출)
+      // 관리자 폼만: 답변·서류만 전송 (대여 일정은 관리자가 신청목록에서 직접 입력)
       // 기본 폼: 기존 필드 + 답변 전송
       const body = formOnly
-        ? { answers: answerList() }
-        : { ...form, headcount: Number(form.headcount) || 0, answers: answerList() };
+        ? { answers: answerList(), files: fileList() }
+        : { ...form, headcount: Number(form.headcount) || 0, answers: answerList(), files: fileList() };
       if (!formOnly) {
         if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
         if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
@@ -314,7 +357,7 @@ export default function SpaceRentalPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-1">공간대여 신청이 접수되었습니다.</h2>
             <p className="text-sm text-gray-500 mb-5">관리자 승인 후 캘린더에 반영됩니다.</p>
             <div className="flex justify-center gap-2">
-              <button onClick={() => { setDone(false); setShowForm(true); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "" })); setAnswers({}); load(); }} className="btn-secondary">추가 신청</button>
+              <button onClick={() => { setDone(false); setShowForm(true); setForm((f) => ({ ...f, date: "", start: "", end: "", purpose: "", headcount: "" })); setAnswers({}); setDocsByField({}); load(); }} className="btn-secondary">추가 신청</button>
               <Link href="/" className="btn-primary">홈으로</Link>
             </div>
           </div>
@@ -407,7 +450,7 @@ export default function SpaceRentalPage() {
             {/* 관리자가 '신청폼 편집'에서 만든 항목 (formOnly일 때 이것만 표시) — 드롭다운 조건부 하위질문 포함 */}
             {questions.length > 0 && (
               <div className={`grid sm:grid-cols-2 gap-4 ${formOnly ? "" : "pt-2 border-t border-gray-100"}`}>
-                {questions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} />)}
+                {questions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} docsByField={docsByField} setDocsByField={setDocsByField} />)}
               </div>
             )}
 
@@ -462,6 +505,7 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
   const [photos, setPhotos] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [docsByField, setDocsByField] = useState<Record<string, UploadedDoc[]>>({});
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const rQuestions = surveyFields(resultForm);
@@ -494,14 +538,22 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
     if (!picked) return;
     const cleanUsers = resultOnly ? [] : users.filter((u) => u.name.trim());
     const cleanPhotos = resultOnly ? [] : photos;
-    // 조건부 하위질문 포함 필수 검증 (fileDownload는 입력값 없음)
+    // 조건부 하위질문 포함 필수 검증 (fileDownload는 입력값 없음, file은 업로드 여부 확인)
     for (const q of activeQs(rQuestions, answers)) {
       if (q.type === "fileDownload") continue;
+      if (q.type === "file") {
+        if (q.required && !(docsByField[q.id] || []).length) return alert(`'${q.label}' 파일을 업로드해주세요.`);
+        continue;
+      }
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
-    const answerList = activeQs(rQuestions, answers).map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() })).filter((a) => a.value);
+    const answerList = activeQs(rQuestions, answers)
+      .map((q) => ({ id: q.id, label: q.label, value: q.type === "file" ? (docsByField[q.id] || []).map((d) => d.name).join(", ") : (answers[q.id] || "").trim() }))
+      .filter((a) => a.value);
+    const rFiles = activeQs(rQuestions, answers).filter((q) => q.type === "file")
+      .flatMap((q) => (docsByField[q.id] || []).map((d) => ({ ...d, label: q.label })));
     if (resultOnly) {
-      if (answerList.length === 0) return alert("이용결과 항목을 입력해주세요.");
+      if (answerList.length === 0 && rFiles.length === 0) return alert("이용결과 항목을 입력해주세요.");
     } else if (cleanUsers.length === 0 && cleanPhotos.length === 0 && answerList.length === 0) {
       return alert("이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요.");
     }
@@ -509,7 +561,7 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos: cleanPhotos, answers: answerList, memo: resultOnly ? "" : memo }),
+        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos: cleanPhotos, answers: answerList, files: rFiles, memo: resultOnly ? "" : memo }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
@@ -594,7 +646,7 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
               </>
             )}
             {/* 관리자가 설정한 이용결과 폼 항목 — 폼이 있으면 이것만 표시 (조건부 하위질문·종일·범위·파일다운로드 지원) */}
-            {rQuestions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} />)}
+            {rQuestions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} docsByField={docsByField} setDocsByField={setDocsByField} />)}
             {!resultOnly && (
               <div>
                 <label className="label">비고 (선택)</label>

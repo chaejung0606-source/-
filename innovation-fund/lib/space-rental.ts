@@ -29,6 +29,8 @@ export const DEFAULT_SPACES: RentalSpace[] = [
   { id: "sp-eng5-106-3", name: "공과대학 5호관 (106-3호)", capacity: 6 },
 ];
 export type RentalStatus = "pending" | "approved" | "rejected" | "supplement";
+// 신청자가 폼에서 업로드한 제출 서류 (신청서·명단 등)
+export interface RentalFile { name: string; url: string; label?: string; }
 // 이용결과 제출 — 대여 공간 사용 후 이용자 명단·서명·이용 사진 제출
 export interface UsageUser { name: string; signature: string; } // signature: 데이터URL(그리기/업로드)
 export interface UsageResult {
@@ -36,6 +38,7 @@ export interface UsageResult {
   users: UsageUser[];   // 이용자 명단 및 서명
   photos: string[];     // 대여공간 이용 사진 URL
   answers?: { id: string; label: string; value: string }[]; // 관리자 설정 이용결과 설문 답변
+  files?: RentalFile[]; // 이용결과 폼의 파일 항목으로 제출된 서류
   memo?: string;
 }
 export interface RentalRequest {
@@ -48,6 +51,7 @@ export interface RentalRequest {
   applicantName: string; studentId: string; phone: string; email: string;
   purpose: string; headcount: number;
   answers?: { id: string; label: string; value: string }[]; // 관리자 설정 추가 설문 답변
+  files?: RentalFile[]; // 신청 폼의 파일 항목으로 제출된 서류 (신청서·명단 등)
   status: RentalStatus;
   adminMemo?: string;
   createdAt: string;
@@ -91,6 +95,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       phone: String(r.phone || ""), email: String(r.email || ""),
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
       answers: Array.isArray(r.answers) ? (r.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined,
+      files: normalizeFiles(r.files),
       status: (["pending", "approved", "rejected", "supplement"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,
@@ -100,15 +105,26 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
     .filter((r) => r.id);
 }
 
-// 이용결과(이용자 명단·서명·사진) 정규화
+// 제출 서류(파일) 정규화
+export function normalizeFiles(v: unknown): RentalFile[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const files = (v as unknown[])
+    .filter((f): f is Record<string, unknown> => !!f && typeof f === "object")
+    .map((f) => ({ name: String(f.name || ""), url: String(f.url || ""), label: f.label ? String(f.label) : undefined }))
+    .filter((f) => f.url);
+  return files.length ? files : undefined;
+}
+
+// 이용결과(이용자 명단·서명·사진·서류) 정규화
 function normalizeUsageResult(v: unknown): UsageResult | undefined {
   if (!v || typeof v !== "object") return undefined;
   const o = v as Record<string, unknown>;
   const users = Array.isArray(o.users) ? (o.users as unknown[]).filter((u): u is Record<string, unknown> => !!u && typeof u === "object").map((u) => ({ name: String(u.name || ""), signature: String(u.signature || "") })) : [];
   const photos = Array.isArray(o.photos) ? (o.photos as unknown[]).map(String).filter(Boolean) : [];
   const answers = Array.isArray(o.answers) ? (o.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined;
-  if (users.length === 0 && photos.length === 0 && (!answers || answers.length === 0) && !o.memo) return undefined;
-  return { submittedAt: String(o.submittedAt || ""), users, photos, answers, memo: o.memo ? String(o.memo) : undefined };
+  const files = normalizeFiles(o.files);
+  if (users.length === 0 && photos.length === 0 && (!answers || answers.length === 0) && (!files || files.length === 0) && !o.memo) return undefined;
+  return { submittedAt: String(o.submittedAt || ""), users, photos, answers, files, memo: o.memo ? String(o.memo) : undefined };
 }
 
 // 시간 항목 '종일' 선택값

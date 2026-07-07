@@ -143,6 +143,8 @@ export async function PATCH(req: NextRequest) {
       spaceName: str("spaceName", target.spaceName),
       spaceId: str("spaceId", target.spaceId),
       date: str("date", target.date), start: str("start", target.start), end: str("end", target.end),
+      // 종료일: 빈 값으로 보내면 단일 일자(undefined), 값이 있으면 그 값 사용
+      endDate: e.endDate != null ? (String(e.endDate) && String(e.endDate) !== str("date", target.date) ? String(e.endDate) : undefined) : target.endDate,
       applicantName: str("applicantName", target.applicantName), studentId: str("studentId", target.studentId),
       phone: str("phone", target.phone), email: str("email", target.email),
       purpose: str("purpose", target.purpose),

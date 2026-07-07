@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, ClipboardCheck, MapPin, CalendarDays, FilePlus, PencilLine, FileText } from "lucide-react";
+import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, ClipboardCheck, MapPin, CalendarDays, FilePlus, PencilLine, FileText, Download } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import DraggableWindow from "@/components/admin/DraggableWindow";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSpaceRentalForm, emptySchema } from "@/lib/form-schema";
-import type { RentalSpace, RentalRequest, RentalStatus } from "@/lib/space-rental";
+import type { RentalSpace, RentalRequest, RentalStatus, RentalFile } from "@/lib/space-rental";
 
 const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
   pending: { label: "대기", badge: "bg-amber-100 text-amber-700" },
@@ -30,11 +31,9 @@ export default function SpaceRentalAdminPage() {
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
 
-  const [detail, setDetail] = useState<RentalRequest | null>(null);
-  const [memo, setMemo] = useState("");
-  const [edit, setEdit] = useState<Partial<RentalRequest>>({});
-  const [savingEdit, setSavingEdit] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
+  // 제출 서류·사진 미리보기 (이동·크기조절 가능한 창)
+  const [fileWin, setFileWin] = useState<{ name: string; url: string } | null>(null);
 
   const load = () => {
     fetch("/api/admin/space-rental").then((r) => r.json()).then((d) => {
@@ -107,7 +106,6 @@ export default function SpaceRentalAdminPage() {
   // 상태 변경(승인 시 서버가 구글시트·캘린더 반영) + 보완요청 메모
   const updateStatus = async (id: string, status: RentalStatus, adminMemo?: string) => {
     setRequests((rs) => rs.map((r) => r.id === id ? { ...r, status, adminMemo: adminMemo ?? r.adminMemo } : r));
-    setDetail((d) => d && d.id === id ? { ...d, status, adminMemo: adminMemo ?? d.adminMemo } : d);
     const res = await fetch("/api/admin/space-rental", {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status, adminMemo }),
     });
@@ -121,32 +119,21 @@ export default function SpaceRentalAdminPage() {
   const removeRequest = async (id: string) => {
     if (!confirm("이 신청을 삭제하시겠습니까?")) return;
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    setDetail(null);
     await fetch("/api/admin/space-rental", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
   };
 
-  const openDetail = (r: RentalRequest) => {
-    setDetail(r); setMemo(r.adminMemo || "");
-    setEdit({ spaceId: r.spaceId, spaceName: r.spaceName, date: r.date, start: r.start, end: r.end, applicantName: r.applicantName, studentId: r.studentId, phone: r.phone, email: r.email, headcount: r.headcount, purpose: r.purpose });
-  };
-  const setE = (patch: Partial<RentalRequest>) => setEdit((p) => ({ ...p, ...patch }));
-
-  // 신청 내용 편집 저장 → 구글 캘린더·시트·플랫폼 캘린더 반영
-  const saveEdit = async () => {
-    if (!detail) return;
-    setSavingEdit(true);
-    try {
-      const res = await fetch("/api/admin/space-rental", {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: detail.id, edit }),
-      });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("수정 실패: " + (j.error || res.status)); return; }
-      setRequests((rs) => rs.map((r) => r.id === detail.id ? { ...r, ...edit } as RentalRequest : r));
-      setDetail((d) => d ? { ...d, ...edit } as RentalRequest : d);
-      if (j.calendarReflected) alert("수정되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다.");
-      else if (j.webhookError) alert("수정되었으나 구글 캘린더 반영에 실패했습니다.\n\n오류: " + j.webhookError + "\n\n플랫폼 캘린더에는 반영됩니다.");
-      else alert("수정되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
-    } finally { setSavingEdit(false); }
+  // 대여 일정(관리자 직접 입력) 저장 → 플랫폼 캘린더 즉시, 구글 캘린더·시트는 승인·웹훅 설정 시 반영
+  const saveSchedule = async (id: string, edit: Partial<RentalRequest>): Promise<boolean> => {
+    const res = await fetch("/api/admin/space-rental", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, edit }),
+    });
+    const j = await res.json().catch(() => ({ ok: false }));
+    if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); return false; }
+    setRequests((rs) => rs.map((r) => r.id === id ? { ...r, ...edit, endDate: edit.endDate || undefined } as RentalRequest : r));
+    if (j.calendarReflected) alert("일정이 저장되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다.");
+    else if (j.webhookError) alert("일정이 저장되었으나 구글 캘린더 반영에 실패했습니다.\n\n오류: " + j.webhookError + "\n\n플랫폼 캘린더에는 반영됩니다.");
+    else alert("일정이 저장되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
+    return true;
   };
 
 
@@ -179,90 +166,35 @@ export default function SpaceRentalAdminPage() {
         })}
       </div>
 
-      {/* ── 공간대여 신청목록 ── */}
+      {/* ── 공간대여 신청목록 — 목록에서 바로 서류 확인·일정 입력·심사(승인/반려/보완/삭제) ── */}
       {tab === "requests" && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="space-y-3">
+          <div className="card flex items-center justify-between flex-wrap gap-2">
             <h2 className="font-bold text-gray-800">공간대여 신청목록 <span className="text-sm text-gray-400 font-normal">({requests.length})</span></h2>
             <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
           </div>
           {requests.length === 0 ? (
-            <p className="text-sm text-gray-400 py-3">접수된 공간대여 신청이 없습니다.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="table-glass text-sm">
-                <thead><tr>
-                  <th className="whitespace-nowrap">상태</th>
-                  <th className="whitespace-nowrap">공간</th>
-                  <th className="whitespace-nowrap">일시</th>
-                  <th className="whitespace-nowrap">신청자</th>
-                  <th className="whitespace-nowrap">인원</th>
-                  <th className="text-center whitespace-nowrap">이용결과</th>
-                  <th className="text-center whitespace-nowrap">상세/관리</th>
-                </tr></thead>
-                <tbody>
-                  {requests.map((r) => (
-                    <tr key={r.id}>
-                      <td><span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span></td>
-                      <td className="font-medium whitespace-nowrap">{r.spaceName}</td>
-                      <td className="whitespace-nowrap">{r.date} {r.start}~{r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}{r.end}</td>
-                      <td className="whitespace-nowrap">{r.applicantName} <span className="text-gray-400 text-xs">{r.studentId}</span></td>
-                      <td className="text-center">{r.headcount || "-"}</td>
-                      <td className="text-center">{r.usageResult ? <span className="badge bg-emerald-100 text-emerald-700">제출됨</span> : <span className="text-gray-300 text-xs">미제출</span>}</td>
-                      <td className="text-center whitespace-nowrap">
-                        <button onClick={() => openDetail(r)} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 inline-flex items-center gap-1"><PencilLine className="w-3.5 h-3.5" /> 상세·심사</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            <div className="card"><p className="text-sm text-gray-400 py-3">접수된 공간대여 신청이 없습니다.</p></div>
+          ) : requests.map((r) => (
+            <RequestCard key={r.id} r={r} spaces={spaces}
+              onStatus={updateStatus} onDelete={removeRequest} onSaveSchedule={saveSchedule}
+              onPreview={(f) => setFileWin(f)} />
+          ))}
         </div>
       )}
 
-      {/* ── 이용결과 제출내역 ── */}
+      {/* ── 이용결과 제출내역 — 목록에서 바로 서명·사진·서류·답변 확인(다운로드·미리보기) ── */}
       {tab === "results" && (
-        <div className="card">
-          <h2 className="font-bold text-gray-800 mb-3">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({resultRequests.length})</span></h2>
+        <div className="space-y-3">
+          <div className="card">
+            <h2 className="font-bold text-gray-800">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({resultRequests.length})</span></h2>
+          </div>
           {resultRequests.length === 0 ? (
-            <p className="text-sm text-gray-400 py-3">제출된 이용결과가 없습니다.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="table-glass text-sm">
-                <thead><tr>
-                  <th className="whitespace-nowrap">제출일시</th>
-                  <th className="whitespace-nowrap">공간</th>
-                  <th className="whitespace-nowrap">대여일시</th>
-                  <th className="whitespace-nowrap">신청자</th>
-                  <th className="text-center whitespace-nowrap">이용자·서명</th>
-                  <th className="text-center whitespace-nowrap">사진</th>
-                  <th className="text-center whitespace-nowrap">설문 답변</th>
-                  <th className="text-center whitespace-nowrap">상세</th>
-                </tr></thead>
-                <tbody>
-                  {resultRequests
-                    .slice()
-                    .sort((a, b) => (b.usageResult?.submittedAt || "").localeCompare(a.usageResult?.submittedAt || ""))
-                    .map((r) => (
-                    <tr key={r.id}>
-                      <td className="whitespace-nowrap">{r.usageResult?.submittedAt ? new Date(r.usageResult.submittedAt).toLocaleString("ko-KR") : "-"}</td>
-                      <td className="font-medium whitespace-nowrap">{r.spaceName}</td>
-                      <td className="whitespace-nowrap">{r.date} {r.start}~{r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}{r.end}</td>
-                      <td className="whitespace-nowrap">{r.applicantName} <span className="text-gray-400 text-xs">{r.studentId}</span></td>
-                      <td className="text-center">{r.usageResult?.users.length ? `${r.usageResult.users.length}명` : "-"}</td>
-                      <td className="text-center">{r.usageResult?.photos.length ? `${r.usageResult.photos.length}장` : "-"}</td>
-                      <td className="text-center">{r.usageResult?.answers?.length ? `${r.usageResult.answers.length}건` : "-"}</td>
-                      <td className="text-center whitespace-nowrap">
-                        <button onClick={() => openDetail(r)} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 inline-flex items-center gap-1"><ClipboardCheck className="w-3.5 h-3.5" /> 이용결과 보기</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="text-[11px] text-gray-400 mt-2">※ ‘이용결과 보기’를 누르면 신청 상세와 함께 제출된 이용자 명단·서명·사진·설문 답변을 확인할 수 있습니다.</p>
+            <div className="card"><p className="text-sm text-gray-400 py-3">제출된 이용결과가 없습니다.</p></div>
+          ) : resultRequests
+            .slice()
+            .sort((a, b) => (b.usageResult?.submittedAt || "").localeCompare(a.usageResult?.submittedAt || ""))
+            .map((r) => <ResultCard key={r.id} r={r} onPreview={(f) => setFileWin(f)} />)}
         </div>
       )}
 
@@ -342,13 +274,13 @@ export default function SpaceRentalAdminPage() {
               </div>
             </div>
             {formKind === "apply" ? (
-              <p className="text-[11px] text-gray-400 mt-2">공간대여 <strong>신청 화면</strong>에 표시할 폼입니다. 각 항목 오른쪽의 <strong>📅 예약 연결</strong>에서 <strong>대여 장소·사용일·사용 시간·연락처</strong>를 지정하면 구글 캘린더·시트·플랫폼 캘린더에 반영됩니다. 개인정보 동의 항목도 추가·수정할 수 있습니다.</p>
+              <p className="text-[11px] text-gray-400 mt-2">공간대여 <strong>신청 화면</strong>에 표시할 폼입니다. 신청자는 이 폼으로 서류를 제출하고, <strong>대여 일정은 관리자가 신청목록에서 직접 입력</strong>해 캘린더에 반영합니다. 파일(서류 제출)·개인정보 동의 항목도 추가·수정할 수 있습니다.</p>
             ) : (
-              <p className="text-[11px] text-gray-400 mt-2"><strong>이용결과 제출</strong> 화면에 표시할 추가 설문입니다. 기본 항목(이용자 명단·서명, 이용 사진, 비고)에 더해 여기서 만든 질문이 함께 표시되며, 답변은 구글시트에 함께 기록됩니다.</p>
+              <p className="text-[11px] text-gray-400 mt-2"><strong>이용결과 제출</strong> 화면에 표시할 폼입니다. 폼을 만들면 기본 항목(이용자 명단·서명, 이용 사진, 비고) 대신 <strong>이 폼만</strong> 표시되며, 답변은 구글시트에 함께 기록됩니다.</p>
             )}
           </div>
           <div className="card">
-            <SchemaForm editable showBookingRoles={formKind === "apply"} schema={curForm || emptySchema()} accent="#6366f1" onChange={setCurForm} />
+            <SchemaForm editable schema={curForm || emptySchema()} accent="#6366f1" onChange={setCurForm} />
             <p className="text-[11px] text-gray-400 mt-3">수정한 뒤 위 <strong>‘저장’</strong>을 누르면 반영됩니다.</p>
           </div>
         </div>
@@ -356,109 +288,22 @@ export default function SpaceRentalAdminPage() {
 
       {tab === "calendar" && <SpaceCalendar />}
 
-      {/* 신청 상세·심사 모달 */}
-      {detail && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="modal-backdrop absolute inset-0" onClick={() => setDetail(null)} />
-          <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
-            <button onClick={() => setDetail(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-            <div className="flex items-center gap-2 mb-3 pr-8">
-              <h2 className="text-lg font-bold text-gray-800">공간대여 신청 상세</h2>
-              <span className={`badge ${STATUS_META[detail.status].badge}`}>{STATUS_META[detail.status].label}</span>
+      {/* 제출 서류·사진 미리보기 창 (이동·크기조절 가능, 목록 조작 유지) */}
+      {fileWin && (
+        <DraggableWindow title={fileWin.name} onClose={() => setFileWin(null)}>
+          {/\.(png|jpe?g|gif|webp)(\?|$)/i.test(fileWin.name) || fileWin.url.startsWith("data:image") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={fileWin.url} alt={fileWin.name} className="max-w-full max-h-full object-contain" />
+          ) : /\.pdf(\?|$)/i.test(fileWin.name) ? (
+            <iframe src={fileWin.url} title={fileWin.name} className="w-full h-full bg-white" style={{ border: "none" }} />
+          ) : (
+            <div className="text-center text-sm text-gray-500 space-y-3 p-6">
+              <FileText className="w-10 h-10 mx-auto text-indigo-300" />
+              <p>이 형식(HWP·오피스 문서 등)은 브라우저 미리보기를 지원하지 않습니다.<br />다운로드하여 확인해주세요.</p>
+              <a href={fileWin.url} download={fileWin.name} className="btn-primary text-sm inline-flex items-center gap-1.5"><Download className="w-4 h-4" /> {fileWin.name} 다운로드</a>
             </div>
-            {/* 신청 내용 편집 — 수정 시 구글 캘린더·시트·플랫폼 캘린더에 반영 */}
-            <div className="rounded-xl border border-gray-100 p-3 space-y-3">
-              <div>
-                <label className="label">대여 공간</label>
-                <select className="input-field" value={edit.spaceId || ""} onChange={(e) => { const s = spaces.find((x) => x.id === e.target.value); setE({ spaceId: e.target.value, spaceName: s ? s.name : edit.spaceName }); }}>
-                  {!spaces.some((s) => s.id === edit.spaceId) && <option value={edit.spaceId || ""}>{edit.spaceName || "(캘린더 등록)"}</option>}
-                  {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div><label className="label">사용일</label><input type="date" className="input-field" value={edit.date || ""} onChange={(e) => setE({ date: e.target.value })} /></div>
-                <div><label className="label">시작</label><input type="time" className="input-field" value={edit.start || ""} onChange={(e) => setE({ start: e.target.value })} /></div>
-                <div><label className="label">종료</label><input type="time" className="input-field" value={edit.end || ""} onChange={(e) => setE({ end: e.target.value })} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><label className="label">신청자</label><input className="input-field" value={edit.applicantName || ""} onChange={(e) => setE({ applicantName: e.target.value })} /></div>
-                <div><label className="label">학번/소속</label><input className="input-field" value={edit.studentId || ""} onChange={(e) => setE({ studentId: e.target.value })} /></div>
-                <div><label className="label">연락처</label><input className="input-field" value={edit.phone || ""} onChange={(e) => setE({ phone: e.target.value })} /></div>
-                <div><label className="label">이메일</label><input className="input-field" value={edit.email || ""} onChange={(e) => setE({ email: e.target.value })} /></div>
-                <div><label className="label">사용 인원</label><input type="number" min={0} className="input-field" value={edit.headcount ?? ""} onChange={(e) => setE({ headcount: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
-              </div>
-              <div><label className="label">사용 목적</label><textarea className="input-field h-16 resize-none" value={edit.purpose || ""} onChange={(e) => setE({ purpose: e.target.value })} /></div>
-              <div className="flex justify-end">
-                <button onClick={saveEdit} disabled={savingEdit} className="btn-secondary text-sm flex items-center gap-1 disabled:opacity-60"><Save className="w-4 h-4" /> {savingEdit ? "저장 중..." : "수정 저장 (캘린더·시트 반영)"}</button>
-              </div>
-              {(detail.answers && detail.answers.length > 0) && (
-                <div className="pt-2 border-t border-gray-100 text-sm space-y-1">
-                  <p className="text-[11px] font-semibold text-gray-500">신청자 추가 설문</p>
-                  {detail.answers.map((a) => (
-                    <div key={a.id} className="flex gap-3"><span className="w-28 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
-                  ))}
-                </div>
-              )}
-              <p className="text-[11px] text-gray-400">접수일시: {detail.createdAt ? new Date(detail.createdAt).toLocaleString("ko-KR") : "-"}</p>
-            </div>
-
-            {/* 보완요청 메모 */}
-            <div className="mt-4">
-              <label className="label">관리자 메모 / 보완요청 사유</label>
-              <textarea className="input-field h-20 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="보완요청 시 신청자에게 안내할 사유를 적어주세요." />
-            </div>
-
-            {/* 이용결과 제출 내용 (신청자가 사용 후 제출) */}
-            {detail.usageResult && (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
-                <p className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-1"><ClipboardList className="w-4 h-4" /> 이용결과 (제출 {detail.usageResult.submittedAt ? new Date(detail.usageResult.submittedAt).toLocaleString("ko-KR") : ""})</p>
-                {detail.usageResult.users.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-[11px] font-semibold text-gray-500 mb-1">이용자 명단 및 서명</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {detail.usageResult.users.map((u, i) => (
-                        <div key={i} className="rounded-lg border border-gray-200 bg-white p-2">
-                          <div className="text-xs font-medium text-gray-800 mb-1">{u.name}</div>
-                          {u.signature
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={u.signature} alt={`${u.name} 서명`} className="h-12 border border-gray-100 rounded bg-white" />
-                            : <span className="text-[11px] text-gray-400">서명 없음</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {detail.usageResult.photos.length > 0 && (
-                  <div className="mb-1">
-                    <p className="text-[11px] font-semibold text-gray-500 mb-1">이용 사진</p>
-                    <div className="flex flex-wrap gap-2">
-                      {detail.usageResult.photos.map((p, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <a key={i} href={p} target="_blank" rel="noopener noreferrer"><img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" /></a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {(detail.usageResult.answers && detail.usageResult.answers.length > 0) && (
-                  <div className="mb-1 text-sm space-y-0.5">
-                    {detail.usageResult.answers.map((a) => (
-                      <div key={a.id} className="flex gap-3"><span className="w-28 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
-                    ))}
-                  </div>
-                )}
-                {detail.usageResult.memo && <p className="text-xs text-gray-600 mt-1 whitespace-pre-line">비고: {detail.usageResult.memo}</p>}
-              </div>
-            )}
-
-            <div className="flex flex-wrap justify-end gap-2 mt-4">
-              <button onClick={() => removeRequest(detail.id)} className="btn-secondary text-sm text-gray-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
-              <button onClick={() => updateStatus(detail.id, "supplement", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 flex items-center gap-1"><PencilLine className="w-4 h-4" /> 보완요청</button>
-              <button onClick={() => updateStatus(detail.id, "rejected", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-rose-700 bg-rose-100 hover:bg-rose-200 flex items-center gap-1"><Ban className="w-4 h-4" /> 반려</button>
-              <button onClick={() => updateStatus(detail.id, "approved", memo)} className="btn-primary text-sm flex items-center gap-1"><Check className="w-4 h-4" /> 승인</button>
-            </div>
-            <p className="text-[11px] text-gray-400 mt-2">승인하면 플랫폼 캘린더에 즉시 반영되고, 웹훅이 설정된 경우 구글시트·캘린더에도 자동 등록됩니다. 내용을 수정하면 ‘수정 저장’으로 반영하세요.</p>
-          </div>
-        </div>
+          )}
+        </DraggableWindow>
       )}
 
       {/* 관리자 직접 신청 모달 */}
@@ -466,6 +311,188 @@ export default function SpaceRentalAdminPage() {
         <AdminApplyModal spaces={spaces} onClose={() => setApplyOpen(false)} onDone={() => { setApplyOpen(false); load(); }} />
       )}
     </AdminLayout>
+  );
+}
+
+// 제출 서류 칩 — 클릭 시 미리보기 창, 아이콘으로 다운로드
+function FileChips({ files, onPreview }: { files: RentalFile[]; onPreview: (f: { name: string; url: string }) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {files.map((f, i) => (
+        <span key={i} className="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50/60 pl-2 pr-1 py-1 text-xs">
+          <button type="button" onClick={() => onPreview({ name: f.name, url: f.url })} title="클릭하면 미리보기 창이 열립니다"
+            className="text-indigo-700 font-medium hover:underline max-w-[220px] truncate">
+            📄 {f.label ? `${f.label} · ` : ""}{f.name}
+          </button>
+          <a href={f.url} download={f.name} title="다운로드" className="text-gray-400 hover:text-indigo-600 p-0.5"><Download className="w-3.5 h-3.5" /></a>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// 신청 1건 카드 — 목록에서 바로 서류 확인·대여 일정 직접 입력·심사(승인/보완/반려/삭제)
+function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview }: {
+  r: RentalRequest;
+  spaces: RentalSpace[];
+  onStatus: (id: string, status: RentalStatus, memo?: string) => void;
+  onDelete: (id: string) => void;
+  onSaveSchedule: (id: string, edit: Partial<RentalRequest>) => Promise<boolean>;
+  onPreview: (f: { name: string; url: string }) => void;
+}) {
+  const [sch, setSch] = useState({
+    spaceId: r.spaceId || "", spaceName: r.spaceName || "",
+    date: r.date || "", endDate: r.endDate || "", start: r.start || "", end: r.end || "",
+  });
+  const [allDay, setAllDay] = useState(r.start === "00:00" && r.end === "23:59");
+  const [memo, setMemo] = useState(r.adminMemo || "");
+  const [saving, setSaving] = useState(false);
+  const hasSchedule = /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end) && !!r.spaceName;
+
+  const save = async () => {
+    const start = allDay ? "00:00" : sch.start;
+    const end = allDay ? "23:59" : sch.end;
+    if (!sch.spaceId && !sch.spaceName) return alert("대여 공간을 선택해주세요.");
+    if (!sch.date || !start || !end) return alert("사용일과 시간을 입력해주세요.");
+    if (sch.endDate && sch.endDate < sch.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
+    setSaving(true);
+    try {
+      await onSaveSchedule(r.id, { spaceId: sch.spaceId, spaceName: sch.spaceName, date: sch.date, endDate: sch.endDate || "", start, end });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="card space-y-3">
+      {/* 헤더: 상태·신청자·접수일시 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span>
+        <span className="font-bold text-gray-800">{r.applicantName || "(이름 없음)"}</span>
+        {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
+        {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
+        {r.email && <span className="text-xs text-gray-400">{r.email}</span>}
+        {r.usageResult && <span className="badge bg-emerald-100 text-emerald-700">이용결과 제출됨</span>}
+        <span className="ml-auto text-[11px] text-gray-400">접수 {r.createdAt ? new Date(r.createdAt).toLocaleString("ko-KR") : "-"}</span>
+      </div>
+
+      {/* 제출 서류 — 다운로드·미리보기 */}
+      {(r.files && r.files.length > 0) && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-500 mb-1">제출 서류 (클릭: 미리보기 · 아이콘: 다운로드)</p>
+          <FileChips files={r.files} onPreview={onPreview} />
+        </div>
+      )}
+
+      {/* 신청자 답변 */}
+      {(r.answers && r.answers.length > 0) && (
+        <div className="rounded-xl bg-gray-50/70 border border-gray-100 p-3 text-sm space-y-1">
+          {r.answers.map((a) => (
+            <div key={a.id} className="flex gap-3"><span className="w-32 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
+          ))}
+        </div>
+      )}
+      {(r.purpose || r.headcount > 0) && (
+        <p className="text-sm text-gray-600">{r.purpose && <>사용 목적: {r.purpose}</>}{r.purpose && r.headcount > 0 && " · "}{r.headcount > 0 && <>인원 {r.headcount}명</>}</p>
+      )}
+
+      {/* 대여 일정 — 관리자 직접 입력 → 캘린더 반영 */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2">
+        <p className="text-[11px] font-semibold text-indigo-700">대여 일정 (관리자 직접 입력 · 저장 시 공간대여 캘린더 반영){!hasSchedule && <span className="ml-1 text-rose-500">— 미입력</span>}</p>
+        <div className="grid sm:grid-cols-6 gap-2 items-end">
+          <div className="sm:col-span-2">
+            <label className="label !text-xs">대여 공간</label>
+            <select className="input-field !min-h-[40px]" value={sch.spaceId}
+              onChange={(e) => { const s = spaces.find((x) => x.id === e.target.value); setSch((p) => ({ ...p, spaceId: e.target.value, spaceName: s ? s.name : p.spaceName })); }}>
+              {!spaces.some((s) => s.id === sch.spaceId) && <option value={sch.spaceId}>{sch.spaceName || "공간 선택"}</option>}
+              {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div><label className="label !text-xs">시작일</label><input type="date" className="input-field !min-h-[40px]" value={sch.date} onChange={(e) => setSch((p) => ({ ...p, date: e.target.value }))} /></div>
+          <div><label className="label !text-xs">종료일(선택)</label><input type="date" className="input-field !min-h-[40px]" value={sch.endDate} min={sch.date || undefined} onChange={(e) => setSch((p) => ({ ...p, endDate: e.target.value }))} /></div>
+          <div><label className="label !text-xs">시작</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "00:00" : sch.start} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, start: e.target.value }))} /></div>
+          <div><label className="label !text-xs">종료</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "23:59" : sch.end} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, end: e.target.value }))} /></div>
+        </div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일 (00:00~23:59)
+          </label>
+          <button onClick={save} disabled={saving} className="btn-secondary text-sm flex items-center gap-1 disabled:opacity-60"><Save className="w-4 h-4" /> {saving ? "저장 중..." : "일정 저장 (캘린더 반영)"}</button>
+        </div>
+      </div>
+
+      {/* 메모 + 심사 버튼 — 목록에서 바로 처리 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="input-field flex-1 min-w-[220px] !min-h-[40px]" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="관리자 메모 / 보완요청 사유" />
+        <button onClick={() => onStatus(r.id, "approved", memo)} className="btn-primary text-sm flex items-center gap-1"><Check className="w-4 h-4" /> 승인</button>
+        <button onClick={() => onStatus(r.id, "supplement", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-orange-700 bg-orange-100 hover:bg-orange-200 flex items-center gap-1"><PencilLine className="w-4 h-4" /> 보완요청</button>
+        <button onClick={() => onStatus(r.id, "rejected", memo)} className="text-sm px-3 py-2 rounded-xl font-semibold text-rose-700 bg-rose-100 hover:bg-rose-200 flex items-center gap-1"><Ban className="w-4 h-4" /> 반려</button>
+        <button onClick={() => onDelete(r.id)} className="btn-secondary text-sm text-gray-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
+      </div>
+      <p className="text-[11px] text-gray-400">승인하면 플랫폼 캘린더에 즉시 반영되고, 웹훅이 설정된 경우 구글시트·캘린더에도 자동 등록됩니다. 일정 변경 시 ‘일정 저장’을 눌러주세요.</p>
+    </div>
+  );
+}
+
+// 이용결과 1건 카드 — 신청목록과 동일한 양식(서명·사진·서류·답변을 목록에서 바로 확인)
+function ResultCard({ r, onPreview }: { r: RentalRequest; onPreview: (f: { name: string; url: string }) => void }) {
+  const u = r.usageResult!;
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="badge bg-emerald-100 text-emerald-700">이용결과</span>
+        <span className="font-bold text-gray-800">{r.applicantName || "(이름 없음)"}</span>
+        {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
+        {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
+        <span className="text-xs text-gray-500">{r.spaceName}{r.date ? ` · ${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : ""}</span>
+        <span className="ml-auto text-[11px] text-gray-400">제출 {u.submittedAt ? new Date(u.submittedAt).toLocaleString("ko-KR") : "-"}</span>
+      </div>
+
+      {u.users.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-500 mb-1">이용자 명단 및 서명 ({u.users.length}명)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {u.users.map((x, i) => (
+              <div key={i} className="rounded-lg border border-gray-200 bg-white p-2">
+                <div className="text-xs font-medium text-gray-800 mb-1">{x.name}</div>
+                {x.signature
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={x.signature} alt={`${x.name} 서명`} className="h-10 border border-gray-100 rounded bg-white" />
+                  : <span className="text-[11px] text-gray-400">서명 없음</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {u.photos.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-500 mb-1">이용 사진 ({u.photos.length}장 · 클릭: 미리보기)</p>
+          <div className="flex flex-wrap gap-2">
+            {u.photos.map((p, i) => (
+              <button key={i} type="button" onClick={() => onPreview({ name: `이용 사진 ${i + 1}.jpg`, url: p })} className="rounded-lg overflow-hidden border border-gray-200 hover:ring-2 hover:ring-indigo-300">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p} alt="" className="w-20 h-20 object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(u.files && u.files.length > 0) && (
+        <div>
+          <p className="text-[11px] font-semibold text-gray-500 mb-1">제출 서류 (클릭: 미리보기 · 아이콘: 다운로드)</p>
+          <FileChips files={u.files} onPreview={onPreview} />
+        </div>
+      )}
+
+      {(u.answers && u.answers.length > 0) && (
+        <div className="rounded-xl bg-gray-50/70 border border-gray-100 p-3 text-sm space-y-1">
+          {u.answers.map((a) => (
+            <div key={a.id} className="flex gap-3"><span className="w-32 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
+          ))}
+        </div>
+      )}
+      {u.memo && <p className="text-xs text-gray-600 whitespace-pre-line">비고: {u.memo}</p>}
+    </div>
   );
 }
 

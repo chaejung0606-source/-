@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
+  normalizeSpaces, normalizeRequests, normalizeFiles, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
   calendarEmbedUrl, deriveBooking, normPhone,
   type BookedSlot,
 } from "@/lib/space-rental";
@@ -97,13 +97,14 @@ export async function POST(req: NextRequest) {
     const users = Array.isArray(b.users) ? b.users.filter((u: unknown) => !!u && typeof u === "object").map((u: Record<string, unknown>) => ({ name: String(u.name || "").trim(), signature: String(u.signature || "") })).filter((u: { name: string }) => u.name) : [];
     const photos = Array.isArray(b.photos) ? b.photos.map(String).filter(Boolean) : [];
     const rAnswers = Array.isArray(b.answers) ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })).filter((a: { value: string }) => a.value) : [];
+    const rFiles = normalizeFiles(b.files);
     if (!id || !phone) return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
-    if (users.length === 0 && photos.length === 0 && rAnswers.length === 0) return NextResponse.json({ ok: false, error: "이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요." }, { status: 400 });
+    if (users.length === 0 && photos.length === 0 && rAnswers.length === 0 && !rFiles) return NextResponse.json({ ok: false, error: "이용자 명단(서명)·이용 사진·설문·서류 중 하나 이상 제출해주세요." }, { status: 400 });
     const { admin, approveWebhook, requests } = await readConfig();
     const target = requests.find((r) => r.id === id);
     if (!target) return NextResponse.json({ ok: false, error: "신청 건을 찾을 수 없습니다." }, { status: 404 });
     if (!phoneMatches(target, phone)) return NextResponse.json({ ok: false, error: "신청 시 입력한 연락처와 일치하지 않습니다." }, { status: 403 });
-    const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, memo: String(b.memo || "").trim() || undefined };
+    const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, files: rFiles, memo: String(b.memo || "").trim() || undefined };
     const next = requests.map((r) => r.id === id ? { ...r, usageResult } : r);
     const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -151,8 +152,8 @@ export async function POST(req: NextRequest) {
   const spaceName = space?.name || d.spaceName || "";
 
   const hasDateTime = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end);
-  // 최소 조건: 신청자를 식별할 정보(이름) 또는 설문 답변이 하나라도 있어야 함
-  if (!applicantName && answers.length === 0) return NextResponse.json({ ok: false, error: "신청 내용을 입력해주세요." }, { status: 400 });
+  // 최소 조건: 신청자를 식별할 정보(이름)·설문 답변·제출 서류 중 하나라도 있어야 함
+  if (!applicantName && answers.length === 0 && !normalizeFiles(b.files)) return NextResponse.json({ ok: false, error: "신청 내용을 입력해주세요." }, { status: 400 });
 
   // 시간이 모두 있으면 유효성·충돌·수용인원 검증(캘린더 반영 대상)
   if (hasDateTime) {
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
   const entry = {
     id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, endDate: endDate !== date ? endDate : undefined, start, end,
     applicantName, studentId, phone: String(b.phone || d.phone || "").trim(), email: String(b.email || "").trim(),
-    purpose, headcount, answers, status: "pending" as const, createdAt: now,
+    purpose, headcount, answers, files: normalizeFiles(b.files), status: "pending" as const, createdAt: now,
   };
   const next = [entry, ...requests];
   const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
