@@ -31,6 +31,52 @@ export const DEFAULT_SPACES: RentalSpace[] = [
 export type RentalStatus = "pending" | "approved" | "rejected" | "supplement";
 // 신청자가 폼에서 업로드한 제출 서류 (신청서·명단 등)
 export interface RentalFile { name: string; url: string; label?: string; }
+// 반복 대여 일정 — 시작일 기준 매주(같은 요일)/매월(같은 일) 반복, until(포함)까지
+export interface RentalRepeat { freq: "weekly" | "monthly"; until: string; }
+export const REPEAT_LABELS: Record<RentalRepeat["freq"], string> = { weekly: "매주", monthly: "매월" };
+
+const DAY_MS = 24 * 3600 * 1000;
+const parseYmd = (s: string) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
+const fmtYmd = (t: number) => { const d = new Date(t); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`; };
+
+// 반복 설정을 실제 회차(날짜 목록)로 전개. 매월 반복에서 해당 일이 없는 달(예: 31일)은 건너뜀.
+// 폭주 방지: 최대 60회차. 반복이 없으면 시작 회차 1건만 반환.
+export function expandOccurrences(date: string, endDate: string | undefined, repeat?: RentalRepeat): { date: string; endDate?: string }[] {
+  const span = endDate && endDate !== date ? Math.max(0, Math.round((parseYmd(endDate) - parseYmd(date)) / DAY_MS)) : 0;
+  const mk = (t: number) => ({ date: fmtYmd(t), endDate: span ? fmtYmd(t + span * DAY_MS) : undefined });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [{ date, endDate: span ? endDate : undefined }];
+  const base = parseYmd(date);
+  if (!repeat || !/^\d{4}-\d{2}-\d{2}$/.test(repeat.until)) return [mk(base)];
+  const until = parseYmd(repeat.until);
+  const out = [mk(base)];
+  if (repeat.freq === "weekly") {
+    for (let k = 1; k <= 60; k++) {
+      const t = base + k * 7 * DAY_MS;
+      if (t > until) break;
+      out.push(mk(t));
+    }
+  } else {
+    const d0 = new Date(base);
+    const dom = d0.getUTCDate();
+    for (let k = 1; k <= 24; k++) {
+      const t = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + k, dom);
+      if (new Date(t).getUTCDate() !== dom) continue; // 그 일자가 없는 달은 건너뜀
+      if (t > until) break;
+      out.push(mk(t));
+    }
+  }
+  return out;
+}
+
+// 요청 본문에서 반복 설정 파싱(검증 포함)
+export function normalizeRepeat(v: unknown): RentalRepeat | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  const freq = String(o.freq || "");
+  const until = String(o.until || "");
+  if ((freq !== "weekly" && freq !== "monthly") || !/^\d{4}-\d{2}-\d{2}$/.test(until)) return undefined;
+  return { freq, until };
+}
 // 이용결과 제출 — 대여 공간 사용 후 이용자 명단·서명·이용 사진 제출
 export interface UsageUser { name: string; signature: string; } // signature: 데이터URL(그리기/업로드)
 export interface UsageResult {
@@ -53,6 +99,7 @@ export interface RentalRequest {
   answers?: { id: string; label: string; value: string }[]; // 관리자 설정 추가 설문 답변
   files?: RentalFile[]; // 신청 폼의 파일 항목으로 제출된 서류 (신청서·명단 등)
   hideFromResults?: boolean; // 신청자 이용결과 제출 목록에서 숨김 (관리자 설정)
+  repeat?: RentalRepeat;     // 반복 대여(매주/매월, 반복 종료일까지) — 관리자 입력
   status: RentalStatus;
   adminMemo?: string;
   createdAt: string;
@@ -98,6 +145,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       answers: Array.isArray(r.answers) ? (r.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined,
       files: normalizeFiles(r.files),
       hideFromResults: !!r.hideFromResults || undefined,
+      repeat: normalizeRepeat(r.repeat),
       status: (["pending", "approved", "rejected", "supplement"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,

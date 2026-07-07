@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireMenu } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, slotInt, type RentalRequest,
+  normalizeSpaces, normalizeRequests, normalizeRepeat, slotInt, type RentalRequest,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
 
@@ -145,6 +145,8 @@ export async function PATCH(req: NextRequest) {
       date: str("date", target.date), start: str("start", target.start), end: str("end", target.end),
       // 종료일: 빈 값으로 보내면 단일 일자(undefined), 값이 있으면 그 값 사용
       endDate: e.endDate != null ? (String(e.endDate) && String(e.endDate) !== str("date", target.date) ? String(e.endDate) : undefined) : target.endDate,
+      // 반복: 키가 있으면 검증 후 저장(무효/null이면 해제), 없으면 기존 유지
+      repeat: "repeat" in e ? normalizeRepeat(e.repeat) : target.repeat,
       applicantName: str("applicantName", target.applicantName), studentId: str("studentId", target.studentId),
       phone: str("phone", target.phone), email: str("email", target.email),
       purpose: str("purpose", target.purpose),

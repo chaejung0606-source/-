@@ -6,7 +6,7 @@ import DraggableWindow from "@/components/admin/DraggableWindow";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSpaceRentalForm, emptySchema } from "@/lib/form-schema";
-import type { RentalSpace, RentalRequest, RentalStatus, RentalFile } from "@/lib/space-rental";
+import { REPEAT_LABELS, type RentalSpace, type RentalRequest, type RentalStatus, type RentalFile, type RentalRepeat } from "@/lib/space-rental";
 
 const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
   pending: { label: "대기", badge: "bg-amber-100 text-amber-700" },
@@ -123,13 +123,13 @@ export default function SpaceRentalAdminPage() {
   };
 
   // 대여 일정(관리자 직접 입력) 저장 → 플랫폼 캘린더 즉시, 구글 캘린더·시트는 승인·웹훅 설정 시 반영
-  const saveSchedule = async (id: string, edit: Partial<RentalRequest>): Promise<boolean> => {
+  const saveSchedule = async (id: string, edit: Partial<Omit<RentalRequest, "repeat">> & { repeat?: RentalRepeat | null }): Promise<boolean> => {
     const res = await fetch("/api/admin/space-rental", {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, edit }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
     if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); return false; }
-    setRequests((rs) => rs.map((r) => r.id === id ? { ...r, ...edit, endDate: edit.endDate || undefined } as RentalRequest : r));
+    setRequests((rs) => rs.map((r) => r.id === id ? { ...r, ...edit, endDate: edit.endDate || undefined, repeat: edit.repeat || undefined } as RentalRequest : r));
     if (j.calendarReflected) alert("일정이 저장되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다.");
     else if (j.webhookError) alert("일정이 저장되었으나 구글 캘린더 반영에 실패했습니다.\n\n오류: " + j.webhookError + "\n\n플랫폼 캘린더에는 반영됩니다.");
     else alert("일정이 저장되었습니다. 플랫폼 캘린더에 반영됩니다.\n(구글 캘린더 반영은 승인 및 웹훅 설정 시 동작)");
@@ -365,6 +365,8 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
     spaceId: r.spaceId || "", spaceName: r.spaceName || "",
     date: r.date || "", endDate: r.endDate || "", start: r.start || "", end: r.end || "",
     purpose: r.purpose || "",
+    repeatFreq: (r.repeat?.freq || "") as "" | "weekly" | "monthly",
+    repeatUntil: r.repeat?.until || "",
   });
   const [allDay, setAllDay] = useState(r.start === "00:00" && r.end === "23:59");
   const [memo, setMemo] = useState(r.adminMemo || "");
@@ -377,9 +379,14 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
     if (!sch.spaceId && !sch.spaceName) return alert("대여 공간을 선택해주세요.");
     if (!sch.date || !start || !end) return alert("사용일과 시간을 입력해주세요.");
     if (sch.endDate && sch.endDate < sch.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
+    if (sch.repeatFreq && !sch.repeatUntil) return alert("반복 종료일을 선택해주세요.");
+    if (sch.repeatFreq && sch.repeatUntil <= sch.date) return alert("반복 종료일이 시작일보다 늦어야 합니다.");
     setSaving(true);
     try {
-      await onSaveSchedule(r.id, { spaceId: sch.spaceId, spaceName: sch.spaceName, date: sch.date, endDate: sch.endDate || "", start, end, purpose: sch.purpose });
+      await onSaveSchedule(r.id, {
+        spaceId: sch.spaceId, spaceName: sch.spaceName, date: sch.date, endDate: sch.endDate || "", start, end, purpose: sch.purpose,
+        repeat: sch.repeatFreq ? { freq: sch.repeatFreq, until: sch.repeatUntil } : null,
+      });
     } finally { setSaving(false); }
   };
 
@@ -392,6 +399,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
         {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
         {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
         {r.email && <span className="text-xs text-gray-400">{r.email}</span>}
+        {r.repeat && <span className="badge bg-violet-100 text-violet-700">{REPEAT_LABELS[r.repeat.freq]} 반복 ~{r.repeat.until}</span>}
         {r.usageResult && <span className="badge bg-emerald-100 text-emerald-700">이용결과 제출됨</span>}
         <span className="ml-auto text-[11px] text-gray-400">접수 {r.createdAt ? new Date(r.createdAt).toLocaleString("ko-KR") : "-"}</span>
       </div>
@@ -431,9 +439,25 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
           <div><label className="label !text-xs">시작</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "00:00" : sch.start} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, start: e.target.value }))} /></div>
           <div><label className="label !text-xs">종료</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "23:59" : sch.end} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, end: e.target.value }))} /></div>
         </div>
-        <div>
-          <label className="label !text-xs">사용 목적 (캘린더에 함께 표시)</label>
-          <input className="input-field !min-h-[40px] !text-sm" value={sch.purpose} onChange={(e) => setSch((p) => ({ ...p, purpose: e.target.value }))} placeholder="예: AWS Promphton 행사" />
+        <div className="grid sm:grid-cols-6 gap-2 items-end">
+          <div>
+            <label className="label !text-xs">반복</label>
+            <select className="input-field !min-h-[40px] !text-sm" value={sch.repeatFreq}
+              onChange={(e) => setSch((p) => ({ ...p, repeatFreq: e.target.value as "" | "weekly" | "monthly" }))}>
+              <option value="">반복 없음</option>
+              <option value="weekly">매주 (같은 요일)</option>
+              <option value="monthly">매월 (같은 일)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label !text-xs">반복 종료일</label>
+            <input type="date" className="input-field !min-h-[40px] !text-sm" value={sch.repeatUntil} min={sch.date || undefined}
+              disabled={!sch.repeatFreq} onChange={(e) => setSch((p) => ({ ...p, repeatUntil: e.target.value }))} />
+          </div>
+          <div className="sm:col-span-4">
+            <label className="label !text-xs">사용 목적 (캘린더에 함께 표시)</label>
+            <input className="input-field !min-h-[40px] !text-sm" value={sch.purpose} onChange={(e) => setSch((p) => ({ ...p, purpose: e.target.value }))} placeholder="예: AWS Promphton 행사" />
+          </div>
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
@@ -475,6 +499,7 @@ function ResultCard({ r, onPreview, onToggleHide, onRegistered, onDeleteFile }: 
         {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
         {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
         <span className="text-xs text-gray-500">{r.spaceName}{r.date ? ` · ${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : ""}</span>
+        {r.repeat && <span className="badge bg-violet-100 text-violet-700">{REPEAT_LABELS[r.repeat.freq]} 반복 ~{r.repeat.until}</span>}
         {u?.submittedAt && <span className="ml-auto text-[11px] text-gray-400">제출 {new Date(u.submittedAt).toLocaleString("ko-KR")}</span>}
       </div>
 
@@ -617,6 +642,8 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
   const [f, setF] = useState({ spaceId: "", date: "", endDate: "", start: "", end: "", applicantName: "", studentId: "", phone: "", email: "", headcount: "", purpose: "" });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const [allDay, setAllDay] = useState(false);
+  const [repeatFreq, setRepeatFreq] = useState<"" | "weekly" | "monthly">("");
+  const [repeatUntil, setRepeatUntil] = useState("");
   const [busy, setBusy] = useState(false);
   const start = allDay ? "00:00" : f.start;
   const end = allDay ? "23:59" : f.end;
@@ -626,11 +653,13 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
     if (!f.spaceId || !f.date || !start || !end) return alert("공간·사용일·시간을 입력해주세요.");
     if (endDate < f.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
     if (!f.applicantName.trim() || !f.studentId.trim()) return alert("신청자 이름·학번/소속을 입력해주세요.");
+    if (repeatFreq && !repeatUntil) return alert("반복 종료일을 선택해주세요.");
+    if (repeatFreq && repeatUntil <= f.date) return alert("반복 종료일이 시작일보다 늦어야 합니다.");
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, date: f.date, endDate, start, end, headcount: Number(f.headcount) || 0 }),
+        body: JSON.stringify({ ...f, date: f.date, endDate, start, end, headcount: Number(f.headcount) || 0, repeat: repeatFreq ? { freq: repeatFreq, until: repeatUntil } : undefined }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); return; }
@@ -662,6 +691,21 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer -mt-1">
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일 (00:00~23:59)
           </label>
+          {/* 반복 대여 — 매주(같은 요일)/매월(같은 일), 반복 종료일까지 회차 생성 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">반복</label>
+              <select className="input-field" value={repeatFreq} onChange={(e) => setRepeatFreq(e.target.value as "" | "weekly" | "monthly")}>
+                <option value="">반복 없음</option>
+                <option value="weekly">매주 (같은 요일)</option>
+                <option value="monthly">매월 (같은 일)</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">반복 종료일</label>
+              <input type="date" className="input-field" value={repeatUntil} min={f.date || undefined} disabled={!repeatFreq} onChange={(e) => setRepeatUntil(e.target.value)} />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">신청자 이름 <span className="text-red-500">*</span></label><input className="input-field" value={f.applicantName} onChange={(e) => set("applicantName", e.target.value)} /></div>
             <div><label className="label">학번/소속 <span className="text-red-500">*</span></label><input className="input-field" value={f.studentId} onChange={(e) => set("studentId", e.target.value)} /></div>

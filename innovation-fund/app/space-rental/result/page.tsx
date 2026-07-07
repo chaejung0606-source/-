@@ -12,6 +12,7 @@ import { surveyFields, activeQs, SurveyQuestion, type UploadedDoc } from "@/comp
 interface PublicBooking {
   id: string; spaceName: string; date: string; endDate?: string; start: string; end: string;
   applicantName?: string; studentId?: string; status: string; hasResult: boolean;
+  repeat?: { freq: "weekly" | "monthly"; until: string };
 }
 
 export default function SpaceRentalResultPage() {
@@ -202,6 +203,7 @@ export default function SpaceRentalResultPage() {
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
                     {r.date ? `${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : "일정 미정"}
+                    {r.repeat && ` · ${r.repeat.freq === "weekly" ? "매주" : "매월"} 반복(~${r.repeat.until})`}
                     {" · "}{r.status === "approved" ? "승인" : r.status === "pending" ? "대기" : r.status === "supplement" ? "보완요청" : r.status}
                     {r.hasResult ? " · 이미 제출됨(재제출 시 갱신)" : ""}
                   </div>

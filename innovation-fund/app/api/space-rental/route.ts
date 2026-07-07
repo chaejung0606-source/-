@@ -3,7 +3,8 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, normalizeFiles, fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
+  normalizeSpaces, normalizeRequests, normalizeFiles, normalizeRepeat, expandOccurrences, REPEAT_LABELS,
+  fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
   calendarEmbedUrl, deriveBooking,
   type BookedSlot,
 } from "@/lib/space-rental";
@@ -37,15 +38,16 @@ function sameSpace(a: string, b: string): boolean {
 }
 
 // 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로 (날짜·시간이 있는 건만)
+// 반복 대여(매주/매월)는 회차별 슬롯으로 전개해 캘린더·충돌검사에 모두 반영
 function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlot[] {
   return requests
     .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
-    .map((r) => ({
-      start: slotInt(r.date, r.start), end: slotInt(r.endDate || r.date, r.end),
-      // 사용 목적도 캘린더에서 확인 가능하도록 라벨에 포함
-      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})${r.purpose ? ` · ${r.purpose}` : ""}`,
+    .flatMap((r) => expandOccurrences(r.date, r.endDate, r.repeat).map((o) => ({
+      start: slotInt(o.date, r.start), end: slotInt(o.endDate || o.date, r.end),
+      // 사용 목적·반복 여부도 캘린더에서 확인 가능하도록 라벨에 포함
+      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})${r.purpose ? ` · ${r.purpose}` : ""}${r.repeat ? ` · ${REPEAT_LABELS[r.repeat.freq]} 반복` : ""}`,
       source: "request" as const, spaceName: r.spaceName,
-    }));
+    })));
 }
 
 // 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
@@ -64,7 +66,7 @@ export async function GET() {
       id: r.id, spaceName: r.spaceName, date: r.date, endDate: r.endDate, start: r.start, end: r.end,
       applicantName: r.applicantName,
       studentId: r.studentId ? r.studentId.slice(0, 4) + "*".repeat(Math.max(0, r.studentId.length - 4)) : "",
-      status: r.status, hasResult: !!r.usageResult, createdAt: r.createdAt,
+      status: r.status, hasResult: !!r.usageResult, createdAt: r.createdAt, repeat: r.repeat,
     }));
   return NextResponse.json({ spaces: publicSpaces, booked, calendarError, form, resultForm, requests: publicRequests, calendarEmbedUrl: calendarEmbedUrl(calendarId) });
 }
@@ -148,6 +150,9 @@ export async function POST(req: NextRequest) {
   // 최소 조건: 신청자를 식별할 정보(이름)·설문 답변·제출 서류 중 하나라도 있어야 함
   if (!applicantName && answers.length === 0 && !normalizeFiles(b.files)) return NextResponse.json({ ok: false, error: "신청 내용을 입력해주세요." }, { status: 400 });
 
+  // 반복 대여(관리자 직접 신청): 매주/매월 + 반복 종료일
+  const repeat = normalizeRepeat(b.repeat);
+
   // 시간이 모두 있으면 유효성·충돌·수용인원 검증(캘린더 반영 대상)
   if (hasDateTime) {
     // 종료일이 시작일보다 뒤면(여러 날 범위) 종료시간은 시작시간보다 이를 수 있음 → 날짜까지 포함해 비교
@@ -155,15 +160,18 @@ export async function POST(req: NextRequest) {
     if (reqEnd <= reqStart) return NextResponse.json({ ok: false, error: "종료 일시가 시작 일시보다 늦어야 합니다." }, { status: 400 });
     if (space?.capacity && headcount > space.capacity) return NextResponse.json({ ok: false, error: `수용 인원(${space.capacity}명)을 초과했습니다.` }, { status: 400 });
     // 같은 장소·시간대에 이미 접수(대기/승인)됐거나 캘린더에 예약된 건과 겹치면 차단.
-    // 장소가 정확히 매칭되지 않아도 장소명 기준으로 검사한다.
+    // 반복 대여는 모든 회차를 검사한다. 장소가 정확히 매칭되지 않아도 장소명 기준으로 검사.
     const targetSpaceName = space?.name || spaceName;
     if (targetSpaceName) {
       let calendar: BookedSlot[] = [];
       try { calendar = await fetchCalendarSlots(calendarId); } catch { /* 캘린더 접근 실패 시 접수건만으로 검증 */ }
       const all = [...calendar, ...requestSlots(requests)];
-      const conflict = all.find((s) => overlaps(reqStart, reqEnd, s.start, s.end)
-        && (s.source === "request" ? sameSpace(s.spaceName || "", targetSpaceName) : textMatchesSpace(s.label, targetSpaceName)));
-      if (conflict) return NextResponse.json({ ok: false, error: "이미 신청·예약된 장소·시간대입니다. 다른 시간을 선택해주세요.", conflict: conflict.label }, { status: 409 });
+      for (const o of expandOccurrences(date, endDate, repeat)) {
+        const os = slotInt(o.date, start), oe = slotInt(o.endDate || o.date, end);
+        const conflict = all.find((s) => overlaps(os, oe, s.start, s.end)
+          && (s.source === "request" ? sameSpace(s.spaceName || "", targetSpaceName) : textMatchesSpace(s.label, targetSpaceName)));
+        if (conflict) return NextResponse.json({ ok: false, error: `이미 신청·예약된 장소·시간대입니다. 다른 시간을 선택해주세요.${repeat ? ` (반복 회차 ${o.date})` : ""}`, conflict: conflict.label }, { status: 409 });
+      }
     }
   }
 
@@ -171,7 +179,7 @@ export async function POST(req: NextRequest) {
   const entry = {
     id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, endDate: endDate !== date ? endDate : undefined, start, end,
     applicantName, studentId, phone: String(b.phone || d.phone || "").trim(), email: String(b.email || "").trim(),
-    purpose, headcount, answers, files: normalizeFiles(b.files), status: "pending" as const, createdAt: now,
+    purpose, headcount, answers, files: normalizeFiles(b.files), repeat, status: "pending" as const, createdAt: now,
   };
   const next = [entry, ...requests];
   const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
