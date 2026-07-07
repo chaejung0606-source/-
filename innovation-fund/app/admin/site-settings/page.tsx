@@ -221,7 +221,7 @@ export default function SiteSettingsPage() {
         </div>
       )}
 
-      {tab === "이용안내" && <GuidePanel />}
+      {tab === "이용안내" && <GuidePanel onSiteConfigChanged={() => fetchSiteConfig().then(setConfig)} />}
 
       {tab === "파일 저장 경로" && <FileStoragePanel />}
     </AdminLayout>

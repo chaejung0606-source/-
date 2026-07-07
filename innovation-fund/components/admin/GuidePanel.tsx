@@ -5,7 +5,8 @@ import RichTextEditor from "@/components/admin/RichTextEditor";
 import { DEFAULT_GUIDE, type GuideSection } from "@/lib/guide";
 
 // 관리자: 신청자 이용안내(가이드) 편집. 저장 시 app_config('guide')에 보관되어 /guide 페이지에 즉시 반영.
-export default function GuidePanel() {
+// onSiteConfigChanged: 사이드바 링크 추가 등으로 사이트 설정이 바뀌면 부모(사이트 설정 페이지)의 상태를 새로고침
+export default function GuidePanel({ onSiteConfigChanged }: { onSiteConfigChanged?: () => void }) {
   const [sections, setSections] = useState<GuideSection[]>([]);
   const [customized, setCustomized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -14,7 +15,7 @@ export default function GuidePanel() {
 
   const load = () => {
     setLoading(true);
-    fetch("/api/admin/guide")
+    fetch("/api/admin/guide", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setSections(Array.isArray(d?.sections) ? d.sections : DEFAULT_GUIDE.sections);
@@ -51,16 +52,24 @@ export default function GuidePanel() {
   const addSidebarLink = async () => {
     setLinking(true);
     try {
-      const cfg = await fetch("/api/site-config").then((r) => r.json()).catch(() => null);
+      const cfg = await fetch("/api/site-config", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
       if (!cfg) { alert("사이트 설정을 불러오지 못했습니다."); return; }
       const links = Array.isArray(cfg.sidebarLinks) ? cfg.sidebarLinks : [];
-      if (links.some((l: { href?: string }) => (l.href || "").replace(/\/+$/, "") === "/guide")) { alert("이미 사이드바에 이용안내 링크가 있습니다."); return; }
+      if (links.some((l: { href?: string }) => (l.href || "").replace(/\/+$/, "") === "/guide")) {
+        onSiteConfigChanged?.();
+        alert("이미 사이드바에 이용안내 링크가 있습니다. ('사이드바 링크' 탭에서 확인하세요)");
+        return;
+      }
       const newLink = { id: "guide-" + Date.now(), label: "이용\n안내", href: "/guide", iconName: "BookOpen", color: "#6366f1", inWindow: true };
       const next = { ...cfg, sidebarLinks: [...links, newLink] };
       const res = await fetch("/api/site-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok && j.ok !== undefined) { alert("추가 실패: " + (j.error || res.status)); return; }
-      alert("사이드바에 '이용안내' 링크를 추가했습니다. 홈 화면 우측 바로가기에서 작은 창으로 열립니다.");
+      if (!res.ok) { alert("추가 실패: HTTP " + res.status); return; }
+      const j = await res.json().catch(() => null);
+      if (j && j.ok === false) { alert("추가 실패: " + (j.error || "")); return; }
+      // 부모(사이트 설정 페이지)의 config 상태를 새로고침 — '사이드바 링크' 탭에 바로 보이고,
+      // 이후 상단 [저장]이 옛 상태로 덮어써 링크가 사라지는 문제를 방지한다.
+      onSiteConfigChanged?.();
+      alert("사이드바에 '이용안내' 링크를 추가했습니다. '사이드바 링크' 탭과 홈 화면 우측 바로가기에서 확인하세요.");
     } finally { setLinking(false); }
   };
 

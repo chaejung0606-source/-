@@ -12,7 +12,7 @@ export default function GuidePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/guide")
+    fetch("/api/guide", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d?.sections) && d.sections.length) setSections(d.sections); })
       .catch(() => {})
