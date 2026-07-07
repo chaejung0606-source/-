@@ -87,7 +87,7 @@ export default function SpaceRentalAdminPage() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "testWebhook", approveWebhook: approveWebhook.trim() }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
-      if (j.ok) alert("✅ 웹훅 연결 성공!\n구글 캘린더에 '[웹훅 테스트]' 이벤트(내일 10~11시)가 생성되었습니다. 확인 후 삭제하세요." + (j.eventId ? `\n(eventId: ${j.eventId})` : ""));
+      if (j.ok) alert("✅ 웹훅 연결 성공!\n구글 캘린더에 '[웹훅 테스트]' 이벤트(내일 10~11시)가 생성되었습니다. 확인 후 삭제하세요." + (j.eventId ? `\n(eventId: ${j.eventId})` : "") + "\n\n⚠️ 테스트는 입력칸의 URL로 실행됩니다. 승인·일정 저장에 적용하려면 반드시 [저장] 버튼을 눌러주세요.");
       else alert("❌ 웹훅 연결 실패\n\n오류: " + (j.error || `HTTP ${res.status}`) + (j.raw ? `\n\n응답: ${j.raw}` : "") + "\n\n확인: ① URL 저장 여부 ② Apps Script 최신 코드 재배포 ③ 배포 액세스 '모든 사용자' ④ 캘린더 '일정 변경' 권한");
     } finally { setTesting(false); }
   };
