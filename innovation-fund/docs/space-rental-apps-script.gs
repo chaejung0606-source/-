@@ -95,7 +95,7 @@ function createEvent_(d) {
   if (!cal) throw new Error("캘린더를 찾을 수 없습니다. CALENDAR_ID와 권한을 확인하세요.");
   var start = parseDT_(d.date, d.start);
   var end = parseDT_(d.endDate || d.date, d.end); // 여러 날 범위면 종료일 사용
-  var title = d.title || ("[공간대여] " + (d.spaceName || ""));
+  var title = d.title || ((d.spaceName || "") + (d.applicantName ? " · " + d.applicantName : ""));
   var opts = { location: d.location || d.spaceName || "", description: d.description || "" };
   if (d.repeat && d.repeat.freq && d.repeat.until) {
     var until = parseDT_(d.repeat.until, "23:59"); // 반복 종료일 포함

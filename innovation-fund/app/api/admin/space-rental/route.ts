@@ -21,7 +21,7 @@ function calendarPayload(action: "create" | "update" | "delete", r: RentalReques
   return {
     action,
     eventId: r.calendarEventId || "",
-    title: `[공간대여] ${r.spaceName} · ${r.applicantName}`,
+    title: `${r.spaceName} · ${r.applicantName}`,
     location: r.spaceName,
     date: r.date, endDate: r.endDate || r.date, start: r.start, end: r.end,
     // repeat: Apps Script가 구글 캘린더 반복 일정(EventSeries)으로 등록하는 데 사용

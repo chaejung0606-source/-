@@ -115,7 +115,7 @@ export function slotIntToParts(n: number): { date: string; time: string } {
   const s = String(n).padStart(12, "0");
   return { date: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`, time: `${s.slice(8, 10)}:${s.slice(10, 12)}` };
 }
-// 캘린더 이벤트 제목/장소에서 공간명·신청자명 추정 ("[공간대여] {공간} · {신청자}")
+// 캘린더 이벤트 제목/장소에서 공간명·신청자명 추정 ("{공간} · {신청자}" — 구버전 "[공간대여]" 접두어는 제거)
 export function guessSpaceAndApplicant(summary: string, location: string): { spaceName: string; applicantName: string } {
   const clean = (summary || "").replace(/^\s*\[공간대여\]\s*/, "").trim();
   const parts = clean.split("·").map((s) => s.trim());
