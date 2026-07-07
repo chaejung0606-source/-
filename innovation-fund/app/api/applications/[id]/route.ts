@@ -47,6 +47,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!(await canManageApplication(session, existing))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
+  // 권한 분리: 최종 승인 금액·지급 상태는 지출관리자만 변경 가능(프로그램 관리자는 검토 상태·메모까지)
+  if (session.role !== "expense" && (body.paymentStatus !== undefined || body.approvedAmount !== undefined)) {
+    return NextResponse.json({ error: "승인 금액·지급 상태는 지출관리자만 변경할 수 있습니다." }, { status: 403 });
+  }
   const patch: Record<string, any> = {};
   if (body.reviewStatus !== undefined) patch.review_status = body.reviewStatus;
   if (body.paymentStatus !== undefined) patch.payment_status = body.paymentStatus;

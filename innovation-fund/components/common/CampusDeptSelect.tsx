@@ -15,13 +15,15 @@ export default function CampusDeptSelect({ campus, department, onCampusChange, o
   const [college, setCollege] = useState("");
   const [direct, setDirect] = useState(false);
 
-  // 초기/외부 값으로부터 단과대학·직접입력 상태 복원
+  // 초기/외부 값으로부터 단과대학·직접입력 상태 복원.
+  // 프로필·임시저장의 학과가 비동기로 늦게 채워져도 반영되도록 department 변화에도 재실행한다.
+  // 선택 진행 중(학과 비움)·직접 입력 타이핑 중에는 건드리지 않는다.
   useEffect(() => {
-    if (!department) { setCollege(""); setDirect(false); return; }
+    if (!department || direct) return;
     const c = collegeOfDept(campus, department);
     if (c) { setCollege(c); setDirect(false); }
     else { setCollege(""); setDirect(true); } // 목록에 없는 값 → 직접 입력으로 간주
-  }, [campus]);
+  }, [campus, department, direct]);
 
   const colleges = collegesFor(campus);
   const depts = deptsFor(campus, college);

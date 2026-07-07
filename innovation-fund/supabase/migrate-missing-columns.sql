@@ -48,3 +48,10 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS verified_account JSONB;
 -- 커스텀 검토/지급 상태 키 허용(체크 제약 제거)
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_review_status_check;
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_payment_status_check;
+
+-- 신청 유형에 '소학회(club)' 추가.
+-- 증상: 소학회(첨단 ICT) 신청 제출 시 "violates check constraint applications_application_type_check"(23514)로 저장 실패.
+-- 원인: 코드(ApplicationType)는 'club'을 쓰지만 기존 배포 DB의 CHECK 제약에 'club'이 없음.
+ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_application_type_check;
+ALTER TABLE applications ADD CONSTRAINT applications_application_type_check
+  CHECK (application_type IN ('program','staff','grade','contest','certificate','labor','activity','club'));
