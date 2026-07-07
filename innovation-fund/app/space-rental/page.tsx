@@ -277,6 +277,31 @@ export default function SpaceRentalPage() {
           )}
         </div>
 
+        {/* 신청서류 다운로드 */}
+        <div className="card mb-6">
+          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Download className="w-5 h-5 text-indigo-500" /> 신청서류 다운로드</h2>
+          <div className="grid sm:grid-cols-3 gap-2">
+            {[
+              { href: "/space-rental/space-rental-application-student.hwp", save: "공간 대여 신청서(학생용).hwp", label: "공간 대여 신청서", sub: "학생용" },
+              { href: "/space-rental/space-rental-application-dept.hwp", save: "공간 대여 신청서(부서·외부용).hwp", label: "공간 대여 신청서", sub: "부서·외부용" },
+              { href: "/space-rental/space-rental-user-list.hwp", save: "공간대여 명단.hwp", label: "공간대여 명단", sub: "이용자 명단·서명" },
+            ].map((d) => (
+              <a key={d.href} href={d.href} download={d.save}
+                className="rounded-xl border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-300 p-3 transition flex items-center gap-2.5">
+                <Download className="w-4 h-4 text-indigo-500 shrink-0" />
+                <span>
+                  <span className="block font-semibold text-sm text-gray-800">{d.label}</span>
+                  <span className="block text-[11px] text-gray-500">{d.sub} · HWP</span>
+                </span>
+              </a>
+            ))}
+          </div>
+          <div className="mt-3 rounded-xl bg-gray-50/80 border border-gray-100 p-3 text-xs text-gray-600 space-y-0.5">
+            <p>• <strong>신청 시 제출서류</strong>: 공간 대여 신청서 1부, 공간대여 명단 1부</p>
+            <p>• <strong>이용결과 제출서류</strong>: 공간 이용 사진 2장</p>
+          </div>
+        </div>
+
         {/* 대여일정 캘린더 — 장소·시간별 예약 현황 (플랫폼 자체 캘린더) */}
         <div className="mb-6">
           <SpaceCalendar />
