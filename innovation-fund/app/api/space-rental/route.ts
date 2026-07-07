@@ -42,7 +42,9 @@ function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlo
     .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
     .map((r) => ({
       start: slotInt(r.date, r.start), end: slotInt(r.endDate || r.date, r.end),
-      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})`, source: "request" as const, spaceName: r.spaceName,
+      // 사용 목적도 캘린더에서 확인 가능하도록 라벨에 포함
+      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})${r.purpose ? ` · ${r.purpose}` : ""}`,
+      source: "request" as const, spaceName: r.spaceName,
     }));
 }
 
@@ -75,18 +77,27 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => ({}));
 
   // ── 이용결과 제출: 신청목록에서 건을 선택해 이용자 명단·서명·사진·서류 저장 ──
+  // 본문에 없는 항목(users/photos/answers/files/memo 키 자체가 없는 경우)은 기존 제출 값을 보존한다
+  // → 관리자 직접 등록(사진·비고만 전송)이 신청자가 제출한 명단·답변·서류를 지우지 않음
   if (b.action === "submitResult") {
     const id = String(b.requestId || "");
-    const users = Array.isArray(b.users) ? b.users.filter((u: unknown) => !!u && typeof u === "object").map((u: Record<string, unknown>) => ({ name: String(u.name || "").trim(), signature: String(u.signature || "") })).filter((u: { name: string }) => u.name) : [];
-    const photos = Array.isArray(b.photos) ? b.photos.map(String).filter(Boolean) : [];
-    const rAnswers = Array.isArray(b.answers) ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })).filter((a: { value: string }) => a.value) : [];
-    const rFiles = normalizeFiles(b.files);
     if (!id) return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
-    if (users.length === 0 && photos.length === 0 && rAnswers.length === 0 && !rFiles) return NextResponse.json({ ok: false, error: "이용자 명단(서명)·이용 사진·설문·서류 중 하나 이상 제출해주세요." }, { status: 400 });
     const { admin, approveWebhook, requests } = await readConfig();
     const target = requests.find((r) => r.id === id);
     if (!target) return NextResponse.json({ ok: false, error: "신청 건을 찾을 수 없습니다." }, { status: 404 });
-    const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, files: rFiles, memo: String(b.memo || "").trim() || undefined };
+    const prev = target.usageResult;
+    const users = Array.isArray(b.users)
+      ? b.users.filter((u: unknown) => !!u && typeof u === "object").map((u: Record<string, unknown>) => ({ name: String(u.name || "").trim(), signature: String(u.signature || "") })).filter((u: { name: string }) => u.name)
+      : (prev?.users || []);
+    const photos = Array.isArray(b.photos) ? b.photos.map(String).filter(Boolean) : (prev?.photos || []);
+    const rAnswers = Array.isArray(b.answers)
+      ? b.answers.filter((a: unknown) => !!a && typeof a === "object").map((a: Record<string, unknown>) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })).filter((a: { value: string }) => a.value)
+      : (prev?.answers || []);
+    const rFiles = b.files !== undefined ? normalizeFiles(b.files) : prev?.files;
+    const memo = b.memo !== undefined ? (String(b.memo || "").trim() || undefined) : prev?.memo;
+    if (users.length === 0 && photos.length === 0 && rAnswers.length === 0 && !rFiles?.length && !memo)
+      return NextResponse.json({ ok: false, error: "이용자 명단(서명)·이용 사진·설문·서류 중 하나 이상 제출해주세요." }, { status: 400 });
+    const usageResult = { submittedAt: new Date().toISOString(), users, photos, answers: rAnswers.length ? rAnswers : undefined, files: rFiles, memo };
     const next = requests.map((r) => r.id === id ? { ...r, usageResult } : r);
     const { error } = await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: next }, { onConflict: "key" });
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

@@ -204,7 +204,13 @@ export default function SpaceRentalAdminPage() {
                   if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); return; }
                   setRequests((rs) => rs.map((x) => x.id === r.id ? { ...x, hideFromResults: hide || undefined } : x));
                 }}
-                onRegistered={load} />
+                onRegistered={load}
+                onDeleteFile={async (f) => {
+                  const res = await fetch("/api/admin/space-rental", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, removeResultFile: f.url }) });
+                  const j = await res.json().catch(() => ({ ok: false }));
+                  if (!j.ok) { alert("삭제 실패: " + (j.error || res.status)); return; }
+                  setRequests((rs) => rs.map((x) => x.id === r.id && x.usageResult ? { ...x, usageResult: { ...x.usageResult, files: (x.usageResult.files || []).filter((y) => y.url !== f.url) } } : x));
+                }} />
             ))}
         </div>
       )}
@@ -326,7 +332,7 @@ export default function SpaceRentalAdminPage() {
 }
 
 // 제출 서류 칩 — 클릭 시 미리보기 창, 아이콘으로 다운로드
-function FileChips({ files, onPreview }: { files: RentalFile[]; onPreview: (f: { name: string; url: string }) => void }) {
+function FileChips({ files, onPreview, onDelete }: { files: RentalFile[]; onPreview: (f: { name: string; url: string }) => void; onDelete?: (f: RentalFile) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {files.map((f, i) => (
@@ -336,6 +342,10 @@ function FileChips({ files, onPreview }: { files: RentalFile[]; onPreview: (f: {
             📄 {f.label ? `${f.label} · ` : ""}{f.name}
           </button>
           <a href={f.url} download={f.name} title="다운로드" className="text-gray-400 hover:text-indigo-600 p-0.5"><Download className="w-3.5 h-3.5" /></a>
+          {onDelete && (
+            <button type="button" title="서류 삭제" onClick={() => { if (confirm(`'${f.name}' 서류를 삭제하시겠습니까?`)) onDelete(f); }}
+              className="text-gray-300 hover:text-rose-500 p-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
+          )}
         </span>
       ))}
     </div>
@@ -354,6 +364,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
   const [sch, setSch] = useState({
     spaceId: r.spaceId || "", spaceName: r.spaceName || "",
     date: r.date || "", endDate: r.endDate || "", start: r.start || "", end: r.end || "",
+    purpose: r.purpose || "",
   });
   const [allDay, setAllDay] = useState(r.start === "00:00" && r.end === "23:59");
   const [memo, setMemo] = useState(r.adminMemo || "");
@@ -368,7 +379,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
     if (sch.endDate && sch.endDate < sch.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
     setSaving(true);
     try {
-      await onSaveSchedule(r.id, { spaceId: sch.spaceId, spaceName: sch.spaceName, date: sch.date, endDate: sch.endDate || "", start, end });
+      await onSaveSchedule(r.id, { spaceId: sch.spaceId, spaceName: sch.spaceName, date: sch.date, endDate: sch.endDate || "", start, end, purpose: sch.purpose });
     } finally { setSaving(false); }
   };
 
@@ -401,9 +412,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
           ))}
         </div>
       )}
-      {(r.purpose || r.headcount > 0) && (
-        <p className="text-sm text-gray-600">{r.purpose && <>사용 목적: {r.purpose}</>}{r.purpose && r.headcount > 0 && " · "}{r.headcount > 0 && <>인원 {r.headcount}명</>}</p>
-      )}
+      {r.headcount > 0 && <p className="text-sm text-gray-600">인원 {r.headcount}명</p>}
 
       {/* 대여 일정 — 관리자 직접 입력 → 캘린더 반영 */}
       <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2">
@@ -421,6 +430,10 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
           <div><label className="label !text-xs">종료일(선택)</label><input type="date" className="input-field !min-h-[40px]" value={sch.endDate} min={sch.date || undefined} onChange={(e) => setSch((p) => ({ ...p, endDate: e.target.value }))} /></div>
           <div><label className="label !text-xs">시작</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "00:00" : sch.start} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, start: e.target.value }))} /></div>
           <div><label className="label !text-xs">종료</label><input type="time" className="input-field !min-h-[40px]" value={allDay ? "23:59" : sch.end} disabled={allDay} onChange={(e) => setSch((p) => ({ ...p, end: e.target.value }))} /></div>
+        </div>
+        <div>
+          <label className="label !text-xs">사용 목적 (캘린더에 함께 표시)</label>
+          <input className="input-field !min-h-[40px] !text-sm" value={sch.purpose} onChange={(e) => setSch((p) => ({ ...p, purpose: e.target.value }))} placeholder="예: AWS Promphton 행사" />
         </div>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
@@ -444,11 +457,12 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
 }
 
 // 이용결과 1건 카드 — 승인된 건 기준. 제출 내용 확인 + 관리자 직접 등록 + 신청자 목록 숨김 + 사진 PDF
-function ResultCard({ r, onPreview, onToggleHide, onRegistered }: {
+function ResultCard({ r, onPreview, onToggleHide, onRegistered, onDeleteFile }: {
   r: RentalRequest;
   onPreview: (f: { name: string; url: string }) => void;
   onToggleHide: (hide: boolean) => Promise<void>;
   onRegistered: () => void;
+  onDeleteFile: (f: RentalFile) => void;
 }) {
   const u = r.usageResult;
   const [regOpen, setRegOpen] = useState(false);
@@ -515,8 +529,8 @@ function ResultCard({ r, onPreview, onToggleHide, onRegistered }: {
 
       {u && u.files && u.files.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold text-gray-500 mb-1">제출 서류 (클릭: 미리보기 · 아이콘: 다운로드)</p>
-          <FileChips files={u.files} onPreview={onPreview} />
+          <p className="text-[11px] font-semibold text-gray-500 mb-1">제출 서류 (클릭: 미리보기 · 아이콘: 다운로드/삭제)</p>
+          <FileChips files={u.files} onPreview={onPreview} onDelete={onDeleteFile} />
         </div>
       )}
 
@@ -532,9 +546,8 @@ function ResultCard({ r, onPreview, onToggleHide, onRegistered }: {
   );
 }
 
-// 관리자 직접 이용결과 등록 — 이용자 명단(이름)·이용 사진·비고 입력 후 저장 (기존 제출 내용은 덮어씀)
+// 관리자 직접 이용결과 등록 — 이용 사진·비고만 입력. 신청자가 제출한 명단·답변·서류는 보존된다.
 function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () => void }) {
-  const [names, setNames] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -554,13 +567,13 @@ function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () 
   };
 
   const submit = async () => {
-    const users = names.split(/[\n,]/).map((n) => n.trim()).filter(Boolean).map((n) => ({ name: n, signature: "" }));
-    if (users.length === 0 && photos.length === 0 && !memo.trim()) return alert("이용자 명단·이용 사진·비고 중 하나 이상 입력해주세요.");
+    if (photos.length === 0 && !memo.trim()) return alert("이용 사진·비고 중 하나 이상 입력해주세요.");
     setBusy(true);
     try {
+      // users/answers/files는 보내지 않음 → 서버가 기존 제출 값을 보존
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId, users, photos, answers: [], memo: memo.trim() ? `${memo.trim()} (관리자 직접 등록)` : "(관리자 직접 등록)" }),
+        body: JSON.stringify({ action: "submitResult", requestId, photos, memo: memo.trim() ? `${memo.trim()} (관리자 직접 등록)` : "(관리자 직접 등록)" }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("등록 실패: " + (j.error || res.status)); return; }
@@ -571,11 +584,7 @@ function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () 
 
   return (
     <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2.5">
-      <p className="text-[11px] font-semibold text-indigo-700">관리자 직접 등록 — 저장 시 기존 제출 내용을 대체합니다</p>
-      <div>
-        <label className="label !text-xs">이용자 명단 (쉼표 또는 줄바꿈으로 구분)</label>
-        <textarea className="input-field h-14 resize-none !text-sm" value={names} onChange={(e) => setNames(e.target.value)} placeholder="홍길동, 김철수, ..." />
-      </div>
+      <p className="text-[11px] font-semibold text-indigo-700">관리자 직접 등록 — 이용 사진·비고를 등록합니다 (신청자가 제출한 명단·답변·서류는 유지)</p>
       <div>
         <label className="label !text-xs">공간 이용 사진</label>
         <div className="flex items-center gap-2 flex-wrap">

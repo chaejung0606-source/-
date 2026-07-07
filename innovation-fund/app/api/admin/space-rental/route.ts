@@ -174,6 +174,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true, calendarReflected, webhookError });
   }
 
+  // ── 이용결과 제출 서류 삭제 (url 기준) ──
+  if (typeof b.removeResultFile === "string" && b.removeResultFile) {
+    if (!target.usageResult) return NextResponse.json({ ok: false, error: "제출된 이용결과가 없습니다." }, { status: 404 });
+    const files = (target.usageResult.files || []).filter((f) => f.url !== b.removeResultFile);
+    const next = list.map((r) => r.id === id ? { ...r, usageResult: { ...target.usageResult!, files: files.length ? files : undefined } } : r);
+    const { error } = await saveRequests(admin, next);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   // ── 상태 변경 ──
   const newStatus = ["pending", "approved", "rejected", "supplement"].includes(String(b.status)) ? String(b.status) : undefined;
   let eventId: string | undefined, webhookError: string | undefined;
