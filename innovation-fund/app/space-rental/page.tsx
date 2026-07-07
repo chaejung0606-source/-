@@ -40,16 +40,19 @@ function SurveyQuestion({ q, answers, setAnswers, docsByField, setDocsByField }:
 }) {
   const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  // 파일 항목: /api/space-rental/upload(kind=doc)로 올리고 필드별 목록에 추가
-  const uploadDoc = async (file: File) => {
-    if (!setDocsByField) return;
+  const [dragOver, setDragOver] = useState(false);
+  // 파일 항목: /api/space-rental/upload(kind=doc)로 올리고 필드별 목록에 추가 (여러 개 한꺼번에 가능)
+  const uploadDocs = async (files: File[]) => {
+    if (!setDocsByField || files.length === 0) return;
     setUploadingDoc(true);
     try {
-      const fd = new FormData(); fd.append("file", file); fd.append("kind", "doc");
-      const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("파일 업로드 실패: " + (j.error || res.status)); return; }
-      setDocsByField((m) => ({ ...m, [q.id]: [...(m[q.id] || []), { name: j.name || file.name, url: j.url }] }));
+      for (const file of files) {
+        const fd = new FormData(); fd.append("file", file); fd.append("kind", "doc");
+        const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert(`'${file.name}' 업로드 실패: ` + (j.error || res.status)); continue; }
+        setDocsByField((m) => ({ ...m, [q.id]: [...(m[q.id] || []), { name: j.name || file.name, url: j.url }] }));
+      }
     } finally { setUploadingDoc(false); }
   };
   const renderInput = () => {
@@ -63,10 +66,19 @@ function SurveyQuestion({ q, answers, setAnswers, docsByField, setDocsByField }:
               <button type="button" onClick={() => setDocsByField?.((m) => ({ ...m, [q.id]: (m[q.id] || []).filter((_, k) => k !== i) }))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
-          <label className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 cursor-pointer">
-            <Upload className="w-4 h-4" /> {uploadingDoc ? "업로드 중..." : "파일 선택 (HWP·PDF·이미지 등)"}
-            <input type="file" accept=".hwp,.hwpx,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDoc(f); e.target.value = ""; }} />
+          {/* 파일 선택 + 끌어다 놓기(드래그 앤 드롭) 모두 지원 */}
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadDocs(Array.from(e.dataTransfer.files || [])); }}
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-sm cursor-pointer transition
+              ${dragOver ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-500 hover:border-indigo-300 hover:text-indigo-600"}`}
+          >
+            <Upload className="w-5 h-5" />
+            <span className="font-medium">{uploadingDoc ? "업로드 중..." : dragOver ? "여기에 놓으면 업로드됩니다" : "파일을 끌어다 놓거나 클릭하여 선택"}</span>
+            <span className="text-[11px] text-gray-400">HWP·PDF·오피스·이미지 · 여러 개 가능 · 15MB 이하</span>
+            <input type="file" accept=".hwp,.hwpx,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" className="hidden" multiple
+              onChange={(e) => { uploadDocs(Array.from(e.target.files || [])); e.target.value = ""; }} />
           </label>
         </div>
       );
