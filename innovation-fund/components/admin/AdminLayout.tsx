@@ -18,7 +18,7 @@ const NAV = [
   { href: "/admin/site-settings", label: "사이트 설정", icon: SlidersHorizontal, expenseOnly: true },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -135,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <main className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8">{children}</main>
+        <main className={`${wide ? "max-w-none px-3 sm:px-5" : "max-w-[1440px] mx-auto px-4 sm:px-8"} py-8`}>{children}</main>
       </div>
     </div>
   );

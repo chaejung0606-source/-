@@ -259,7 +259,7 @@ export default function ApplicationsPage() {
   const unconfirmedCount = visibleApps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
 
   return (
-    <AdminLayout>
+    <AdminLayout wide>
       {/* 역할별 안내 — 대시보드/목록이 현재 관리자 기준으로 표시됨 */}
       {me && (
         <div className="mb-3 flex items-center flex-wrap gap-2 text-sm">
@@ -442,7 +442,7 @@ export default function ApplicationsPage() {
               <th className="whitespace-nowrap">이름</th>
               <th className="whitespace-nowrap">학번</th>
               <th className="whitespace-nowrap">학과</th>
-              <th className="whitespace-nowrap">신청 유형</th>
+              <th>신청 유형</th>
               <th className="text-right whitespace-nowrap">신청 금액</th>
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
@@ -475,9 +475,9 @@ export default function ApplicationsPage() {
                 </td>
                 <td className="font-mono text-xs">{app.studentId}</td>
                 <td className="text-gray-600 max-w-[120px] truncate">{app.department}</td>
-                <td className="text-xs whitespace-nowrap">
-                  <span className={`badge mr-1 ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
-                  {APPLICATION_TYPE_LABELS[app.applicationType]}
+                <td className="text-xs">
+                  <span className={`badge ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
+                  <span className="block mt-0.5">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
                 </td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
