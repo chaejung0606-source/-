@@ -185,6 +185,8 @@ export async function PATCH(req: NextRequest) {
     ...r,
     status: (newStatus || r.status) as RentalRequest["status"],
     adminMemo: b.adminMemo != null ? String(b.adminMemo) : r.adminMemo,
+    // 신청자 이용결과 제출 목록 숨김 토글
+    hideFromResults: b.hideFromResults != null ? !!b.hideFromResults || undefined : r.hideFromResults,
     calendarEventId: eventId || r.calendarEventId,
   } : r);
   const { error } = await saveRequests(admin, next);

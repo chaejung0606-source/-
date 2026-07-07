@@ -52,6 +52,7 @@ export interface RentalRequest {
   purpose: string; headcount: number;
   answers?: { id: string; label: string; value: string }[]; // 관리자 설정 추가 설문 답변
   files?: RentalFile[]; // 신청 폼의 파일 항목으로 제출된 서류 (신청서·명단 등)
+  hideFromResults?: boolean; // 신청자 이용결과 제출 목록에서 숨김 (관리자 설정)
   status: RentalStatus;
   adminMemo?: string;
   createdAt: string;
@@ -96,6 +97,7 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
       purpose: String(r.purpose || ""), headcount: Number(r.headcount) || 0,
       answers: Array.isArray(r.answers) ? (r.answers as unknown[]).filter((a): a is Record<string, unknown> => !!a && typeof a === "object").map((a) => ({ id: String(a.id || ""), label: String(a.label || ""), value: String(a.value || "") })) : undefined,
       files: normalizeFiles(r.files),
+      hideFromResults: !!r.hideFromResults || undefined,
       status: (["pending", "approved", "rejected", "supplement"].includes(String(r.status)) ? r.status : "pending") as RentalStatus,
       adminMemo: r.adminMemo ? String(r.adminMemo) : undefined,
       createdAt: String(r.createdAt || ""), applicantId: r.applicantId ? String(r.applicantId) : undefined,

@@ -57,7 +57,7 @@ export async function GET() {
   // 신청자에게는 이름·수용인원·사진만 노출 (그 외 세부정보 비공개)
   const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photos: s.photos }));
   const publicRequests = requests
-    .filter((r) => r.status !== "rejected")
+    .filter((r) => r.status !== "rejected" && !r.hideFromResults)
     .map((r) => ({
       id: r.id, spaceName: r.spaceName, date: r.date, endDate: r.endDate, start: r.start, end: r.end,
       applicantName: r.applicantName,

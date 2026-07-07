@@ -139,7 +139,8 @@ export default function SpaceRentalAdminPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
-  const resultRequests = requests.filter((r) => r.usageResult);
+  // 이용결과 제출내역: 승인된 건 전체(제출 여부 무관) + 승인 전이라도 이미 제출된 건
+  const resultRequests = requests.filter((r) => r.status === "approved" || r.usageResult);
   const TABS: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
     { key: "requests", label: "공간대여 신청목록", icon: ClipboardList },
     { key: "results", label: "이용결과 제출내역", icon: ClipboardCheck },
@@ -183,18 +184,28 @@ export default function SpaceRentalAdminPage() {
         </div>
       )}
 
-      {/* ── 이용결과 제출내역 — 목록에서 바로 서명·사진·서류·답변 확인(다운로드·미리보기) ── */}
+      {/* ── 이용결과 제출내역 — 승인된 건 표시. 관리자 직접 등록·숨김·사진 PDF·미리보기 ── */}
       {tab === "results" && (
         <div className="space-y-3">
           <div className="card">
             <h2 className="font-bold text-gray-800">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({resultRequests.length})</span></h2>
+            <p className="text-[11px] text-gray-400 mt-1">신청목록에서 <strong>승인된 건</strong>이 표시됩니다. 신청자가 제출하거나 관리자가 직접 등록할 수 있고, [신청자 목록 숨김]을 켜면 신청자 이용결과 제출 화면에 노출되지 않습니다.</p>
           </div>
           {resultRequests.length === 0 ? (
-            <div className="card"><p className="text-sm text-gray-400 py-3">제출된 이용결과가 없습니다.</p></div>
+            <div className="card"><p className="text-sm text-gray-400 py-3">승인된 공간대여 건이 없습니다.</p></div>
           ) : resultRequests
             .slice()
-            .sort((a, b) => (b.usageResult?.submittedAt || "").localeCompare(a.usageResult?.submittedAt || ""))
-            .map((r) => <ResultCard key={r.id} r={r} onPreview={(f) => setFileWin(f)} />)}
+            .sort((a, b) => (b.usageResult?.submittedAt || b.createdAt || "").localeCompare(a.usageResult?.submittedAt || a.createdAt || ""))
+            .map((r) => (
+              <ResultCard key={r.id} r={r} onPreview={(f) => setFileWin(f)}
+                onToggleHide={async (hide) => {
+                  const res = await fetch("/api/admin/space-rental", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: r.id, hideFromResults: hide }) });
+                  const j = await res.json().catch(() => ({ ok: false }));
+                  if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); return; }
+                  setRequests((rs) => rs.map((x) => x.id === r.id ? { ...x, hideFromResults: hide || undefined } : x));
+                }}
+                onRegistered={load} />
+            ))}
         </div>
       )}
 
@@ -432,21 +443,46 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
   );
 }
 
-// 이용결과 1건 카드 — 신청목록과 동일한 양식(서명·사진·서류·답변을 목록에서 바로 확인)
-function ResultCard({ r, onPreview }: { r: RentalRequest; onPreview: (f: { name: string; url: string }) => void }) {
-  const u = r.usageResult!;
+// 이용결과 1건 카드 — 승인된 건 기준. 제출 내용 확인 + 관리자 직접 등록 + 신청자 목록 숨김 + 사진 PDF
+function ResultCard({ r, onPreview, onToggleHide, onRegistered }: {
+  r: RentalRequest;
+  onPreview: (f: { name: string; url: string }) => void;
+  onToggleHide: (hide: boolean) => Promise<void>;
+  onRegistered: () => void;
+}) {
+  const u = r.usageResult;
+  const [regOpen, setRegOpen] = useState(false);
   return (
     <div className="card space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="badge bg-emerald-100 text-emerald-700">이용결과</span>
+        <span className={`badge ${u ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{u ? "이용결과 제출됨" : "이용결과 미제출"}</span>
+        <span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span>
         <span className="font-bold text-gray-800">{r.applicantName || "(이름 없음)"}</span>
         {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
         {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
         <span className="text-xs text-gray-500">{r.spaceName}{r.date ? ` · ${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : ""}</span>
-        <span className="ml-auto text-[11px] text-gray-400">제출 {u.submittedAt ? new Date(u.submittedAt).toLocaleString("ko-KR") : "-"}</span>
+        {u?.submittedAt && <span className="ml-auto text-[11px] text-gray-400">제출 {new Date(u.submittedAt).toLocaleString("ko-KR")}</span>}
       </div>
 
-      {u.users.length > 0 && (
+      {/* 관리 버튼: 사진 PDF · 직접 등록 · 신청자 목록 숨김 */}
+      <div className="flex flex-wrap items-center gap-2">
+        {u && u.photos.length > 0 && (
+          <button onClick={() => window.open(`/admin/space-rental/print?id=${r.id}`, "_blank", "noopener")}
+            className="btn-secondary text-sm flex items-center gap-1"><FileText className="w-4 h-4" /> 이용 사진 PDF</button>
+        )}
+        <button onClick={() => setRegOpen((v) => !v)} className="btn-secondary text-sm flex items-center gap-1">
+          <PencilLine className="w-4 h-4" /> {u ? "관리자 직접 수정 등록" : "관리자 직접 등록"}
+        </button>
+        <label className="ml-auto flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer rounded-lg border border-gray-200 px-2.5 py-1.5">
+          <input type="checkbox" checked={!!r.hideFromResults} onChange={(e) => onToggleHide(e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+          신청자 목록에서 숨김
+        </label>
+      </div>
+
+      {/* 관리자 직접 등록 폼 (제출된 내용을 덮어씀) */}
+      {regOpen && <AdminResultForm requestId={r.id} onDone={() => { setRegOpen(false); onRegistered(); }} />}
+
+      {u && u.users.length > 0 && (
         <div>
           <p className="text-[11px] font-semibold text-gray-500 mb-1">이용자 명단 및 서명 ({u.users.length}명)</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -463,7 +499,7 @@ function ResultCard({ r, onPreview }: { r: RentalRequest; onPreview: (f: { name:
         </div>
       )}
 
-      {u.photos.length > 0 && (
+      {u && u.photos.length > 0 && (
         <div>
           <p className="text-[11px] font-semibold text-gray-500 mb-1">이용 사진 ({u.photos.length}장 · 클릭: 미리보기)</p>
           <div className="flex flex-wrap gap-2">
@@ -477,21 +513,92 @@ function ResultCard({ r, onPreview }: { r: RentalRequest; onPreview: (f: { name:
         </div>
       )}
 
-      {(u.files && u.files.length > 0) && (
+      {u && u.files && u.files.length > 0 && (
         <div>
           <p className="text-[11px] font-semibold text-gray-500 mb-1">제출 서류 (클릭: 미리보기 · 아이콘: 다운로드)</p>
           <FileChips files={u.files} onPreview={onPreview} />
         </div>
       )}
 
-      {(u.answers && u.answers.length > 0) && (
+      {u && u.answers && u.answers.length > 0 && (
         <div className="rounded-xl bg-gray-50/70 border border-gray-100 p-3 text-sm space-y-1">
           {u.answers.map((a) => (
             <div key={a.id} className="flex gap-3"><span className="w-32 shrink-0 text-gray-500">{a.label || a.id}</span><span className="text-gray-800 break-words whitespace-pre-line">{a.value || "-"}</span></div>
           ))}
         </div>
       )}
-      {u.memo && <p className="text-xs text-gray-600 whitespace-pre-line">비고: {u.memo}</p>}
+      {u?.memo && <p className="text-xs text-gray-600 whitespace-pre-line">비고: {u.memo}</p>}
+    </div>
+  );
+}
+
+// 관리자 직접 이용결과 등록 — 이용자 명단(이름)·이용 사진·비고 입력 후 저장 (기존 제출 내용은 덮어씀)
+function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () => void }) {
+  const [names, setNames] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [memo, setMemo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadPhoto = async (files: File[]) => {
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const fd = new FormData(); fd.append("file", file);
+        const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert(`'${file.name}' 업로드 실패: ` + (j.error || res.status)); continue; }
+        setPhotos((p) => [...p, j.url]);
+      }
+    } finally { setUploading(false); }
+  };
+
+  const submit = async () => {
+    const users = names.split(/[\n,]/).map((n) => n.trim()).filter(Boolean).map((n) => ({ name: n, signature: "" }));
+    if (users.length === 0 && photos.length === 0 && !memo.trim()) return alert("이용자 명단·이용 사진·비고 중 하나 이상 입력해주세요.");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/space-rental", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submitResult", requestId, users, photos, answers: [], memo: memo.trim() ? `${memo.trim()} (관리자 직접 등록)` : "(관리자 직접 등록)" }),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("등록 실패: " + (j.error || res.status)); return; }
+      alert("이용결과가 등록되었습니다.");
+      onDone();
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2.5">
+      <p className="text-[11px] font-semibold text-indigo-700">관리자 직접 등록 — 저장 시 기존 제출 내용을 대체합니다</p>
+      <div>
+        <label className="label !text-xs">이용자 명단 (쉼표 또는 줄바꿈으로 구분)</label>
+        <textarea className="input-field h-14 resize-none !text-sm" value={names} onChange={(e) => setNames(e.target.value)} placeholder="홍길동, 김철수, ..." />
+      </div>
+      <div>
+        <label className="label !text-xs">공간 이용 사진</label>
+        <div className="flex items-center gap-2 flex-wrap">
+          {photos.map((p, i) => (
+            <div key={i} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p} alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-200" />
+              <button onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow">✕</button>
+            </div>
+          ))}
+          <label className="w-14 h-14 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex items-center justify-center text-xs text-center">
+            {uploading ? "…" : "+ 사진"}
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { uploadPhoto(Array.from(e.target.files || [])); e.target.value = ""; }} />
+          </label>
+        </div>
+      </div>
+      <div>
+        <label className="label !text-xs">비고</label>
+        <input className="input-field !min-h-[38px] !text-sm" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항" />
+      </div>
+      <div className="flex justify-end">
+        <button onClick={submit} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "등록 중..." : "이용결과 등록"}</button>
+      </div>
     </div>
   );
 }

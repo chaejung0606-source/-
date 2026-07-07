@@ -2,12 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Home as HomeIcon, CalendarClock, MapPin, Clock, Users, ChevronRight, X, ImageIcon } from "lucide-react";
-import { slotInt, overlaps, textMatchesSpace, ALL_DAY } from "@/lib/space-rental";
-import type { FormSchema, FormField } from "@/lib/form-schema";
-import { DEFAULT_CONSENT_INTRO } from "@/lib/form-schema";
+import { slotInt, overlaps, textMatchesSpace } from "@/lib/space-rental";
+import type { FormSchema } from "@/lib/form-schema";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
-import SignaturePad from "@/components/apply/SignaturePad";
-import { ClipboardCheck, Plus, Trash2, Upload, Download } from "lucide-react";
+import { ClipboardCheck, Download } from "lucide-react";
+import { surveyFields, activeQs, SurveyQuestion, type UploadedDoc } from "@/components/space-rental/Survey";
 
 interface PublicSpace { id: string; name: string; capacity?: number; photos?: string[]; }
 interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; }
@@ -17,168 +16,15 @@ const fmtSlot = (n: number) => {
   return `${s.slice(4, 6)}/${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
 };
 
-// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (개인정보동의·파일다운로드·파일 업로드 지원, 서명은 제외)
-const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent", "fileDownload", "file"];
-// 폼 파일 항목으로 업로드된 서류 (필드별)
-interface UploadedDoc { name: string; url: string; }
-function surveyFields(schema: FormSchema | null): FormField[] {
-  if (!schema?.steps) return [];
-  return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
-}
-// 드롭다운 선택에 따라 현재 노출 중인 조건부 하위질문까지 펼친 목록 (검증·저장용 — 신청폼·이용결과폼 공용)
-function activeQs(list: FormField[], answers: Record<string, string>): FormField[] {
-  return list.flatMap((q) => q.type === "select" ? [q, ...activeQs(q.branches?.[answers[q.id] || ""] || [], answers)] : [q]);
-}
-
-// 설문 항목 렌더 — 신청폼·이용결과폼 공용 (드롭다운 조건부 하위질문 재귀, 종일·범위·동의·파일다운로드·파일 업로드 지원)
-function SurveyQuestion({ q, answers, setAnswers, docsByField, setDocsByField }: {
-  q: FormField;
-  answers: Record<string, string>;
-  setAnswers: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  docsByField?: Record<string, UploadedDoc[]>;
-  setDocsByField?: React.Dispatch<React.SetStateAction<Record<string, UploadedDoc[]>>>;
-}) {
-  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  // 파일 항목: /api/space-rental/upload(kind=doc)로 올리고 필드별 목록에 추가 (여러 개 한꺼번에 가능)
-  const uploadDocs = async (files: File[]) => {
-    if (!setDocsByField || files.length === 0) return;
-    setUploadingDoc(true);
-    try {
-      for (const file of files) {
-        const fd = new FormData(); fd.append("file", file); fd.append("kind", "doc");
-        const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
-        const j = await res.json().catch(() => ({ ok: false }));
-        if (!j.ok) { alert(`'${file.name}' 업로드 실패: ` + (j.error || res.status)); continue; }
-        setDocsByField((m) => ({ ...m, [q.id]: [...(m[q.id] || []), { name: j.name || file.name, url: j.url }] }));
-      }
-    } finally { setUploadingDoc(false); }
-  };
-  const renderInput = () => {
-    if (q.type === "file") {
-      const docs = docsByField?.[q.id] || [];
-      return (
-        <div className="space-y-1.5">
-          {docs.map((d, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/70 px-3 py-2 text-sm">
-              <span className="flex-1 truncate text-gray-700">{d.name}</span>
-              <button type="button" onClick={() => setDocsByField?.((m) => ({ ...m, [q.id]: (m[q.id] || []).filter((_, k) => k !== i) }))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
-            </div>
-          ))}
-          {/* 파일 선택 + 끌어다 놓기(드래그 앤 드롭) 모두 지원 */}
-          <label
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadDocs(Array.from(e.dataTransfer.files || [])); }}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-sm cursor-pointer transition
-              ${dragOver ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-gray-300 text-gray-500 hover:border-indigo-300 hover:text-indigo-600"}`}
-          >
-            <Upload className="w-5 h-5" />
-            <span className="font-medium">{uploadingDoc ? "업로드 중..." : dragOver ? "여기에 놓으면 업로드됩니다" : "파일을 끌어다 놓거나 클릭하여 선택"}</span>
-            <span className="text-[11px] text-gray-400">HWP·PDF·오피스·이미지 · 여러 개 가능 · 15MB 이하</span>
-            <input type="file" accept=".hwp,.hwpx,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" className="hidden" multiple
-              onChange={(e) => { uploadDocs(Array.from(e.target.files || [])); e.target.value = ""; }} />
-          </label>
-        </div>
-      );
-    }
-    if (q.type === "fileDownload") return (
-      <div>
-        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line mb-1">{q.text}</p>}
-        {q.downloadUrl ? (
-          <a href={q.downloadUrl} download={q.downloadName || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
-            <Download className="w-4 h-4" /> {q.downloadName || "파일 다운로드"}
-          </a>
-        ) : <p className="text-sm text-gray-400">등록된 파일이 없습니다.</p>}
-      </div>
-    );
-    if (q.type === "longText") return <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
-    if (q.type === "select") return (
-      <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}>
-        <option value="">선택하세요</option>
-        {(q.options || []).filter((o) => o.trim()).map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    );
-    if (q.type === "agreement") return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-        {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> 동의합니다.
-        </label>
-      </div>
-    );
-    if (q.type === "privacyConsent") return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-        <p className="text-sm font-semibold text-gray-800 mb-1">{q.label || "개인정보 수집·이용 동의"} {q.required && <span className="text-red-500">*</span>}</p>
-        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.consentIntro?.trim() || DEFAULT_CONSENT_INTRO}</p>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-          <input type="checkbox" className="w-4 h-4" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> {q.consentPrivacyLabel?.trim() || "위 내용에 동의합니다."}
-        </label>
-      </div>
-    );
-    if (q.type === "time" || q.type === "datetime") {
-      const it = q.type === "time" ? "time" : "datetime-local";
-      // 종일 체크 상태는 별도 키로 추적(전송 안 됨). datetime 종일이면 날짜만 입력받아 날짜를 보존한다.
-      const allDayOn = answers["__allday__" + q.id] === "1";
-      const setAllDay = (on: boolean) => setAnswers((a) => ({ ...a, ["__allday__" + q.id]: on ? "1" : "", [q.id]: on && q.type === "time" ? ALL_DAY : "" }));
-      const [va = "", vb = ""] = (answers[q.id] || "").split("~");
-      return (
-        <div className="space-y-1.5">
-          {q.allowAllDay && (
-            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={allDayOn} onChange={(e) => setAllDay(e.target.checked)} /> 종일
-            </label>
-          )}
-          {allDayOn && q.type === "time" ? (
-            <p className="text-sm text-gray-500">종일 사용</p>
-          ) : allDayOn ? ( // datetime 종일 → 날짜만 선택
-            q.range ? (
-              <div className="flex items-center gap-2 flex-wrap"><input type="date" className="input-field" value={va} onChange={(e) => setAnswer(q.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={vb} onChange={(e) => setAnswer(q.id, `${va}~${e.target.value}`)} /></div>
-            ) : (
-              <input type="date" className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
-            )
-          ) : q.range ? (
-            <div className="flex items-center gap-2 flex-wrap"><input type={it} className="input-field" value={va} onChange={(e) => setAnswer(q.id, `${e.target.value}~${vb}`)} /><span className="text-gray-400">~</span><input type={it} className="input-field" value={vb} onChange={(e) => setAnswer(q.id, `${va}~${e.target.value}`)} /></div>
-          ) : (
-            <input type={it} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} />
-          )}
-        </div>
-      );
-    }
-    if (q.type === "date" && q.range) {
-      const [a = "", b = ""] = (answers[q.id] || "").split("~");
-      return <div className="flex items-center gap-2 flex-wrap"><input type="date" className="input-field" value={a} onChange={(e) => setAnswer(q.id, `${e.target.value}~${b}`)} /><span className="text-gray-400">~</span><input type="date" className="input-field" value={b} onChange={(e) => setAnswer(q.id, `${a}~${e.target.value}`)} /></div>;
-    }
-    return <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
-  };
-
-  const subs = q.type === "select" ? (q.branches?.[answers[q.id] || ""] || []) : [];
-  const wide = ["longText", "agreement", "privacyConsent"].includes(q.type) || subs.length > 0;
-  return (
-    <div className={wide ? "sm:col-span-2" : ""}>
-      {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
-      {renderInput()}
-      {subs.length > 0 && (
-        <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
-          {subs.map((sf) => <SurveyQuestion key={sf.id} q={sf} answers={answers} setAnswers={setAnswers} docsByField={docsByField} setDocsByField={setDocsByField} />)}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function SpaceRentalPage() {
   const [spaces, setSpaces] = useState<PublicSpace[]>([]);
   const [booked, setBooked] = useState<Booked[]>([]);
   const [calendarError, setCalendarError] = useState(false);
   const [survey, setSurvey] = useState<FormSchema | null>(null);
-  const [resultForm, setResultForm] = useState<FormSchema | null>(null);
-  const [reqList, setReqList] = useState<MyBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
-  const [resultOpen, setResultOpen] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -201,8 +47,6 @@ export default function SpaceRentalPage() {
       setBooked(Array.isArray(d.booked) ? d.booked : []);
       setCalendarError(!!d.calendarError);
       setSurvey(d.form && typeof d.form === "object" ? d.form : null);
-      setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
-      setReqList(Array.isArray(d.requests) ? d.requests : []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -305,9 +149,9 @@ export default function SpaceRentalPage() {
               <button onClick={() => openForm()} className="btn-primary flex items-center gap-1.5">
                 신청하기 <ChevronRight className="w-4 h-4" />
               </button>
-              <button onClick={() => setResultOpen(true)} className="btn-secondary flex items-center gap-1.5">
+              <Link href="/space-rental/result" className="btn-secondary flex items-center gap-1.5">
                 <ClipboardCheck className="w-4 h-4" /> 이용결과 제출
-              </button>
+              </Link>
             </div>
           )}
         </div>
@@ -477,9 +321,6 @@ export default function SpaceRentalPage() {
         ) : null}
       </div>
 
-      {/* 이용결과 제출 모달 */}
-      {resultOpen && <UsageResultModal resultForm={resultForm} requests={reqList} onClose={() => { setResultOpen(false); load(); }} />}
-
       {/* 장소 사진 보기 모달 */}
       {photoSpace && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -504,176 +345,6 @@ export default function SpaceRentalPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// 이용결과 제출 — 전체 신청목록에서 건을 선택해 이용자 명단·서명·이용 사진·서류 제출
-interface MyBooking { id: string; spaceName: string; date: string; endDate?: string; start: string; end: string; applicantName?: string; studentId?: string; status: string; hasResult: boolean; }
-function UsageResultModal({ resultForm, requests, onClose }: { resultForm: FormSchema | null; requests: MyBooking[]; onClose: () => void }) {
-  const [stage, setStage] = useState<"pick" | "form" | "done">("pick");
-  const [picked, setPicked] = useState<MyBooking | null>(null);
-  const [users, setUsers] = useState<{ name: string; signature: string }[]>([{ name: "", signature: "" }]);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [memo, setMemo] = useState("");
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [docsByField, setDocsByField] = useState<Record<string, UploadedDoc[]>>({});
-  const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const rQuestions = surveyFields(resultForm);
-  // 관리자가 이용결과 폼을 만들었으면 그 폼만 표시(기본 명단·사진·비고 블록 숨김)
-  const resultOnly = rQuestions.length > 0;
-
-  const uploadPhoto = async (file: File) => {
-    setUploading(true);
-    try {
-      const fd = new FormData(); fd.append("file", file);
-      const res = await fetch("/api/space-rental/upload", { method: "POST", body: fd });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("사진 업로드 실패: " + (j.error || res.status)); return; }
-      setPhotos((p) => [...p, j.url]);
-    } finally { setUploading(false); }
-  };
-
-  const submit = async () => {
-    if (!picked) return;
-    const cleanUsers = resultOnly ? [] : users.filter((u) => u.name.trim());
-    const cleanPhotos = resultOnly ? [] : photos;
-    // 조건부 하위질문 포함 필수 검증 (fileDownload는 입력값 없음, file은 업로드 여부 확인)
-    for (const q of activeQs(rQuestions, answers)) {
-      if (q.type === "fileDownload") continue;
-      if (q.type === "file") {
-        if (q.required && !(docsByField[q.id] || []).length) return alert(`'${q.label}' 파일을 업로드해주세요.`);
-        continue;
-      }
-      if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
-    }
-    const answerList = activeQs(rQuestions, answers)
-      .map((q) => ({ id: q.id, label: q.label, value: q.type === "file" ? (docsByField[q.id] || []).map((d) => d.name).join(", ") : (answers[q.id] || "").trim() }))
-      .filter((a) => a.value);
-    const rFiles = activeQs(rQuestions, answers).filter((q) => q.type === "file")
-      .flatMap((q) => (docsByField[q.id] || []).map((d) => ({ ...d, label: q.label })));
-    if (resultOnly) {
-      if (answerList.length === 0 && rFiles.length === 0) return alert("이용결과 항목을 입력해주세요.");
-    } else if (cleanUsers.length === 0 && cleanPhotos.length === 0 && answerList.length === 0) {
-      return alert("이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요.");
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/space-rental", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId: picked.id, users: cleanUsers, photos: cleanPhotos, answers: answerList, files: rFiles, memo: resultOnly ? "" : memo }),
-      });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
-      setStage("done");
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="modal-backdrop absolute inset-0" onClick={onClose} />
-      <div className="modal relative w-full max-w-lg max-h-[88vh] overflow-y-auto p-6">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
-        <h2 className="text-lg font-bold text-gray-800 mb-1 pr-8 flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-indigo-500" /> 이용결과 제출</h2>
-
-        {stage === "pick" && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-gray-600">신청목록에서 <strong>본인 신청 건</strong>을 찾아 [이용결과 제출]을 눌러주세요.</p>
-            {requests.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">접수된 공간대여 신청이 없습니다.</p>
-            ) : requests.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm text-gray-800 truncate">
-                    {r.spaceName || "(공간 미정)"}
-                    {r.applicantName && <span className="ml-2 font-normal text-gray-600">{r.applicantName}</span>}
-                    {r.studentId && <span className="ml-1 font-normal text-xs text-gray-400">{r.studentId}</span>}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {r.date ? `${r.date} ${r.start}~${r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}${r.end}` : "일정 미정"}
-                    {" · "}{r.status === "approved" ? "승인" : r.status === "pending" ? "대기" : r.status === "supplement" ? "보완요청" : r.status}
-                    {r.hasResult ? " · 이미 제출됨(재제출 시 갱신)" : ""}
-                  </div>
-                </div>
-                <button onClick={() => { setPicked(r); setStage("form"); }}
-                  className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-lg ${r.hasResult ? "bg-gray-100 text-gray-500 hover:bg-gray-200" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
-                  {r.hasResult ? "다시 제출" : "이용결과 제출"}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {stage === "form" && picked && (
-          <div className="mt-4 space-y-4">
-            <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3 text-sm text-gray-700">
-              <strong>{picked.spaceName}</strong> · {picked.date} {picked.start}~{picked.end}
-            </div>
-            {/* 기본 블록(이용자 명단·서명/사진/비고) — 관리자 이용결과 폼이 없을 때만 표시 */}
-            {!resultOnly && (
-              <>
-                {/* 이용자 명단 및 서명 */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="label mb-0">이용자 명단 및 서명</label>
-                    <button onClick={() => setUsers((u) => [...u, { name: "", signature: "" }])} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3.5 h-3.5" /> 이용자 추가</button>
-                  </div>
-                  <div className="space-y-3">
-                    {users.map((u, i) => (
-                      <div key={i} className="rounded-xl border border-gray-200 p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <input className="input-field flex-1" value={u.name} onChange={(e) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, name: e.target.value } : x))} placeholder="이용자 이름" />
-                          {users.length > 1 && <button onClick={() => setUsers((arr) => arr.filter((_, k) => k !== i))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>}
-                        </div>
-                        <SignaturePad onChange={(sig) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, signature: sig } : x))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {/* 이용 사진 */}
-                <div>
-                  <label className="label">대여공간 이용 사진</label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {photos.map((p, i) => (
-                      <div key={i} className="relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
-                        <button onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow">✕</button>
-                      </div>
-                    ))}
-                    <label className="w-16 h-16 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex flex-col items-center justify-center text-[11px] text-center">
-                      {uploading ? "…" : <><Upload className="w-4 h-4" />사진</>}
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
-                    </label>
-                  </div>
-                </div>
-              </>
-            )}
-            {/* 관리자가 설정한 이용결과 폼 항목 — 폼이 있으면 이것만 표시 (조건부 하위질문·종일·범위·파일다운로드 지원) */}
-            {rQuestions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} docsByField={docsByField} setDocsByField={setDocsByField} />)}
-            {!resultOnly && (
-              <div>
-                <label className="label">비고 (선택)</label>
-                <textarea className="input-field h-16 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항이 있으면 적어주세요." />
-              </div>
-            )}
-            <div className="flex justify-between">
-              <button onClick={() => setStage("pick")} className="btn-secondary text-sm">← 목록</button>
-              <button onClick={submit} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "제출 중..." : "이용결과 제출"}</button>
-            </div>
-          </div>
-        )}
-
-        {stage === "done" && (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-3">✅</div>
-            <h3 className="text-lg font-bold text-gray-800 mb-1">이용결과가 제출되었습니다.</h3>
-            <p className="text-sm text-gray-500 mb-5">제출해 주셔서 감사합니다.</p>
-            <button onClick={onClose} className="btn-primary">닫기</button>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
