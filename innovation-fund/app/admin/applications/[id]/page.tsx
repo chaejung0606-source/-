@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, DOCUMENT_TYPE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
@@ -396,151 +396,164 @@ export default function ApplicationDetailPage() {
             );
           })()}
 
-          {/* ② 신청자가 작성한 신청서 (보기 전용 — 수정 불가) */}
-          {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
-            <div className="card">
-              <h2 className="section-title">신청자가 작성한 신청서 <span className="text-xs font-normal text-gray-400">(보기 전용 · 수정 불가)</span></h2>
-              <div className="space-y-3">
-                {app.formAnswers.fields.map((f) => {
-                  const grid = f.type === "table" ? parseTableGrid(f.value) : null;
-                  const isSig = f.type === "signature";
-                  const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
-                  return (
-                    <div key={f.id}>
-                      <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
-                      {grid ? (
-                        <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
-                          {grid.map((row, r) => (
-                            <tr key={r}>{row.map((cell, c) => (
-                              <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
-                            ))}</tr>
-                          ))}
-                        </tbody></table></div>
-                      ) : isSig ? (
-                        sigImg
-                          // eslint-disable-next-line @next/next/no-img-element
-                          ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
-                          : <div className="text-sm text-gray-500">{f.value ? "서명 완료" : "미서명"}</div>
-                      ) : (
-                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
-                          {f.value || <span className="text-gray-400">미작성</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-3">※ 신청자가 제출한 신청서 내용 그대로입니다. 이 화면에서는 수정할 수 없습니다. 첨부한 파일은 아래 ‘첨부파일’에서 미리 볼 수 있습니다.</p>
-            </div>
-          )}
-
-          {/* ③ 첨부파일 (클릭하면 미리보기) */}
-          <div className="card">
-            <h2 className="section-title">첨부파일</h2>
-            {app.files.length === 0 ? (
-              <p className="text-gray-400 text-sm">첨부파일 없음</p>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {app.files.map((f) => {
-                  const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
-                  const isPdf = f.url?.startsWith("data:application/pdf") || /\.pdf$/i.test(f.name);
-                  return (
-                    <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
-                      className="rounded-2xl overflow-hidden text-left hover:ring-2 hover:ring-indigo-300 transition" style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.7)" }}>
-                      <div className="flex items-center gap-2 px-3 py-2 text-xs">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                        <span className="font-medium truncate flex-1">{f.name}</span>
-                        <span className="text-gray-400">{DOCUMENT_TYPE_LABELS[f.type]}</span>
-                      </div>
-                      <div className="bg-white/60 flex items-center justify-center" style={{ height: 160 }}>
-                        {f.url && isImage ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={f.url} alt={f.name} className="max-w-full max-h-full object-contain" />
-                        ) : f.url && isPdf ? (
-                          <span className="text-indigo-600 text-sm underline">클릭하여 미리보기</span>
-                        ) : (
-                          <span className="text-gray-400 text-xs">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ④ 기본 정보 */}
-          <div className="card">
-            <h2 className="section-title">기본 정보</h2>
-            <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-              {basicRows.map(([k, v]) => (
-                <div key={k} className="flex gap-2">
-                  <dt className="text-gray-500 min-w-[80px] flex-shrink-0">{k}</dt>
-                  <dd className="font-medium">{v}</dd>
+          {/* ② 신청자가 작성한 신청서 — 기본정보·작성 항목·첨부·계좌·상세를 신청 폼 그대로 한 카드에 (보기 전용) */}
+          {(() => {
+            // 폼 스타일 값 박스
+            const fv = (label: string, value: string) => (
+              <div key={label}>
+                <div className="text-[13px] font-semibold text-gray-700 mb-1">{label}</div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
+                  {value || <span className="text-gray-400">미작성</span>}
                 </div>
-              ))}
-            </dl>
-          </div>
-
-          {/* ⑤ 계좌 정보 (통장 사본) */}
-          <div className="card">
-            <h2 className="section-title">계좌 정보</h2>
-            <dl className="grid sm:grid-cols-3 gap-3 text-sm">
-              {([["은행", app.bankInfo.bankName], ["계좌번호", app.bankInfo.accountNumber], ["예금주", app.bankInfo.accountHolder]] as [string, string][]).map(([k, v]) => (
-                <div key={k}><dt className="text-gray-500">{k}</dt><dd className="font-medium">{v}</dd></div>
-              ))}
-            </dl>
-            {/* 통장 사본 (관리자 직접 확인용) */}
-            {(() => {
-              const bb = app.files.find((f) => f.type === "bankbook");
-              if (!bb) return <p className="mt-3 text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>;
-              const isImg = bb.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(bb.name);
+              </div>
+            );
+            const sub = (t: string) => <h3 className="text-sm font-bold text-indigo-700 mt-5 mb-2 pb-1 border-b border-indigo-100">{t}</h3>;
+            // 첨부 썸네일 — 서명처럼 인라인 표시, 클릭하면 미리보기 창
+            const fileThumb = (f: (typeof app.files)[number]) => {
+              const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
               return (
-                <div className="mt-3 rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                  <p className="text-xs font-semibold text-indigo-700 mb-2">통장 사본 — 직접 확인 후 위 ‘관리자 확인 입력’란에 계좌·예금주를 작성하세요.</p>
-                  {bb.url && isImg ? (
-                    <a href={bb.url} target="_blank" rel="noopener noreferrer" title="클릭하면 원본 크기로 보기">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={bb.url} alt="통장 사본" className="max-h-48 rounded-lg border border-gray-200 bg-white" />
-                    </a>
-                  ) : bb.url ? (
-                    <a href={bb.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm underline">통장 사본 새 창에서 보기</a>
+                <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
+                  title="클릭하면 미리보기 창이 열립니다"
+                  className="rounded-xl overflow-hidden text-left border border-gray-200 bg-white hover:ring-2 hover:ring-indigo-300 transition" style={{ width: 176 }}>
+                  {f.url && isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={f.url} alt={f.name} className="h-28 w-full object-contain bg-white" />
                   ) : (
-                    <span className="text-gray-400 text-xs">미리보기 없음</span>
+                    <div className="h-28 w-full flex flex-col items-center justify-center gap-1 text-gray-400">
+                      <FileText className="w-6 h-6 text-indigo-400" />
+                      <span className="text-indigo-600 text-[11px] underline">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
+                    </div>
+                  )}
+                  <div className="px-2 py-1 text-[11px] text-gray-600 truncate border-t border-gray-100">{f.name}</div>
+                </button>
+              );
+            };
+            // 신청폼 file 항목에 연결된 파일(파일명 접두 `{항목라벨} · `)을 인라인으로 매칭
+            const usedIds = new Set<string>();
+            const filesForField = (label: string) => {
+              const arr = app.files.filter((x) => x.name.startsWith(`${label} · `));
+              arr.forEach((x) => usedIds.add(x.id));
+              return arr;
+            };
+            const bankbook = app.files.find((f) => f.type === "bankbook");
+            if (bankbook) usedIds.add(bankbook.id);
+            const detailRows = getDetail();
+
+            return (
+              <div className="card">
+                <h2 className="section-title">신청자가 작성한 신청서 <span className="text-xs font-normal text-gray-400">(보기 전용 · 수정 불가 · 파일 클릭 시 미리보기)</span></h2>
+
+                {/* 기본 정보 */}
+                {sub("기본 정보")}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {basicRows.map(([k, v]) => fv(k, String(v ?? "")))}
+                </div>
+
+                {/* 신청 내용 (신청자가 폼에 작성한 항목 그대로) */}
+                {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
+                  <>
+                    {sub("신청 내용")}
+                    <div className="space-y-3">
+                      {app.formAnswers.fields.map((f) => {
+                        const grid = f.type === "table" ? parseTableGrid(f.value) : null;
+                        const isSig = f.type === "signature";
+                        const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
+                        const inlineFiles = f.type === "file" ? filesForField(f.label) : [];
+                        return (
+                          <div key={f.id}>
+                            <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
+                            {grid ? (
+                              <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
+                                {grid.map((row, r) => (
+                                  <tr key={r}>{row.map((cell, c) => (
+                                    <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
+                                  ))}</tr>
+                                ))}
+                              </tbody></table></div>
+                            ) : isSig ? (
+                              sigImg
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
+                                : <div className="text-sm text-gray-500">{f.value ? "서명 완료" : "미서명"}</div>
+                            ) : f.type === "file" ? (
+                              inlineFiles.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">{inlineFiles.map(fileThumb)}</div>
+                              ) : (
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" style={{ minHeight: 38 }}>{f.value || "첨부 없음"}</div>
+                              )
+                            ) : (
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
+                                {f.value || <span className="text-gray-400">미작성</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* 신청 상세 내용 (유형별 고정 양식 항목·비용 내역) */}
+                {detailRows.length > 0 && (
+                  <>
+                    {sub("신청 상세 내용")}
+                    <div className="space-y-3">
+                      {detailRows.map(([k, v]) => fv(k, String(v ?? "")))}
+                    </div>
+                  </>
+                )}
+
+                {/* 계좌 정보 + 통장 사본 */}
+                {sub("계좌 정보")}
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {fv("은행", app.bankInfo.bankName)}
+                  {fv("계좌번호", app.bankInfo.accountNumber)}
+                  {fv("예금주", app.bankInfo.accountHolder)}
+                </div>
+                <div className="mt-2">
+                  <div className="text-[13px] font-semibold text-gray-700 mb-1">통장 사본</div>
+                  {bankbook ? (
+                    <div className="flex flex-wrap gap-2">{fileThumb(bankbook)}</div>
+                  ) : (
+                    <p className="text-xs text-amber-600">※ 제출된 통장 사본이 없습니다.</p>
                   )}
                 </div>
-              );
-            })()}
-          </div>
 
-          {/* ⑥ 신청 상세 내용 (금액 등) */}
-          <div className="card">
-            <h2 className="section-title">신청 상세 내용</h2>
-            <dl className="space-y-2 text-sm">
-              {getDetail().map(([k, v]) => (
-                <div key={k} className="flex gap-2">
-                  <dt className="text-gray-500 min-w-[100px] flex-shrink-0">{k}</dt>
-                  <dd className="font-medium min-w-0 flex-1 break-all whitespace-pre-line">{v}</dd>
+                {/* 기타 첨부파일 (위 항목에 표시되지 않은 파일) */}
+                {(() => {
+                  const rest = app.files.filter((f) => !usedIds.has(f.id));
+                  if (rest.length === 0) return null;
+                  return (
+                    <>
+                      {sub("첨부파일")}
+                      <div className="flex flex-wrap gap-2">{rest.map(fileThumb)}</div>
+                    </>
+                  );
+                })()}
+
+                {/* 금액 */}
+                <div className="mt-5 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <dt className="text-gray-500">신청 금액</dt>
+                    <dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">자동 산정 금액</dt>
+                    <dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd>
+                  </div>
+                  {app.approvedAmount !== undefined && (
+                    <div>
+                      <dt className="text-gray-500">최종 승인 금액</dt>
+                      <dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </dl>
-            <div className="mt-4 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">
-              <div>
-                <dt className="text-gray-500">신청 금액</dt>
-                <dd className="font-bold text-gray-800">{app.requestAmount.toLocaleString()}원</dd>
+
+                <p className="text-[11px] text-gray-400 mt-3">※ 신청자가 제출한 신청서 내용 그대로입니다(수정 불가). 파일·서명은 클릭하면 미리보기 창이 열립니다.</p>
               </div>
-              <div>
-                <dt className="text-gray-500">자동 산정 금액</dt>
-                <dd className="font-bold text-primary-700">{app.calculatedAmount.toLocaleString()}원</dd>
-              </div>
-              {app.approvedAmount !== undefined && (
-                <div>
-                  <dt className="text-gray-500">최종 승인 금액</dt>
-                  <dd className="font-bold text-green-700">{app.approvedAmount.toLocaleString()}원</dd>
-                </div>
-              )}
-            </div>
-          </div>
+            );
+          })()}
+
         </div>
 
         <div className="space-y-4">
