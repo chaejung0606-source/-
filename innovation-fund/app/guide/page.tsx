@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Home as HomeIcon } from "lucide-react";
 import { DEFAULT_GUIDE, type GuideSection } from "@/lib/guide";
+import ApplyGuideDynamic from "@/components/home/ApplyGuideDynamic";
 
 // 신청자 이용안내 — 사이드바 '이용안내'에서 플랫폼 작은 창(iframe)으로 열리고, 직접 접속(/guide)도 가능.
 // 내용은 관리자 페이지(사이트 설정 → 이용안내)에서 편집. 미설정 시 코드 기본값 표시.
@@ -40,6 +41,13 @@ export default function GuidePage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-5">
+        {/* 신청 방법 — 유형별 상세 (현재 프로그램·신청폼에서 실시간 자동 생성) */}
+        <section id="apply-guide" className="scroll-mt-16 mb-8">
+          <h2 className="text-lg font-extrabold text-gray-900 mb-1">🧭 신청 방법 — 유형별 상세 안내</h2>
+          <p className="text-[13px] text-gray-500 mb-3">무엇을 어디서 클릭하고, 무엇을 작성하며, 어떤 서류를 내야 하는지 안내합니다.</p>
+          <ApplyGuideDynamic />
+        </section>
+
         {loading ? (
           <p className="text-sm text-gray-400 py-10 text-center">불러오는 중...</p>
         ) : sections.length === 0 ? (
@@ -51,6 +59,7 @@ export default function GuidePage() {
               <nav className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 mb-5">
                 <div className="text-xs font-semibold text-gray-500 mb-1.5">목차</div>
                 <ul className="space-y-0.5">
+                  <li><a href="#apply-guide" className="text-sm text-indigo-600 hover:underline">🧭 신청 방법 — 유형별 상세 안내</a></li>
                   {sections.map((s) => (
                     <li key={s.id}>
                       <a href={`#${s.id}`} className="text-sm text-indigo-600 hover:underline">{s.title}</a>
