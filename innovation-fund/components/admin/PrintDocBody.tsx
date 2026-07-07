@@ -72,7 +72,11 @@ function typeDetailRows(app: Application): [string, string][] {
         rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${c.mdProgramId ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`).join(", ")]);
         rows.push(["총 이수 학점", `${total}학점`], ["MD 학점 불인정", `-${mdEx}학점`]);
       }
-      rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)], ["이수 MD 과정", d.minorMdName || "-"]);
+      rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)]);
+      if (d.minorGradDate) rows.push(["졸업(예정) 시기", `${d.minorGradDate.slice(0, 4)}년 ${Number(d.minorGradDate.slice(5))}월`]);
+      rows.push(["이수 MD 과정", d.minorMdName || "-"]);
+      const yrs = Object.values(d.minorMdYears || {});
+      if (yrs.length) rows.push(["MD 발급 학년도", yrs.map((yr) => `${yr}학년도${yr === "2026" ? "(개편)" : ""}`).join(", ")]);
     }
     return rows;
   }

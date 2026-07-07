@@ -368,6 +368,18 @@ export interface GradeDetail {
   minorIsMirae?: boolean;        // 미래융합가상학과 이수(예정)자
   minorMdCompleted?: boolean;    // MD 1개 이상 이수 (과목 MD 지정 시 자동)
   minorMdName?: string;          // 이수한 MD 과정명(들, 자동 집계)
+  minorGradDate?: string;        // 졸업(예정) 시기 "YYYY-MM" (2월/8월)
+  minorMdYears?: Record<string, string>; // MD 과정 id → 발급 학년도("2025" | "2026")
+}
+
+// 부/복수전공 성적우수 MD 인정 기준 (세부지침 2026-07-07 개정, 제7조 ②)
+// - 2027년 2월 졸업(예정)자까지: 2025학년도 발급 MD 인정 (학점 불인정 없음)
+// - 2027년 8월 졸업(예정)자부터: 2026학년도 개편(총장명의) MD만 인정 (2025학년도 MD 불인정)
+export const MD_2026_REQUIRED_FROM = "2027-08";
+export function isMdYearRecognized(gradDate: string | undefined, mdYear: string | undefined): boolean {
+  if (!gradDate || !mdYear) return false;               // 졸업 시기·발급 학년도 미선택 시 판정 불가
+  if (gradDate < MD_2026_REQUIRED_FROM) return true;    // 2027년 2월 졸업까지: 2025·2026 모두 인정
+  return mdYear === "2026";                             // 2027년 8월 졸업부터: 2026학년도 개편 MD만
 }
 
 export interface ContestDetail {

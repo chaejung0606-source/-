@@ -10,6 +10,7 @@ import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
+import { getProgramById } from "@/lib/md-courses";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -242,7 +243,11 @@ export default function ApplicationDetailPage() {
             : "-"],
           ["인정 이수 학점", `${g.minorMajorCredits ?? g.credits}학점 (기준 ${g.subType === "minor" ? 21 : 36}학점)`],
           ["평점 평균", `${g.gpa} / 4.5`],
+          ["졸업(예정) 시기", g.minorGradDate ? `${g.minorGradDate.slice(0, 4)}년 ${Number(g.minorGradDate.slice(5))}월` : "-"],
           ["마이크로디그리(MD) 이수", g.minorMdCompleted ? `이수${g.minorMdName ? ` — ${g.minorMdName}` : ""}` : "미이수"],
+          ["MD 발급 학년도", Object.keys(g.minorMdYears || {}).length
+            ? Object.entries(g.minorMdYears || {}).map(([id, yr]) => `${getProgramById(id)?.name || id}: ${yr}학년도${yr === "2026" ? "(개편)" : ""}`).join("\n")
+            : "-"],
         );
       }
       return rows;
