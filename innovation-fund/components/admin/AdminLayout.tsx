@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Shield, FileText, Settings, Home, Menu, X, MessageCircle, Globe, BookOpen, Mail, Phone, CalendarRange, ListChecks, SlidersHorizontal, LogOut, Users, GraduationCap, Award, UserCog, CalendarClock } from "lucide-react";
+import { lockGate } from "@/lib/pw-gate";
 
 // expenseOnly: 지출관리자(전체 권한)만 보이는 메뉴. 프로그램별 관리자는 '신청 목록'만.
 // 일부 기능은 상위 메뉴 탭으로 통합됨:
@@ -68,7 +69,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setDrawerOpen(false)}
+              // 메뉴 클릭 시 비밀번호 게이트 잠금 초기화 — '메뉴를 클릭했을 때만' 재확인,
+              // 메뉴 안에서의 이동(목록↔상세 등)은 다시 묻지 않는다.
+              onClick={() => { setDrawerOpen(false); lockGate(item.href); }}
               className={`sidebar-item ${isActive(item.href) ? "active" : ""}`}
             >
               <Icon className="w-[18px] h-[18px]" />

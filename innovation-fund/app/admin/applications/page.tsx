@@ -8,16 +8,19 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { buildExportName } from "@/lib/export-settings";
 import { type StatusConfig, DEFAULT_STATUS_CONFIG, statusMeta } from "@/lib/status-config";
 import { fetchPrograms, type Program } from "@/lib/programs";
+import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 
 // 신청 건의 프로그램명 추출
 const progNameOf = (a: Application): string =>
   a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName || a.staffDetail?.programName || "";
 
 export default function ApplicationsPage() {
-  // 신청 목록 진입 비밀번호 게이트 (진입 시마다 재확인 — 세션 저장 안 함)
+  // 신청 목록 비밀번호 게이트 — 좌측 메뉴 클릭 시에만 재확인.
+  // 메뉴 안에서의 이동(목록↔상세)은 sessionStorage 플래그로 통과 유지(lib/pw-gate).
   const [unlocked, setUnlocked] = useState(false);
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
+  useEffect(() => { if (isGateUnlocked("/admin/applications")) setUnlocked(true); }, []);
   // 현재 관리자 세션(역할/아이디/담당 프로그램)
   const [me, setMe] = useState<{ role: "expense" | "program"; id: string; programIds: string[] } | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -35,7 +38,7 @@ export default function ApplicationsPage() {
     setGateErr("");
     const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loginId: me?.id || "", password: gatePw }) });
     const j = await res.json().catch(() => ({ success: false }));
-    if (j.success) { setUnlocked(true); setGatePw(""); }
+    if (j.success) { setUnlocked(true); setGatePw(""); unlockGate("/admin/applications"); }
     else setGateErr("비밀번호가 올바르지 않습니다.");
   };
 
@@ -229,7 +232,7 @@ export default function ApplicationsPage() {
       <div className="max-w-sm mx-auto mt-16 card text-center">
         <div className="glass-pill w-14 h-14 flex items-center justify-center mx-auto mb-3"><Lock className="w-7 h-7 text-indigo-600" /></div>
         <h1 className="text-lg font-bold text-gray-800 mb-1">신청 목록 접근 확인</h1>
-        <p className="text-sm text-gray-500 mb-4">신청자 개인정보 보호를 위해 관리자 비밀번호를 다시 입력해주세요.</p>
+        <p className="text-sm text-gray-500 mb-4">신청자 개인정보 보호를 위해 관리자 비밀번호를 입력해주세요. (메뉴를 클릭해 들어올 때만 확인합니다)</p>
         <form onSubmit={tryUnlock} className="space-y-3">
           <input type="password" className="input-field" value={gatePw} onChange={(e) => setGatePw(e.target.value)} placeholder="관리자 비밀번호" autoFocus />
           {gateErr && <p className="text-red-500 text-sm">{gateErr}</p>}
