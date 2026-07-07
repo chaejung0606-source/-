@@ -17,119 +17,25 @@ const fmtSlot = (n: number) => {
   return `${s.slice(4, 6)}/${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
 };
 
-// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (표준 블록 중 개인정보동의만 지원, 파일·서명 등은 제외)
-const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent"];
+// 관리자가 설정한 설문 폼에서 신청자에게 보여줄 항목 (표준 블록 중 개인정보동의·파일다운로드 지원, 파일 업로드·서명은 제외)
+const ANSWERABLE: FormField["type"][] = ["shortText", "longText", "number", "date", "time", "datetime", "select", "agreement", "privacyConsent", "fileDownload"];
 function surveyFields(schema: FormSchema | null): FormField[] {
   if (!schema?.steps) return [];
   return schema.steps.flatMap((s) => s.fields || []).filter((f) => ANSWERABLE.includes(f.type));
 }
+// 드롭다운 선택에 따라 현재 노출 중인 조건부 하위질문까지 펼친 목록 (검증·저장용 — 신청폼·이용결과폼 공용)
+function activeQs(list: FormField[], answers: Record<string, string>): FormField[] {
+  return list.flatMap((q) => q.type === "select" ? [q, ...activeQs(q.branches?.[answers[q.id] || ""] || [], answers)] : [q]);
+}
 
-export default function SpaceRentalPage() {
-  const [spaces, setSpaces] = useState<PublicSpace[]>([]);
-  const [booked, setBooked] = useState<Booked[]>([]);
-  const [calendarError, setCalendarError] = useState(false);
-  const [survey, setSurvey] = useState<FormSchema | null>(null);
-  const [resultForm, setResultForm] = useState<FormSchema | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
-  const [resultOpen, setResultOpen] = useState(false);
-  const formRef = useRef<HTMLDivElement>(null);
-
-  const [form, setForm] = useState({
-    spaceId: "", date: "", start: "", end: "",
-    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "",
-  });
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  // 관리자 설정 설문 답변 (fieldId → 값)
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+// 설문 항목 렌더 — 신청폼·이용결과폼 공용 (드롭다운 조건부 하위질문 재귀, 종일·범위·동의·파일다운로드 지원)
+function SurveyQuestion({ q, answers, setAnswers }: {
+  q: FormField;
+  answers: Record<string, string>;
+  setAnswers: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}) {
   const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const questions = useMemo(() => surveyFields(survey), [survey]);
-  // 드롭다운 선택에 따라 현재 노출 중인 조건부 하위질문까지 펼친 목록 (검증·저장용)
-  const activeQs = (list: FormField[]): FormField[] =>
-    list.flatMap((q) => q.type === "select" ? [q, ...activeQs(q.branches?.[answers[q.id] || ""] || [])] : [q]);
-
-  const load = () => {
-    setLoading(true);
-    fetch("/api/space-rental").then((r) => r.json()).then((d) => {
-      setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
-      setBooked(Array.isArray(d.booked) ? d.booked : []);
-      setCalendarError(!!d.calendarError);
-      setSurvey(d.form && typeof d.form === "object" ? d.form : null);
-      setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
-    }).catch(() => {}).finally(() => setLoading(false));
-  };
-  useEffect(load, []);
-
-  const openForm = (spaceId?: string) => {
-    if (spaceId) set("spaceId", spaceId);
-    setShowForm(true);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  };
-
-  const space = spaces.find((s) => s.id === form.spaceId);
-
-  const daySlots = useMemo(() => {
-    if (!space || !form.date) return [];
-    const dayPrefix = Number(form.date.replace(/-/g, "") + "0000");
-    const dayEnd = dayPrefix + 2400;
-    return booked
-      .filter((b) => b.start < dayEnd && b.end > dayPrefix)
-      .filter((b) => b.source === "request" ? b.spaceName === space.name : textMatchesSpace(b.label, space.name))
-      .sort((a, b) => a.start - b.start);
-  }, [booked, space, form.date]);
-
-  const conflict = useMemo(() => {
-    if (!space || !form.date || !form.start || !form.end) return null;
-    const rs = slotInt(form.date, form.start), re = slotInt(form.date, form.end);
-    if (re <= rs) return null;
-    return daySlots.find((b) => overlaps(rs, re, b.start, b.end)) || null;
-  }, [space, form.date, form.start, form.end, daySlots]);
-
-  const timeInvalid = !!(form.start && form.end && slotInt(form.date, form.end) <= slotInt(form.date, form.start));
-  const overCap = !!(space?.capacity && Number(form.headcount) > space.capacity);
-  // 관리자가 신청폼을 만들었으면 그 폼만 표시(완전히 관리자 폼). 없으면 기본 폼.
-  const formOnly = questions.length > 0;
-
-  const answerList = () => activeQs(questions)
-    .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
-    .filter((a) => a.value);
-
-  const submit = async () => {
-    // 필수 설문 항목 검증(공통) — 현재 노출 중인 조건부 하위질문 포함
-    for (const q of activeQs(questions)) {
-      if (q.type === "fileDownload") continue; // 다운로드 제공 항목은 입력값이 없음
-      if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
-    }
-    setBusy(true);
-    try {
-      // 관리자 폼만: 답변만 전송(서버가 bookingRole 태그로 장소·날짜·시간 추출)
-      // 기본 폼: 기존 필드 + 답변 전송
-      const body = formOnly
-        ? { answers: answerList() }
-        : { ...form, headcount: Number(form.headcount) || 0, answers: answerList() };
-      if (!formOnly) {
-        if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
-        if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
-        if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
-        if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
-        if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
-        if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
-      }
-      const res = await fetch("/api/space-rental", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-      });
-      const j = await res.json().catch(() => ({ ok: false }));
-      if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
-      setDone(true);
-    } finally { setBusy(false); }
-  };
-
-  // 설문 항목 입력 컨트롤 렌더
-  const renderInput = (q: FormField) => {
+  const renderInput = () => {
     if (q.type === "fileDownload") return (
       <div>
         {q.text && <p className="text-xs text-gray-600 whitespace-pre-line mb-1">{q.text}</p>}
@@ -200,21 +106,120 @@ export default function SpaceRentalPage() {
     return <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />;
   };
 
-  // 설문 항목 렌더 (드롭다운은 선택값에 따른 조건부 하위질문까지 재귀 렌더)
-  const renderQ = (q: FormField) => {
-    const subs = q.type === "select" ? (q.branches?.[answers[q.id] || ""] || []) : [];
-    const wide = ["longText", "agreement", "privacyConsent"].includes(q.type) || subs.length > 0;
-    return (
-      <div key={q.id} className={wide ? "sm:col-span-2" : ""}>
-        {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
-        {renderInput(q)}
-        {subs.length > 0 && (
-          <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
-            {subs.map((sf) => renderQ(sf))}
-          </div>
-        )}
-      </div>
-    );
+  const subs = q.type === "select" ? (q.branches?.[answers[q.id] || ""] || []) : [];
+  const wide = ["longText", "agreement", "privacyConsent"].includes(q.type) || subs.length > 0;
+  return (
+    <div className={wide ? "sm:col-span-2" : ""}>
+      {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
+      {renderInput()}
+      {subs.length > 0 && (
+        <div className="mt-3 ml-3 pl-3 border-l-2 border-indigo-200 space-y-4">
+          {subs.map((sf) => <SurveyQuestion key={sf.id} q={sf} answers={answers} setAnswers={setAnswers} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function SpaceRentalPage() {
+  const [spaces, setSpaces] = useState<PublicSpace[]>([]);
+  const [booked, setBooked] = useState<Booked[]>([]);
+  const [calendarError, setCalendarError] = useState(false);
+  const [survey, setSurvey] = useState<FormSchema | null>(null);
+  const [resultForm, setResultForm] = useState<FormSchema | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [photoSpace, setPhotoSpace] = useState<PublicSpace | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  const [form, setForm] = useState({
+    spaceId: "", date: "", start: "", end: "",
+    applicantName: "", studentId: "", phone: "", email: "", purpose: "", headcount: "",
+  });
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  // 관리자 설정 설문 답변 (fieldId → 값)
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const questions = useMemo(() => surveyFields(survey), [survey]);
+
+  const load = () => {
+    setLoading(true);
+    fetch("/api/space-rental").then((r) => r.json()).then((d) => {
+      setSpaces(Array.isArray(d.spaces) ? d.spaces : []);
+      setBooked(Array.isArray(d.booked) ? d.booked : []);
+      setCalendarError(!!d.calendarError);
+      setSurvey(d.form && typeof d.form === "object" ? d.form : null);
+      setResultForm(d.resultForm && typeof d.resultForm === "object" ? d.resultForm : null);
+    }).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const openForm = (spaceId?: string) => {
+    if (spaceId) set("spaceId", spaceId);
+    setShowForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+
+  const space = spaces.find((s) => s.id === form.spaceId);
+
+  const daySlots = useMemo(() => {
+    if (!space || !form.date) return [];
+    const dayPrefix = Number(form.date.replace(/-/g, "") + "0000");
+    const dayEnd = dayPrefix + 2400;
+    return booked
+      .filter((b) => b.start < dayEnd && b.end > dayPrefix)
+      .filter((b) => b.source === "request" ? b.spaceName === space.name : textMatchesSpace(b.label, space.name))
+      .sort((a, b) => a.start - b.start);
+  }, [booked, space, form.date]);
+
+  const conflict = useMemo(() => {
+    if (!space || !form.date || !form.start || !form.end) return null;
+    const rs = slotInt(form.date, form.start), re = slotInt(form.date, form.end);
+    if (re <= rs) return null;
+    return daySlots.find((b) => overlaps(rs, re, b.start, b.end)) || null;
+  }, [space, form.date, form.start, form.end, daySlots]);
+
+  const timeInvalid = !!(form.start && form.end && slotInt(form.date, form.end) <= slotInt(form.date, form.start));
+  const overCap = !!(space?.capacity && Number(form.headcount) > space.capacity);
+  // 관리자가 신청폼을 만들었으면 그 폼만 표시(완전히 관리자 폼). 없으면 기본 폼.
+  const formOnly = questions.length > 0;
+
+  const answerList = () => activeQs(questions, answers)
+    .map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() }))
+    .filter((a) => a.value);
+
+  const submit = async () => {
+    // 필수 설문 항목 검증(공통) — 현재 노출 중인 조건부 하위질문 포함
+    for (const q of activeQs(questions, answers)) {
+      if (q.type === "fileDownload") continue; // 다운로드 제공 항목은 입력값이 없음
+      if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
+    }
+    setBusy(true);
+    try {
+      // 관리자 폼만: 답변만 전송(서버가 bookingRole 태그로 장소·날짜·시간 추출)
+      // 기본 폼: 기존 필드 + 답변 전송
+      const body = formOnly
+        ? { answers: answerList() }
+        : { ...form, headcount: Number(form.headcount) || 0, answers: answerList() };
+      if (!formOnly) {
+        if (!form.spaceId) return alert("대여 장소를 선택해주세요.");
+        if (!form.date || !form.start || !form.end) return alert("사용일과 시간을 입력해주세요.");
+        if (timeInvalid) return alert("종료 시간이 시작 시간보다 늦어야 합니다.");
+        if (!form.applicantName.trim() || !form.studentId.trim()) return alert("신청자 이름과 학번/소속을 입력해주세요.");
+        if (overCap) return alert(`수용 인원(${space?.capacity}명)을 초과했습니다.`);
+        if (conflict) return alert("이미 신청된 시간대입니다. 다른 시간을 선택해주세요.");
+      }
+      const res = await fetch("/api/space-rental", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("신청 실패: " + (j.error || res.status) + (j.conflict ? `\n(${j.conflict})` : "")); load(); return; }
+      setDone(true);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -377,7 +382,7 @@ export default function SpaceRentalPage() {
             {/* 관리자가 '신청폼 편집'에서 만든 항목 (formOnly일 때 이것만 표시) — 드롭다운 조건부 하위질문 포함 */}
             {questions.length > 0 && (
               <div className={`grid sm:grid-cols-2 gap-4 ${formOnly ? "" : "pt-2 border-t border-gray-100"}`}>
-                {questions.map((q) => renderQ(q))}
+                {questions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} />)}
               </div>
             )}
 
@@ -435,7 +440,8 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const rQuestions = surveyFields(resultForm);
-  const setAnswer = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
+  // 관리자가 이용결과 폼을 만들었으면 그 폼만 표시(기본 명단·사진·비고 블록 숨김)
+  const resultOnly = rQuestions.length > 0;
 
   const lookup = async () => {
     setBusy(true);
@@ -461,17 +467,24 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
 
   const submit = async () => {
     if (!picked) return;
-    const cleanUsers = users.filter((u) => u.name.trim());
-    for (const q of rQuestions) {
+    const cleanUsers = resultOnly ? [] : users.filter((u) => u.name.trim());
+    const cleanPhotos = resultOnly ? [] : photos;
+    // 조건부 하위질문 포함 필수 검증 (fileDownload는 입력값 없음)
+    for (const q of activeQs(rQuestions, answers)) {
+      if (q.type === "fileDownload") continue;
       if (q.required && !(answers[q.id] || "").trim()) return alert(`'${q.label}' 항목을 입력/동의해주세요.`);
     }
-    const answerList = rQuestions.map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() })).filter((a) => a.value);
-    if (cleanUsers.length === 0 && photos.length === 0 && answerList.length === 0) return alert("이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요.");
+    const answerList = activeQs(rQuestions, answers).map((q) => ({ id: q.id, label: q.label, value: (answers[q.id] || "").trim() })).filter((a) => a.value);
+    if (resultOnly) {
+      if (answerList.length === 0) return alert("이용결과 항목을 입력해주세요.");
+    } else if (cleanUsers.length === 0 && cleanPhotos.length === 0 && answerList.length === 0) {
+      return alert("이용자 명단(서명)·이용 사진·설문 중 하나 이상 제출해주세요.");
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos, answers: answerList, memo }),
+        body: JSON.stringify({ action: "submitResult", requestId: picked.id, phone, users: cleanUsers, photos: cleanPhotos, answers: answerList, memo: resultOnly ? "" : memo }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("제출 실패: " + (j.error || res.status)); return; }
@@ -515,63 +528,54 @@ function UsageResultModal({ resultForm, onClose }: { resultForm: FormSchema | nu
             <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3 text-sm text-gray-700">
               <strong>{picked.spaceName}</strong> · {picked.date} {picked.start}~{picked.end}
             </div>
-            {/* 이용자 명단 및 서명 */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="label mb-0">이용자 명단 및 서명</label>
-                <button onClick={() => setUsers((u) => [...u, { name: "", signature: "" }])} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3.5 h-3.5" /> 이용자 추가</button>
-              </div>
-              <div className="space-y-3">
-                {users.map((u, i) => (
-                  <div key={i} className="rounded-xl border border-gray-200 p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <input className="input-field flex-1" value={u.name} onChange={(e) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, name: e.target.value } : x))} placeholder="이용자 이름" />
-                      {users.length > 1 && <button onClick={() => setUsers((arr) => arr.filter((_, k) => k !== i))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>}
-                    </div>
-                    <SignaturePad onChange={(sig) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, signature: sig } : x))} />
+            {/* 기본 블록(이용자 명단·서명/사진/비고) — 관리자 이용결과 폼이 없을 때만 표시 */}
+            {!resultOnly && (
+              <>
+                {/* 이용자 명단 및 서명 */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="label mb-0">이용자 명단 및 서명</label>
+                    <button onClick={() => setUsers((u) => [...u, { name: "", signature: "" }])} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"><Plus className="w-3.5 h-3.5" /> 이용자 추가</button>
                   </div>
-                ))}
-              </div>
-            </div>
-            {/* 이용 사진 */}
-            <div>
-              <label className="label">대여공간 이용 사진</label>
-              <div className="flex items-center gap-2 flex-wrap">
-                {photos.map((p, i) => (
-                  <div key={i} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
-                    <button onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow">✕</button>
+                  <div className="space-y-3">
+                    {users.map((u, i) => (
+                      <div key={i} className="rounded-xl border border-gray-200 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <input className="input-field flex-1" value={u.name} onChange={(e) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, name: e.target.value } : x))} placeholder="이용자 이름" />
+                          {users.length > 1 && <button onClick={() => setUsers((arr) => arr.filter((_, k) => k !== i))} className="text-gray-300 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>}
+                        </div>
+                        <SignaturePad onChange={(sig) => setUsers((arr) => arr.map((x, k) => k === i ? { ...x, signature: sig } : x))} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <label className="w-16 h-16 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex flex-col items-center justify-center text-[11px] text-center">
-                  {uploading ? "…" : <><Upload className="w-4 h-4" />사진</>}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
-                </label>
-              </div>
-            </div>
-            {/* 관리자가 설정한 이용결과 설문 항목 */}
-            {rQuestions.map((q) => (
-              <div key={q.id}>
-                {q.type !== "privacyConsent" && <label className="label">{q.label} {q.required && <span className="text-red-500">*</span>}</label>}
-                {q.type === "longText" ? (
-                  <textarea className="input-field h-20 resize-none" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
-                ) : q.type === "select" ? (
-                  <select className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)}><option value="">선택하세요</option>{(q.options || []).filter((o) => o.trim()).map((o) => <option key={o} value={o}>{o}</option>)}</select>
-                ) : q.type === "agreement" ? (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-                    {q.text && <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed mb-2">{q.text}</p>}
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer"><input type="checkbox" checked={answers[q.id] === "동의함"} onChange={(e) => setAnswer(q.id, e.target.checked ? "동의함" : "")} /> 동의합니다.</label>
+                </div>
+                {/* 이용 사진 */}
+                <div>
+                  <label className="label">대여공간 이용 사진</label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {photos.map((p, i) => (
+                      <div key={i} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                        <button onClick={() => setPhotos((ps) => ps.filter((_, k) => k !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 text-rose-500 text-xs flex items-center justify-center shadow">✕</button>
+                      </div>
+                    ))}
+                    <label className="w-16 h-16 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer flex flex-col items-center justify-center text-[11px] text-center">
+                      {uploading ? "…" : <><Upload className="w-4 h-4" />사진</>}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} />
+                    </label>
                   </div>
-                ) : (
-                  <input type={q.type === "number" ? "number" : q.type === "date" ? "date" : q.type === "time" ? "time" : q.type === "datetime" ? "datetime-local" : "text"} className="input-field" value={answers[q.id] || ""} onChange={(e) => setAnswer(q.id, e.target.value)} placeholder={q.placeholder} />
-                )}
+                </div>
+              </>
+            )}
+            {/* 관리자가 설정한 이용결과 폼 항목 — 폼이 있으면 이것만 표시 (조건부 하위질문·종일·범위·파일다운로드 지원) */}
+            {rQuestions.map((q) => <SurveyQuestion key={q.id} q={q} answers={answers} setAnswers={setAnswers} />)}
+            {!resultOnly && (
+              <div>
+                <label className="label">비고 (선택)</label>
+                <textarea className="input-field h-16 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항이 있으면 적어주세요." />
               </div>
-            ))}
-            <div>
-              <label className="label">비고 (선택)</label>
-              <textarea className="input-field h-16 resize-none" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="특이사항이 있으면 적어주세요." />
-            </div>
+            )}
             <div className="flex justify-between">
               <button onClick={() => setStage("pick")} className="btn-secondary text-sm">← 목록</button>
               <button onClick={submit} disabled={busy} className="btn-primary text-sm disabled:opacity-60">{busy ? "제출 중..." : "이용결과 제출"}</button>

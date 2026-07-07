@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, MapPin, CalendarDays, FilePlus, PencilLine, FileText } from "lucide-react";
+import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, ClipboardCheck, MapPin, CalendarDays, FilePlus, PencilLine, FileText } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 import SchemaForm from "@/components/apply/SchemaForm";
@@ -14,7 +14,7 @@ const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
   rejected: { label: "반려", badge: "bg-rose-100 text-rose-700" },
 };
 
-type Tab = "requests" | "spaces" | "form" | "calendar";
+type Tab = "requests" | "results" | "spaces" | "form" | "calendar";
 
 export default function SpaceRentalAdminPage() {
   const [tab, setTab] = useState<Tab>("requests");
@@ -152,8 +152,10 @@ export default function SpaceRentalAdminPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
+  const resultRequests = requests.filter((r) => r.usageResult);
   const TABS: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
     { key: "requests", label: "공간대여 신청목록", icon: ClipboardList },
+    { key: "results", label: "이용결과 제출내역", icon: ClipboardCheck },
     { key: "spaces", label: "대여가능공간", icon: MapPin },
     { key: "form", label: "공간대여 신청폼", icon: FileText },
     { key: "calendar", label: "공간대여 캘린더", icon: CalendarDays },
@@ -171,7 +173,7 @@ export default function SpaceRentalAdminPage() {
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-2xl text-sm font-semibold transition flex items-center gap-1.5 ${tab === t.key ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600 hover:text-indigo-600"}`}>
-              <Icon className="w-4 h-4" /> {t.label}{t.key === "requests" ? ` (${requests.length})` : ""}
+              <Icon className="w-4 h-4" /> {t.label}{t.key === "requests" ? ` (${requests.length})` : t.key === "results" ? ` (${resultRequests.length})` : ""}
             </button>
           );
         })}
@@ -195,6 +197,7 @@ export default function SpaceRentalAdminPage() {
                   <th className="whitespace-nowrap">일시</th>
                   <th className="whitespace-nowrap">신청자</th>
                   <th className="whitespace-nowrap">인원</th>
+                  <th className="text-center whitespace-nowrap">이용결과</th>
                   <th className="text-center whitespace-nowrap">상세/관리</th>
                 </tr></thead>
                 <tbody>
@@ -205,6 +208,7 @@ export default function SpaceRentalAdminPage() {
                       <td className="whitespace-nowrap">{r.date} {r.start}~{r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}{r.end}</td>
                       <td className="whitespace-nowrap">{r.applicantName} <span className="text-gray-400 text-xs">{r.studentId}</span></td>
                       <td className="text-center">{r.headcount || "-"}</td>
+                      <td className="text-center">{r.usageResult ? <span className="badge bg-emerald-100 text-emerald-700">제출됨</span> : <span className="text-gray-300 text-xs">미제출</span>}</td>
                       <td className="text-center whitespace-nowrap">
                         <button onClick={() => openDetail(r)} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 inline-flex items-center gap-1"><PencilLine className="w-3.5 h-3.5" /> 상세·심사</button>
                       </td>
@@ -214,6 +218,51 @@ export default function SpaceRentalAdminPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── 이용결과 제출내역 ── */}
+      {tab === "results" && (
+        <div className="card">
+          <h2 className="font-bold text-gray-800 mb-3">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({resultRequests.length})</span></h2>
+          {resultRequests.length === 0 ? (
+            <p className="text-sm text-gray-400 py-3">제출된 이용결과가 없습니다.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table-glass text-sm">
+                <thead><tr>
+                  <th className="whitespace-nowrap">제출일시</th>
+                  <th className="whitespace-nowrap">공간</th>
+                  <th className="whitespace-nowrap">대여일시</th>
+                  <th className="whitespace-nowrap">신청자</th>
+                  <th className="text-center whitespace-nowrap">이용자·서명</th>
+                  <th className="text-center whitespace-nowrap">사진</th>
+                  <th className="text-center whitespace-nowrap">설문 답변</th>
+                  <th className="text-center whitespace-nowrap">상세</th>
+                </tr></thead>
+                <tbody>
+                  {resultRequests
+                    .slice()
+                    .sort((a, b) => (b.usageResult?.submittedAt || "").localeCompare(a.usageResult?.submittedAt || ""))
+                    .map((r) => (
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap">{r.usageResult?.submittedAt ? new Date(r.usageResult.submittedAt).toLocaleString("ko-KR") : "-"}</td>
+                      <td className="font-medium whitespace-nowrap">{r.spaceName}</td>
+                      <td className="whitespace-nowrap">{r.date} {r.start}~{r.endDate && r.endDate !== r.date ? `${r.endDate} ` : ""}{r.end}</td>
+                      <td className="whitespace-nowrap">{r.applicantName} <span className="text-gray-400 text-xs">{r.studentId}</span></td>
+                      <td className="text-center">{r.usageResult?.users.length ? `${r.usageResult.users.length}명` : "-"}</td>
+                      <td className="text-center">{r.usageResult?.photos.length ? `${r.usageResult.photos.length}장` : "-"}</td>
+                      <td className="text-center">{r.usageResult?.answers?.length ? `${r.usageResult.answers.length}건` : "-"}</td>
+                      <td className="text-center whitespace-nowrap">
+                        <button onClick={() => openDetail(r)} className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 inline-flex items-center gap-1"><ClipboardCheck className="w-3.5 h-3.5" /> 이용결과 보기</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[11px] text-gray-400 mt-2">※ ‘이용결과 보기’를 누르면 신청 상세와 함께 제출된 이용자 명단·서명·사진·설문 답변을 확인할 수 있습니다.</p>
         </div>
       )}
 
