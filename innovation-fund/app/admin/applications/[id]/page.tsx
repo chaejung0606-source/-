@@ -11,6 +11,7 @@ import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
 import { getProgramById } from "@/lib/md-courses";
+import { fetchPrograms } from "@/lib/programs";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -108,6 +109,21 @@ export default function ApplicationDetailPage() {
       setLoading(false);
     });
   }, [id]);
+
+  // 구버전 신청(답변에 step 미저장)도 신청폼 편집의 단계 구분으로 묶어 보여주기 위한 필드→단계 매핑
+  const [fieldStepMap, setFieldStepMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const fa = app?.formAnswers;
+    if (!fa?.programId || !fa.fields?.length || fa.fields.some((f) => f.step)) return;
+    fetchPrograms().then((list) => {
+      const p = list.find((x) => x.id === fa.programId);
+      const schema = app?.applicationPhase === "pre" ? p?.preFormSchema : p?.fundFormSchema;
+      if (!schema) return;
+      const m: Record<string, string> = {};
+      (schema.steps || []).forEach((s) => (s.fields || []).forEach((f) => { m[f.id] = s.title || ""; }));
+      setFieldStepMap(m);
+    }).catch(() => {});
+  }, [app]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -215,7 +231,11 @@ export default function ApplicationDetailPage() {
       ["총 근무 시간", `${app.staffDetail.totalHours}시간`],
       ["학생 구분", app.staffDetail.studentType === "graduate" ? "대학원생" : "대학생"],
       ["담당 업무", app.staffDetail.taskDescription],
+      ...((app.staffDetail.workLog && app.staffDetail.workLog.length)
+        ? [["근무 기록", app.staffDetail.workLog.map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ")] as [string, string]]
+        : []),
       ...costRows(app.staffDetail.costDetail, app.staffDetail.transport, app.staffDetail.extraCosts),
+      ...reportRows(app.staffDetail.reportEntries),
     ];
     if (app.gradeDetail) {
       const g = app.gradeDetail;
@@ -326,7 +346,7 @@ export default function ApplicationDetailPage() {
       ];
       if (c.intro) rows.push(["소학회 소개", c.intro]);
       if (c.achievements) rows.push(["특이사항", c.achievements]);
-      rows.push(["구성원", members.map((m) => `${m.role} ${m.name}(${m.studentId}${m.isMirae ? "·가상" : ""})`).join(", ") || "-"]);
+      rows.push(["구성원", members.map((m) => `${m.role} ${m.name}(${m.studentId}${m.department ? `·${m.department}` : ""}${m.isMirae ? "·가상" : ""}${m.phone ? `·${m.phone}` : ""})`).join("\n") || "-"]);
       rows.push(["미래융합가상학과 인원", `${members.filter((m) => m.isMirae).length} / ${members.length}명`]);
       if (c.goals) rows.push(["활동 목표", c.goals]);
       if (c.plan) rows.push(["활동 계획", c.plan]);
@@ -468,7 +488,21 @@ export default function ApplicationDetailPage() {
             };
             const bankbook = app.files.find((f) => f.type === "bankbook");
             if (bankbook) usedIds.add(bankbook.id);
-            const detailRows = getDetail();
+            // 스키마 폼 신청은 작성 내용이 아래 단계별 답변에 모두 표시되므로,
+            // 고정 양식 상세(구 필드)는 값이 있는 항목만 남긴다 — 묻지 않은 항목이 '미작성'으로 나열되는 것 방지
+            const isSchemaApp = !!(app.formAnswers?.fields && app.formAnswers.fields.length > 0);
+            const detailRows = isSchemaApp
+              ? getDetail().filter(([, v]) => { const s = String(v ?? "").trim(); return s && s !== "-"; })
+              : getDetail();
+            // 폼 답변을 신청폼 편집의 단계(예: 기본 정보/프로그램 정보/서류 업로드/동의 및 서명)로 묶기
+            const faFields = app.formAnswers?.fields || [];
+            const groups: { title: string; items: typeof faFields }[] = [];
+            faFields.forEach((f) => {
+              const t = f.step || fieldStepMap[f.id] || "신청 내용";
+              const last = groups[groups.length - 1];
+              if (last && last.title === t) last.items.push(f);
+              else groups.push({ title: t, items: [f] });
+            });
 
             return (
               <div className="card">
@@ -480,12 +514,12 @@ export default function ApplicationDetailPage() {
                   {basicRows.map(([k, v]) => fv(k, String(v ?? "")))}
                 </div>
 
-                {/* 신청 내용 (신청자가 폼에 작성한 항목 그대로) */}
-                {app.formAnswers?.fields && app.formAnswers.fields.length > 0 && (
-                  <>
-                    {sub("신청 내용")}
+                {/* 신청 내용 — 신청폼 편집의 단계 구분(파란 소제목) 그대로 묶어서 표시 */}
+                {groups.map((g) => (
+                  <div key={g.title}>
+                    {sub(g.title)}
                     <div className="space-y-3">
-                      {app.formAnswers.fields.map((f) => {
+                      {g.items.map((f) => {
                         const grid = f.type === "table" ? parseTableGrid(f.value) : null;
                         const isSig = f.type === "signature";
                         const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
@@ -521,13 +555,13 @@ export default function ApplicationDetailPage() {
                         );
                       })}
                     </div>
-                  </>
-                )}
+                  </div>
+                ))}
 
-                {/* 신청 상세 내용 (유형별 고정 양식 항목·비용 내역) */}
+                {/* 신청 상세 내용 (유형별 고정 양식 항목·비용 내역 — 스키마 폼 신청은 값 있는 항목만) */}
                 {detailRows.length > 0 && (
                   <>
-                    {sub("신청 상세 내용")}
+                    {sub(isSchemaApp ? "신청 상세 내용 (비용·자동 산출)" : "신청 상세 내용")}
                     <div className="space-y-3">
                       {detailRows.map(([k, v]) => fv(k, String(v ?? "")))}
                     </div>
@@ -561,6 +595,23 @@ export default function ApplicationDetailPage() {
                     </>
                   );
                 })()}
+
+                {/* 동의 및 서명 (공통 제출 항목 — 폼 답변과 별도로 저장되는 동의·신청인 서명) */}
+                {sub("동의 및 서명")}
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {fv("개인정보 수집·이용 동의", app.privacyConsent ? "동의함" : "미동의")}
+                  {fv("사실 확인 동의", app.truthConsent ? "동의함" : "미동의")}
+                  {fv("본인 명의 계좌 확인 동의", app.accountConsent ? "동의함" : "미동의")}
+                </div>
+                <div className="mt-2">
+                  <div className="text-[13px] font-semibold text-gray-700 mb-1">신청인 서명</div>
+                  {app.signature ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={app.signature} alt="신청인 서명" className="h-16 border border-gray-200 rounded bg-white" />
+                  ) : (
+                    <p className="text-sm text-gray-400">서명 없음</p>
+                  )}
+                </div>
 
                 {/* 금액 */}
                 <div className="mt-5 pt-4 border-t border-gray-100 grid sm:grid-cols-3 gap-3 text-sm">

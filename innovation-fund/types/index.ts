@@ -131,7 +131,7 @@ export interface ProgramDetail {
   programId?: string;            // 선택한 사업단 프로그램 ID
   reportEntries?: ReportEntry[]; // 프로그램별 보고서 입력값
   workLog?: WorkLogEntry[];      // 스키마 폼 근무상황부 (근로/진행요원 등)
-  formAnswers?: { programId?: string; programName?: string; fields: { id: string; label: string; type: string; value: string }[] }; // 스키마 폼 답변(컬럼 미마이그레이션 환경 보존용)
+  formAnswers?: { programId?: string; programName?: string; fields: { id: string; label: string; type: string; value: string; step?: string }[] }; // 스키마 폼 답변(컬럼 미마이그레이션 환경 보존용)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schemaState?: any;             // 임시저장 이어서 작성용 원본 입력 상태
 }
@@ -472,7 +472,7 @@ export interface Application {
   reviewStage?: "program" | "expense";
   handoffNote?: string; // 지출관리자→프로그램관리자 보완 요청 메모
   // 관리자 폼 빌더(스키마)로 작성한 신청의 답변 모음
-  formAnswers?: { programId?: string; programName?: string; fields: { id: string; label: string; type: string; value: string }[] };
+  formAnswers?: { programId?: string; programName?: string; fields: { id: string; label: string; type: string; value: string; step?: string }[] };
 
   // 신청 취소
   canceled?: boolean;

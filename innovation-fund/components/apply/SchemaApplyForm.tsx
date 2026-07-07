@@ -357,6 +357,9 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     const files = Object.values(filesByField).flat();
     const workLog = Object.values(workLogByField).flat();
     // 신청자가 작성한 항목을 빠짐없이 보존 — 서명·파일(슬롯)도 라벨과 함께 기록해 관리자 상세에서 모두 노출
+    // step: 신청폼 편집의 단계 제목 — 관리자 상세에서 폼과 동일한 구분(파란 소제목)으로 표시
+    const fieldStep: Record<string, string> = {};
+    steps.forEach((s) => s.fields.forEach((f) => { fieldStep[f.id] = s.title || ""; }));
     const formAnswers = {
       programId, programName,
       fields: activeFields(allFields)
@@ -365,7 +368,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           let value = answers[f.id] || "";
           if (f.type === "signature") value = signaturesByField[f.id] || "";
           else if (f.type === "file") value = (filesByField[f.id] || []).map((x) => x.name).join(", ");
-          return { id: f.id, label: f.label, type: f.type, value };
+          return { id: f.id, label: f.label, type: f.type, value, step: fieldStep[f.id] || "" };
         }),
     };
     return {
