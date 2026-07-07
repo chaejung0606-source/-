@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireMenu } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, normalizeRepeat, slotInt, type RentalRequest,
+  normalizeSpaces, normalizeRequests, normalizeRepeat, slotInt, overlaps, sameSpace, textMatchesSpace,
+  requestSlots, expandOccurrences, fetchCalendarSlots, type RentalRequest,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
 
@@ -159,6 +160,28 @@ export async function PATCH(req: NextRequest) {
     if (!edited.endDate && /^\d{4}-\d{2}-\d{2}$/.test(edited.date) && /^\d{2}:\d{2}$/.test(edited.start) && /^\d{2}:\d{2}$/.test(edited.end)
       && slotInt(edited.date, edited.end) <= slotInt(edited.date, edited.start)) {
       return NextResponse.json({ ok: false, error: "종료 일시가 시작 일시보다 늦어야 합니다." }, { status: 400 });
+    }
+    // 일정 겹침 검사 — 다른 신청(반복 회차 포함)·구글 캘린더 예약과 겹치면 409로 알림.
+    // 자기 자신(및 자신이 만든 캘린더 이벤트)은 제외. b.force=true면 관리자가 확인 후 강제 저장.
+    if (!b.force && /^\d{4}-\d{2}-\d{2}$/.test(edited.date) && /^\d{2}:\d{2}$/.test(edited.start) && /^\d{2}:\d{2}$/.test(edited.end) && edited.spaceName) {
+      let calendar: import("@/lib/space-rental").BookedSlot[] = [];
+      try { calendar = await fetchCalendarSlots(cfg.calendarId || DEFAULT_CALENDAR_ID); } catch { /* 캘린더 접근 실패 시 접수건만으로 검증 */ }
+      const slots = [
+        ...calendar.filter((s) => !target.calendarEventId || s.uid !== target.calendarEventId),
+        ...requestSlots(list.filter((r) => r.id !== id)),
+      ];
+      for (const o of expandOccurrences(edited.date, edited.endDate, edited.repeat)) {
+        const os = slotInt(o.date, edited.start), oe = slotInt(o.endDate || o.date, edited.end);
+        const conflict = slots.find((s) => overlaps(os, oe, s.start, s.end)
+          && (s.source === "request" ? sameSpace(s.spaceName || "", edited.spaceName) : textMatchesSpace(s.label, edited.spaceName)));
+        if (conflict) {
+          return NextResponse.json({
+            ok: false, status409: true,
+            error: `일정이 겹칩니다${edited.repeat ? ` (반복 회차 ${o.date})` : ""}`,
+            conflict: conflict.label, conflictDate: o.date,
+          }, { status: 409 });
+        }
+      }
     }
     // 캘린더/시트 반영: 이벤트가 이미 있으면 update, 없으면(승인건이면) create
     let calendarReflected = false, newEventId = edited.calendarEventId, webhookError: string | undefined;

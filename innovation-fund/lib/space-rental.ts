@@ -239,6 +239,26 @@ export function slotInt(date: string, time: string): number {
 export function overlaps(reqStart: number, reqEnd: number, evStart: number, evEnd: number): boolean {
   return reqStart < evEnd && reqEnd > evStart;
 }
+
+// 장소명이 서로 가리키는 같은 공간인지(정규화 후 동일하거나 한쪽이 다른 쪽을 포함)
+export function sameSpace(a: string, b: string): boolean {
+  const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
+  const x = norm(a), y = norm(b);
+  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
+}
+
+// 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로 (날짜·시간이 있는 건만)
+// 반복 대여(매주/매월)는 회차별 슬롯으로 전개해 캘린더·충돌검사에 모두 반영
+export function requestSlots(requests: RentalRequest[]): BookedSlot[] {
+  return requests
+    .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
+    .flatMap((r) => expandOccurrences(r.date, r.endDate, r.repeat).map((o) => ({
+      start: slotInt(o.date, r.start), end: slotInt(o.endDate || o.date, r.end),
+      // 사용 목적·반복 여부도 캘린더에서 확인 가능하도록 라벨에 포함
+      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})${r.purpose ? ` · ${r.purpose}` : ""}${r.repeat ? ` · ${REPEAT_LABELS[r.repeat.freq]} 반복` : ""}`,
+      source: "request" as const, spaceName: r.spaceName,
+    })));
+}
 // 이벤트 제목/장소에 공간명이 포함되는지 (공백·대소문자 무시)
 export function textMatchesSpace(text: string, spaceName: string): boolean {
   const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");

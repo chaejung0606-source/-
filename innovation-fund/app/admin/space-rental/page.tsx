@@ -123,11 +123,18 @@ export default function SpaceRentalAdminPage() {
   };
 
   // 대여 일정(관리자 직접 입력) 저장 → 플랫폼 캘린더 즉시, 구글 캘린더·시트는 승인·웹훅 설정 시 반영
-  const saveSchedule = async (id: string, edit: Partial<Omit<RentalRequest, "repeat">> & { repeat?: RentalRepeat | null }): Promise<boolean> => {
+  const saveSchedule = async (id: string, edit: Partial<Omit<RentalRequest, "repeat">> & { repeat?: RentalRepeat | null }, force = false): Promise<boolean> => {
     const res = await fetch("/api/admin/space-rental", {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, edit }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, edit, force }),
     });
     const j = await res.json().catch(() => ({ ok: false }));
+    // 일정 겹침 → 관리자에게 알리고, 확인 시에만 강제 저장
+    if (res.status === 409 && j.conflict) {
+      if (confirm(`⚠️ ${j.error || "일정이 겹칩니다"}\n\n겹치는 예약: ${j.conflict}\n\n그래도 저장하시겠습니까? (같은 공간·시간에 두 예약이 공존하게 됩니다)`)) {
+        return saveSchedule(id, edit, true);
+      }
+      return false;
+    }
     if (!j.ok) { alert("저장 실패: " + (j.error || res.status)); return false; }
     setRequests((rs) => rs.map((r) => r.id === id ? { ...r, ...edit, endDate: edit.endDate || undefined, repeat: edit.repeat || undefined } as RentalRequest : r));
     if (j.calendarReflected) alert("일정이 저장되어 구글 캘린더·시트에 반영을 요청했습니다.\n플랫폼 캘린더에도 반영됩니다.");

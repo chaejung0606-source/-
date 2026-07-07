@@ -3,8 +3,8 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, normalizeFiles, normalizeRepeat, expandOccurrences, REPEAT_LABELS,
-  fetchCalendarSlots, slotInt, overlaps, textMatchesSpace,
+  normalizeSpaces, normalizeRequests, normalizeFiles, normalizeRepeat, expandOccurrences,
+  fetchCalendarSlots, slotInt, overlaps, textMatchesSpace, sameSpace, requestSlots,
   calendarEmbedUrl, deriveBooking,
   type BookedSlot,
 } from "@/lib/space-rental";
@@ -28,26 +28,6 @@ async function readConfig() {
   const resultForm = cfg.resultForm || null;
   const requests = normalizeRequests(rq?.value);
   return { admin, spaces, calendarId, form, resultForm, approveWebhook: cfg.approveWebhook, requests };
-}
-
-// 장소명이 서로 가리키는 같은 공간인지(정규화 후 동일하거나 한쪽이 다른 쪽을 포함)
-function sameSpace(a: string, b: string): boolean {
-  const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
-  const x = norm(a), y = norm(b);
-  return !!x && !!y && (x === y || x.includes(y) || y.includes(x));
-}
-
-// 접수된(대기·승인) 신청을 겹침 판정용 슬롯으로 (날짜·시간이 있는 건만)
-// 반복 대여(매주/매월)는 회차별 슬롯으로 전개해 캘린더·충돌검사에 모두 반영
-function requestSlots(requests: ReturnType<typeof normalizeRequests>): BookedSlot[] {
-  return requests
-    .filter((r) => r.status !== "rejected" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end))
-    .flatMap((r) => expandOccurrences(r.date, r.endDate, r.repeat).map((o) => ({
-      start: slotInt(o.date, r.start), end: slotInt(o.endDate || o.date, r.end),
-      // 사용 목적·반복 여부도 캘린더에서 확인 가능하도록 라벨에 포함
-      label: `${r.spaceName} 신청(${r.status === "approved" ? "승인" : "대기"})${r.purpose ? ` · ${r.purpose}` : ""}${r.repeat ? ` · ${REPEAT_LABELS[r.repeat.freq]} 반복` : ""}`,
-      source: "request" as const, spaceName: r.spaceName,
-    })));
 }
 
 // 공개: 대여 장소 목록(수용인원만) + 이미 예약된 슬롯(캘린더 + 접수건) + 캘린더 임베드 URL
