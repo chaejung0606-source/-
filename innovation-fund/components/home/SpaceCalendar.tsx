@@ -63,6 +63,19 @@ export default function SpaceCalendar() {
   const startWeekday = first.getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
 
+  // 보고 있는 달에 예약이 1건이라도 있는 공간(키) — 없는 공간의 필터 칩은 비활성 처리
+  const activeKeys = useMemo(() => {
+    const monthStart = y * 10000 + (m + 1) * 100 + 1;
+    const monthEnd = y * 10000 + (m + 1) * 100 + daysInMonth;
+    const set = new Set<string>();
+    for (const b of booked) {
+      const s = dayNumOf(b.start);
+      const last = (b.end % 10000 === 0 && dayNumOf(b.end) > s) ? dayNumOf(b.end) - 1 : dayNumOf(b.end);
+      if (s <= monthEnd && last >= monthStart) set.add(keyOf(spaceIdxOf(b)));
+    }
+    return set;
+  }, [booked, spaces, y, m, daysInMonth]);
+
   // 필터 적용된 예약 + 각 날짜(YYYYMMDD)에 걸치는 예약 목록
   const byDay = useMemo(() => {
     const map: Record<number, { b: Booked; idx: number }[]> = {};
@@ -123,7 +136,7 @@ export default function SpaceCalendar() {
         </div>
       </div>
 
-      {/* 공간 필터 — 예약 유무와 무관하게 대여 가능 공간 전체 표시 */}
+      {/* 공간 필터 — 전체 공간 표시하되, 이번 달 예약이 있는 공간만 활성화(없으면 비활성) */}
       {spaces.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap px-4 py-2 border-b border-gray-100 bg-gray-50/50">
           <button onClick={toggleAll}
@@ -131,21 +144,28 @@ export default function SpaceCalendar() {
             전체
           </button>
           {spaces.map((s, i) => {
-            const on = !off.has(s.id);
+            const has = activeKeys.has(s.id);
+            const on = has && !off.has(s.id);
             const c = colorOf(i);
             return (
-              <button key={s.id} onClick={() => toggle(s.id)} title={s.name}
-                className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${on ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
+              <button key={s.id} onClick={() => has && toggle(s.id)} disabled={!has}
+                title={has ? s.name : `${s.name} — 이번 달 예약 없음`}
+                className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${
+                  !has ? "border-gray-100 bg-gray-50 text-gray-300 cursor-default"
+                  : on ? "border-gray-300 bg-white text-gray-700"
+                  : "border-gray-200 bg-gray-100 text-gray-400"}`}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background: on ? c.dot : "#d1d5db" }} />
                 {s.name.split(" (")[0]}
               </button>
             );
           })}
-          <button onClick={() => toggle(ETC_KEY)}
-            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${!off.has(ETC_KEY) ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
-            <span className="w-2 h-2 rounded-full inline-block" style={{ background: !off.has(ETC_KEY) ? ETC.dot : "#d1d5db" }} />
-            기타 일정
-          </button>
+          {activeKeys.has(ETC_KEY) && (
+            <button onClick={() => toggle(ETC_KEY)}
+              className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${!off.has(ETC_KEY) ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
+              <span className="w-2 h-2 rounded-full inline-block" style={{ background: !off.has(ETC_KEY) ? ETC.dot : "#d1d5db" }} />
+              기타 일정
+            </button>
+          )}
         </div>
       )}
 
