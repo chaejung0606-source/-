@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, ClipboardCheck, MapPin, CalendarDays, FilePlus, PencilLine, FileText, Download } from "lucide-react";
+import { Save, Plus, Trash2, CalendarClock, Check, Ban, X, ClipboardList, ClipboardCheck, MapPin, CalendarDays, FilePlus, PencilLine, FileText, Download, ChevronDown, ChevronUp, Search } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSpaceRentalForm, emptySchema } from "@/lib/form-schema";
-import { REPEAT_LABELS, type RentalSpace, type RentalRequest, type RentalStatus, type RentalFile, type RentalRepeat } from "@/lib/space-rental";
+import { REPEAT_LABELS, expandOccurrences, type RentalSpace, type RentalRequest, type RentalStatus, type RentalFile, type RentalRepeat } from "@/lib/space-rental";
 
 const STATUS_META: Record<RentalStatus, { label: string; badge: string }> = {
   pending: { label: "대기", badge: "bg-amber-100 text-amber-700" },
@@ -34,6 +34,9 @@ export default function SpaceRentalAdminPage() {
   const [applyOpen, setApplyOpen] = useState(false);
   // 제출 서류·사진 미리보기 (이동·크기조절 가능한 창)
   const [fileWin, setFileWin] = useState<{ name: string; url: string } | null>(null);
+  // 검색: 접수번호·대여공간(텍스트) + 일자
+  const [query, setQuery] = useState("");
+  const [dateQuery, setDateQuery] = useState("");
 
   const load = () => {
     fetch("/api/admin/space-rental").then((r) => r.json()).then((d) => {
@@ -146,8 +149,31 @@ export default function SpaceRentalAdminPage() {
 
   if (loading) return <AdminLayout><div className="text-center py-20 text-gray-400">로딩 중...</div></AdminLayout>;
 
+  // 검색 필터 (반복 회차 포함 해당 일에 대여가 있는 건)
+  const matchesSearch = (r: RentalRequest) => {
+    const t = query.trim().toLowerCase();
+    const okText = !t || (r.receiptNo || "").toLowerCase().includes(t) || (r.spaceName || "").toLowerCase().includes(t);
+    const okDate = !dateQuery || (/^\d{4}-\d{2}-\d{2}$/.test(r.date)
+      && expandOccurrences(r.date, r.endDate, r.repeat).some((o) => o.date <= dateQuery && dateQuery <= (o.endDate || o.date)));
+    return okText && okDate;
+  };
+  const visibleRequests = requests.filter(matchesSearch);
+
   // 이용결과 제출내역: 승인된 건 전체(제출 여부 무관) + 승인 전이라도 이미 제출된 건
   const resultRequests = requests.filter((r) => r.status === "approved" || r.usageResult);
+  const visibleResults = resultRequests.filter(matchesSearch);
+  const searchBar = (
+    <div className="flex flex-wrap items-center gap-2 mt-3">
+      <div className="relative flex-1 min-w-[220px]">
+        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input className="input-field !min-h-[40px] !pl-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="접수번호·대여공간 검색 (예: SR-2026-003, 전산실)" />
+      </div>
+      <input type="date" className="input-field !min-h-[40px]" value={dateQuery} onChange={(e) => setDateQuery(e.target.value)} title="해당 일자에 대여가 있는 건" />
+      {(query || dateQuery) && (
+        <button onClick={() => { setQuery(""); setDateQuery(""); }} className="text-xs text-gray-400 hover:text-gray-600 underline">초기화</button>
+      )}
+    </div>
+  );
   const TABS: { key: Tab; label: string; icon: typeof ClipboardList }[] = [
     { key: "requests", label: "공간대여 신청목록", icon: ClipboardList },
     { key: "results", label: "이용결과 제출내역", icon: ClipboardCheck },
@@ -177,13 +203,16 @@ export default function SpaceRentalAdminPage() {
       {/* ── 공간대여 신청목록 — 목록에서 바로 서류 확인·일정 입력·심사(승인/반려/보완/삭제) ── */}
       {tab === "requests" && (
         <div className="space-y-3">
-          <div className="card flex items-center justify-between flex-wrap gap-2">
-            <h2 className="font-bold text-gray-800">공간대여 신청목록 <span className="text-sm text-gray-400 font-normal">({requests.length})</span></h2>
-            <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
+          <div className="card">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold text-gray-800">공간대여 신청목록 <span className="text-sm text-gray-400 font-normal">({visibleRequests.length}{visibleRequests.length !== requests.length ? ` / ${requests.length}` : ""})</span></h2>
+              <button onClick={() => setApplyOpen(true)} className="btn-primary text-sm flex items-center gap-1.5"><FilePlus className="w-4 h-4" /> 직접 신청</button>
+            </div>
+            {searchBar}
           </div>
-          {requests.length === 0 ? (
-            <div className="card"><p className="text-sm text-gray-400 py-3">접수된 공간대여 신청이 없습니다.</p></div>
-          ) : requests.map((r) => (
+          {visibleRequests.length === 0 ? (
+            <div className="card"><p className="text-sm text-gray-400 py-3">{requests.length === 0 ? "접수된 공간대여 신청이 없습니다." : "검색 결과가 없습니다."}</p></div>
+          ) : visibleRequests.map((r) => (
             <RequestCard key={r.id} r={r} spaces={spaces}
               onStatus={updateStatus} onDelete={removeRequest} onSaveSchedule={saveSchedule}
               onPreview={(f) => setFileWin(f)} />
@@ -195,12 +224,13 @@ export default function SpaceRentalAdminPage() {
       {tab === "results" && (
         <div className="space-y-3">
           <div className="card">
-            <h2 className="font-bold text-gray-800">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({resultRequests.length})</span></h2>
+            <h2 className="font-bold text-gray-800">이용결과 제출내역 <span className="text-sm text-gray-400 font-normal">({visibleResults.length}{visibleResults.length !== resultRequests.length ? ` / ${resultRequests.length}` : ""})</span></h2>
             <p className="text-[11px] text-gray-400 mt-1">신청목록에서 <strong>승인된 건</strong>이 표시됩니다. 신청자가 제출하거나 관리자가 직접 등록할 수 있고, [신청자 목록 숨김]을 켜면 신청자 이용결과 제출 화면에 노출되지 않습니다.</p>
+            {searchBar}
           </div>
-          {resultRequests.length === 0 ? (
-            <div className="card"><p className="text-sm text-gray-400 py-3">승인된 공간대여 건이 없습니다.</p></div>
-          ) : resultRequests
+          {visibleResults.length === 0 ? (
+            <div className="card"><p className="text-sm text-gray-400 py-3">{resultRequests.length === 0 ? "승인된 공간대여 건이 없습니다." : "검색 결과가 없습니다."}</p></div>
+          ) : visibleResults
             .slice()
             .sort((a, b) => (b.usageResult?.submittedAt || b.createdAt || "").localeCompare(a.usageResult?.submittedAt || a.createdAt || ""))
             .map((r) => (
@@ -378,7 +408,12 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
   const [allDay, setAllDay] = useState(r.start === "00:00" && r.end === "23:59");
   const [memo, setMemo] = useState(r.adminMemo || "");
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false); // 기본 접힘(간단히 보기) — 펼쳐서 상세 확인
   const hasSchedule = /^\d{4}-\d{2}-\d{2}$/.test(r.date) && /^\d{2}:\d{2}$/.test(r.start) && /^\d{2}:\d{2}$/.test(r.end) && !!r.spaceName;
+  // 간단히 보기 제목: 공간 · 일시 · 신청자 — 파악할 정보가 없으면 접수번호만 표시
+  const schedText = /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.start
+    ? `${r.date}${r.endDate && r.endDate !== r.date ? `~${r.endDate}` : ""} ${r.start}~${r.end}` : "";
+  const titleParts = [r.spaceName, schedText, r.applicantName].filter(Boolean);
 
   const save = async () => {
     const start = allDay ? "00:00" : sch.start;
@@ -399,16 +434,29 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
 
   return (
     <div className="card space-y-3">
-      {/* 헤더: 상태·신청자·접수일시 */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* 간단히 보기(기본): 접수번호 + 요약 제목 — 클릭하면 펼침 */}
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-2 flex-wrap text-left">
+        <span className="badge bg-gray-100 text-gray-700 font-mono">{r.receiptNo || "번호 미부여"}</span>
         <span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span>
+        {titleParts.length > 0 ? (
+          <span className="font-bold text-gray-800 truncate max-w-[60%]">{titleParts.join(" · ")}</span>
+        ) : null}
+        {r.repeat && <span className="badge bg-violet-100 text-violet-700">{REPEAT_LABELS[r.repeat.freq]} 반복</span>}
+        {r.usageResult && <span className="badge bg-emerald-100 text-emerald-700">이용결과 제출됨</span>}
+        <span className="ml-auto flex items-center gap-2 text-[11px] text-gray-400">
+          접수 {r.createdAt ? new Date(r.createdAt).toLocaleString("ko-KR") : "-"}
+          {open ? <ChevronUp className="w-4 h-4 text-indigo-500" /> : <ChevronDown className="w-4 h-4 text-indigo-500" />}
+        </span>
+      </button>
+
+      {open && (<>
+      {/* 신청자 정보 */}
+      <div className="flex items-center gap-2 flex-wrap text-sm">
         <span className="font-bold text-gray-800">{r.applicantName || "(이름 없음)"}</span>
         {r.studentId && <span className="text-xs text-gray-500">{r.studentId}</span>}
         {r.phone && <span className="text-xs text-gray-500">{r.phone}</span>}
         {r.email && <span className="text-xs text-gray-400">{r.email}</span>}
         {r.repeat && <span className="badge bg-violet-100 text-violet-700">{REPEAT_LABELS[r.repeat.freq]} 반복 ~{r.repeat.until}</span>}
-        {r.usageResult && <span className="badge bg-emerald-100 text-emerald-700">이용결과 제출됨</span>}
-        <span className="ml-auto text-[11px] text-gray-400">접수 {r.createdAt ? new Date(r.createdAt).toLocaleString("ko-KR") : "-"}</span>
       </div>
 
       {/* 제출 서류 — 다운로드·미리보기 */}
@@ -483,6 +531,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
         <button onClick={() => onDelete(r.id)} className="btn-secondary text-sm text-gray-500 flex items-center gap-1"><Trash2 className="w-4 h-4" /> 삭제</button>
       </div>
       <p className="text-[11px] text-gray-400">승인하면 플랫폼 캘린더에 즉시 반영되고, 웹훅이 설정된 경우 구글시트·캘린더에도 자동 등록됩니다. 일정 변경 시 ‘일정 저장’을 눌러주세요.</p>
+      </>)}
     </div>
   );
 }
@@ -500,6 +549,7 @@ function ResultCard({ r, onPreview, onToggleHide, onRegistered, onDeleteFile }: 
   return (
     <div className="card space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
+        <span className="badge bg-gray-100 text-gray-700 font-mono">{r.receiptNo || "번호 미부여"}</span>
         <span className={`badge ${u ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{u ? "이용결과 제출됨" : "이용결과 미제출"}</span>
         <span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span>
         <span className="font-bold text-gray-800">{r.applicantName || "(이름 없음)"}</span>

@@ -10,7 +10,7 @@ import SignaturePad from "@/components/apply/SignaturePad";
 import { surveyFields, activeQs, SurveyQuestion, type UploadedDoc } from "@/components/space-rental/Survey";
 
 interface PublicBooking {
-  id: string; spaceName: string; date: string; endDate?: string; start: string; end: string;
+  id: string; receiptNo?: string; spaceName: string; date: string; endDate?: string; start: string; end: string;
   applicantName?: string; studentId?: string; status: string; hasResult: boolean;
   repeat?: { freq: "weekly" | "monthly"; until: string };
 }
@@ -127,6 +127,7 @@ export default function SpaceRentalResultPage() {
           <div className="card mt-5 space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3 text-sm text-gray-700 flex-1 min-w-0">
+                {picked.receiptNo && <span className="font-mono text-xs text-indigo-600 mr-1.5">{picked.receiptNo}</span>}
                 <strong>{picked.spaceName || "(공간 미정)"}</strong>
                 {picked.applicantName && <span className="ml-2">{picked.applicantName}</span>}
                 {picked.date && <span className="ml-2">{picked.date} {picked.start}~{picked.endDate && picked.endDate !== picked.date ? `${picked.endDate} ` : ""}{picked.end}</span>}
@@ -197,6 +198,7 @@ export default function SpaceRentalResultPage() {
               <div key={r.id} className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-gray-800 truncate">
+                    {r.receiptNo && <span className="font-mono text-xs text-indigo-600 mr-1.5">{r.receiptNo}</span>}
                     {r.spaceName || "(공간 미정)"}
                     {r.applicantName && <span className="ml-2 font-normal text-gray-600">{r.applicantName}</span>}
                     {r.studentId && <span className="ml-1 font-normal text-xs text-gray-400">{r.studentId}</span>}

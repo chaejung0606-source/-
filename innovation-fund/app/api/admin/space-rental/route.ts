@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin, requireMenu } from "@/lib/admin-auth";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, normalizeRepeat, slotInt, overlaps, sameSpace, textMatchesSpace,
+  normalizeSpaces, normalizeRequests, normalizeRepeat, nextReceiptNo, slotInt, overlaps, sameSpace, textMatchesSpace,
   requestSlots, expandOccurrences, fetchCalendarSlots, type RentalRequest,
 } from "@/lib/space-rental";
 import type { FormSchema } from "@/lib/form-schema";
@@ -75,13 +75,26 @@ export async function GET(req: NextRequest) {
   ]);
   const cfg = await getConfig(admin);
   const saved = normalizeSpaces(sp?.value);
+  // 접수번호 백필: 번호가 없는 기존 건에 접수순(createdAt·접수 연도 기준)으로 부여 후 저장
+  let requests = normalizeRequests(rq?.value);
+  if (requests.some((r) => !r.receiptNo)) {
+    const asc = requests.slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+    for (const r of asc) {
+      if (!r.receiptNo) {
+        const y = /^\d{4}/.test(r.createdAt) ? Number(r.createdAt.slice(0, 4)) : undefined;
+        r.receiptNo = nextReceiptNo(asc, y);
+      }
+    }
+    requests = asc;
+    await admin.from("app_config").upsert({ key: REQUESTS_KEY, value: requests }, { onConflict: "key" });
+  }
   return NextResponse.json({
     spaces: saved.length ? saved : DEFAULT_SPACES,
     calendarId: cfg.calendarId || DEFAULT_CALENDAR_ID,
     approveWebhook: cfg.approveWebhook || "",
     form: cfg.form || null,
     resultForm: cfg.resultForm || null,
-    requests: normalizeRequests(rq?.value).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+    requests: requests.slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
   });
 }
 

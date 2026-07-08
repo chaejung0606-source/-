@@ -77,6 +77,20 @@ export function normalizeRepeat(v: unknown): RentalRepeat | undefined {
   if ((freq !== "weekly" && freq !== "monthly") || !/^\d{4}-\d{2}-\d{2}$/.test(until)) return undefined;
   return { freq, until };
 }
+// 다음 접수번호 "SR-YYYY-NNN" — 그 해의 최대 번호 + 1 (삭제돼도 번호 재사용 없음)
+export function nextReceiptNo(requests: { receiptNo?: string }[], year?: number): string {
+  const y = year ?? new Date().getFullYear();
+  const prefix = `SR-${y}-`;
+  const max = requests.reduce((m, r) => {
+    if (r.receiptNo && r.receiptNo.startsWith(prefix)) {
+      const n = Number(r.receiptNo.slice(prefix.length));
+      if (Number.isFinite(n) && n > m) return n;
+    }
+    return m;
+  }, 0);
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
 // 이용결과 제출 — 대여 공간 사용 후 이용자 명단·서명·이용 사진 제출
 export interface UsageUser { name: string; signature: string; } // signature: 데이터URL(그리기/업로드)
 export interface UsageResult {
@@ -89,6 +103,7 @@ export interface UsageResult {
 }
 export interface RentalRequest {
   id: string;
+  receiptNo?: string; // 접수번호 "SR-YYYY-NNN" (접수 순서대로 자동 부여)
   spaceId: string; spaceName: string;
   date: string;    // YYYY-MM-DD (시작일)
   endDate?: string; // YYYY-MM-DD (종료일 — 시작일과 다른 경우, 날짜+시간 범위)
@@ -137,7 +152,8 @@ export function normalizeRequests(v: unknown): RentalRequest[] {
   if (!Array.isArray(v)) return [];
   return v.filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
     .map((r) => ({
-      id: String(r.id || ""), spaceId: String(r.spaceId || ""), spaceName: String(r.spaceName || ""),
+      id: String(r.id || ""), receiptNo: r.receiptNo ? String(r.receiptNo) : undefined,
+      spaceId: String(r.spaceId || ""), spaceName: String(r.spaceName || ""),
       date: String(r.date || ""), endDate: r.endDate ? String(r.endDate) : undefined, start: String(r.start || ""), end: String(r.end || ""),
       applicantName: String(r.applicantName || ""), studentId: String(r.studentId || ""),
       phone: String(r.phone || ""), email: String(r.email || ""),

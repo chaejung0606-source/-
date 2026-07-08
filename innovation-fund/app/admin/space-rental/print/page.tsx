@@ -43,7 +43,8 @@ function PrintContent() {
 
       <div className="sec">대여 정보</div>
       <table className="form"><tbody>
-        <tr><th>대여 공간</th><td>{req.spaceName || "-"}</td><th>대여 일시</th><td>{period}</td></tr>
+        <tr><th>접수번호</th><td>{req.receiptNo || "-"}</td><th>대여 일시</th><td>{period}</td></tr>
+        <tr><th>대여 공간</th><td colSpan={3}>{req.spaceName || "-"}</td></tr>
         <tr><th>신청자</th><td>{req.applicantName || "-"}</td><th>학번/소속</th><td>{req.studentId || "-"}</td></tr>
         <tr><th>이용 인원</th><td>{u?.users?.length ? `${u.users.length}명` : (req.headcount ? `${req.headcount}명` : "-")}</td><th>이용결과 제출</th><td>{u?.submittedAt ? new Date(u.submittedAt).toLocaleString("ko-KR") : "-"}</td></tr>
         {u?.users && u.users.length > 0 && (

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   SPACES_KEY, REQUESTS_KEY, CONFIG_KEY, DEFAULT_CALENDAR_ID, DEFAULT_SPACES,
-  normalizeSpaces, normalizeRequests, normalizeFiles, normalizeRepeat, expandOccurrences,
+  normalizeSpaces, normalizeRequests, normalizeFiles, normalizeRepeat, expandOccurrences, nextReceiptNo,
   fetchCalendarSlots, slotInt, overlaps, textMatchesSpace, sameSpace, requestSlots,
   calendarEmbedUrl, deriveBooking,
   type BookedSlot,
@@ -52,7 +52,7 @@ export async function GET() {
   const publicRequests = requests
     .filter((r) => r.status !== "rejected" && !r.hideFromResults)
     .map((r) => ({
-      id: r.id, spaceName: r.spaceName, date: r.date, endDate: r.endDate, start: r.start, end: r.end,
+      id: r.id, receiptNo: r.receiptNo, spaceName: r.spaceName, date: r.date, endDate: r.endDate, start: r.start, end: r.end,
       applicantName: r.applicantName,
       studentId: r.studentId ? r.studentId.slice(0, 4) + "*".repeat(Math.max(0, r.studentId.length - 4)) : "",
       status: r.status, hasResult: !!r.usageResult, createdAt: r.createdAt, repeat: r.repeat,
@@ -166,7 +166,8 @@ export async function POST(req: NextRequest) {
 
   const now = new Date().toISOString();
   const entry = {
-    id: crypto.randomUUID(), spaceId: space?.id || spaceId, spaceName, date, endDate: endDate !== date ? endDate : undefined, start, end,
+    id: crypto.randomUUID(), receiptNo: nextReceiptNo(requests),
+    spaceId: space?.id || spaceId, spaceName, date, endDate: endDate !== date ? endDate : undefined, start, end,
     applicantName, studentId, phone: String(b.phone || d.phone || "").trim(), email: String(b.email || "").trim(),
     purpose, headcount, answers, files: normalizeFiles(b.files), repeat, status: "pending" as const, createdAt: now,
   };
