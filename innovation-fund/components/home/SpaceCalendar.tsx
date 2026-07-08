@@ -145,17 +145,16 @@ export default function SpaceCalendar() {
           </button>
           {spaces.map((s, i) => {
             const has = activeKeys.has(s.id);
+            // 이번 달 예약이 없는 공간은 회색 상태로 표시(클릭은 가능), 예약 있는 공간만 색 점으로 활성 표시
             const on = has && !off.has(s.id);
             const c = colorOf(i);
             return (
-              <button key={s.id} onClick={() => has && toggle(s.id)} disabled={!has}
+              <button key={s.id} onClick={() => toggle(s.id)}
                 title={has ? s.name : `${s.name} — 이번 달 예약 없음`}
                 className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${
-                  !has ? "border-gray-100 bg-gray-50 text-gray-300 cursor-default"
-                  : on ? "border-gray-300 bg-white text-gray-700"
-                  : "border-gray-200 bg-gray-100 text-gray-400"}`}>
+                  on ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background: on ? c.dot : "#d1d5db" }} />
-                {s.name.split(" (")[0]}
+                {s.name}
               </button>
             );
           })}
