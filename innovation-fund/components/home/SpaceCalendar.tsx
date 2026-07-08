@@ -1,10 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { textMatchesSpace } from "@/lib/space-rental";
 
 // 구글 캘린더(공개 iCal) + 접수된 신청을 반영해 만든 플랫폼 자체 월간 캘린더.
 // 어느 장소가 어느 시간에 이미 대여 신청되었는지 보여준다. (보기 전용)
-interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string }
+// 공간별 색상 + 공간 필터: 필터 칩은 예약 유무와 무관하게 '대여 가능 공간' 전체를 항상 표시한다.
+interface Booked { start: number; end: number; label: string; source: "calendar" | "request"; spaceName?: string; location?: string }
+interface SpaceInfo { id: string; name: string }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -12,36 +15,72 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const hhmm = (n: number) => `${pad(Math.floor((n % 10000) / 100))}:${pad(n % 100)}`;
 const dayNumOf = (n: number) => Math.floor(n / 10000); // → YYYYMMDD
 
+// 공간별 칩 색상 (Tailwind 정적 클래스 · 공간 순서대로 순환)
+const PALETTE = [
+  { chip: "bg-indigo-100 text-indigo-700", dot: "#6366f1" },
+  { chip: "bg-teal-100 text-teal-700", dot: "#0d9488" },
+  { chip: "bg-violet-100 text-violet-700", dot: "#8b5cf6" },
+  { chip: "bg-amber-100 text-amber-800", dot: "#d97706" },
+  { chip: "bg-rose-100 text-rose-700", dot: "#e11d48" },
+  { chip: "bg-sky-100 text-sky-700", dot: "#0284c7" },
+  { chip: "bg-emerald-100 text-emerald-700", dot: "#059669" },
+  { chip: "bg-fuchsia-100 text-fuchsia-700", dot: "#c026d3" },
+  { chip: "bg-orange-100 text-orange-700", dot: "#ea580c" },
+  { chip: "bg-cyan-100 text-cyan-700", dot: "#0891b2" },
+];
+const ETC = { chip: "bg-gray-100 text-gray-600", dot: "#9ca3af" }; // 공간 미매칭(외부 일정 등)
+const ETC_KEY = "__etc__";
+
 export default function SpaceCalendar() {
   const [booked, setBooked] = useState<Booked[]>([]);
+  const [spaces, setSpaces] = useState<SpaceInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<{ y: number; m: number }>(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [sel, setSel] = useState<number | null>(null); // 선택한 날짜(YYYYMMDD)
+  // 꺼진 공간 필터(id 집합) — 기본은 전부 켬
+  const [off, setOff] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/space-rental").then((r) => r.json()).then((d) => setBooked(Array.isArray(d.booked) ? d.booked : [])).catch(() => {}).finally(() => setLoaded(true));
+    fetch("/api/space-rental").then((r) => r.json()).then((d) => {
+      setBooked(Array.isArray(d.booked) ? d.booked : []);
+      setSpaces(Array.isArray(d.spaces) ? d.spaces.map((s: SpaceInfo) => ({ id: s.id, name: s.name })) : []);
+    }).catch(() => {}).finally(() => setLoaded(true));
   }, []);
+
+  // 예약 1건 → 공간 인덱스 (접수건은 spaceName 일치, 캘린더 일정은 장소/제목 텍스트 매칭)
+  const spaceIdxOf = (b: Booked): number => {
+    if (b.spaceName) {
+      const i = spaces.findIndex((s) => s.name === b.spaceName || textMatchesSpace(b.spaceName!, s.name));
+      if (i >= 0) return i;
+    }
+    return spaces.findIndex((s) => textMatchesSpace(`${b.label} ${b.location || ""}`, s.name));
+  };
+  const colorOf = (idx: number) => (idx >= 0 ? PALETTE[idx % PALETTE.length] : ETC);
+  const keyOf = (idx: number) => (idx >= 0 ? spaces[idx].id : ETC_KEY);
 
   const { y, m } = view;
   const first = new Date(y, m, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
 
-  // 각 날짜(YYYYMMDD)에 걸치는 예약 목록
+  // 필터 적용된 예약 + 각 날짜(YYYYMMDD)에 걸치는 예약 목록
   const byDay = useMemo(() => {
-    const map: Record<number, Booked[]> = {};
+    const map: Record<number, { b: Booked; idx: number }[]> = {};
+    const visible = booked
+      .map((b) => ({ b, idx: spaceIdxOf(b) }))
+      .filter(({ idx }) => !off.has(keyOf(idx)));
     for (let d = 1; d <= daysInMonth; d++) {
       const key = y * 10000 + (m + 1) * 100 + d;
-      const hits = booked.filter((b) => {
+      const hits = visible.filter(({ b }) => {
         const s = dayNumOf(b.start);
         // 종일 이벤트의 끝(자정)은 배타적 → 마지막 점유일 보정
         const last = (b.end % 10000 === 0 && dayNumOf(b.end) > s) ? dayNumOf(b.end) - 1 : dayNumOf(b.end);
         return s <= key && key <= last;
-      }).sort((a, b) => a.start - b.start);
+      }).sort((a, b) => a.b.start - b.b.start);
       if (hits.length) map[key] = hits;
     }
     return map;
-  }, [booked, y, m, daysInMonth]);
+  }, [booked, spaces, off, y, m, daysInMonth]);
 
   const prevMonth = () => setView((v) => v.m === 0 ? { y: v.y - 1, m: 11 } : { y: v.y, m: v.m - 1 });
   const nextMonth = () => setView((v) => v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 });
@@ -62,6 +101,15 @@ export default function SpaceCalendar() {
 
   const selList = sel != null ? (byDay[sel] || []) : [];
 
+  // 필터 토글 — '전체'는 모두 켬/모두 끔 전환
+  const allOn = off.size === 0;
+  const toggle = (id: string) => setOff((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAll = () => setOff(allOn ? new Set([...spaces.map((s) => s.id), ETC_KEY]) : new Set());
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
       {/* 헤더 */}
@@ -74,6 +122,32 @@ export default function SpaceCalendar() {
           <button onClick={nextMonth} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500" title="다음 달"><ChevronRight className="w-4 h-4" /></button>
         </div>
       </div>
+
+      {/* 공간 필터 — 예약 유무와 무관하게 대여 가능 공간 전체 표시 */}
+      {spaces.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap px-4 py-2 border-b border-gray-100 bg-gray-50/50">
+          <button onClick={toggleAll}
+            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition ${allOn ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-gray-200 bg-white text-gray-500"}`}>
+            전체
+          </button>
+          {spaces.map((s, i) => {
+            const on = !off.has(s.id);
+            const c = colorOf(i);
+            return (
+              <button key={s.id} onClick={() => toggle(s.id)} title={s.name}
+                className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${on ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: on ? c.dot : "#d1d5db" }} />
+                {s.name.split(" (")[0]}
+              </button>
+            );
+          })}
+          <button onClick={() => toggle(ETC_KEY)}
+            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border inline-flex items-center gap-1.5 transition ${!off.has(ETC_KEY) ? "border-gray-300 bg-white text-gray-700" : "border-gray-200 bg-gray-100 text-gray-400"}`}>
+            <span className="w-2 h-2 rounded-full inline-block" style={{ background: !off.has(ETC_KEY) ? ETC.dot : "#d1d5db" }} />
+            기타 일정
+          </button>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <div className="min-w-[640px]">
@@ -102,8 +176,8 @@ export default function SpaceCalendar() {
                     <span className={`${isToday ? "bg-indigo-500 text-white rounded-full w-5 h-5 flex items-center justify-center" : ""}`}>{d}</span>
                   </div>
                   <div className="space-y-0.5">
-                    {list.slice(0, 3).map((b, j) => (
-                      <div key={j} className="text-[10px] leading-tight rounded px-1 py-0.5 bg-indigo-100 text-indigo-700 truncate" title={`${slotText(b, key)} · ${b.label}`}>
+                    {list.slice(0, 3).map(({ b, idx }, j) => (
+                      <div key={j} className={`text-[10px] leading-tight rounded px-1 py-0.5 truncate ${colorOf(idx).chip}`} title={`${slotText(b, key)} · ${b.label}`}>
                         <span className="font-semibold">{slotText(b, key)}</span> {b.label}
                       </div>
                     ))}
@@ -124,8 +198,9 @@ export default function SpaceCalendar() {
             <p className="text-xs text-gray-400">이 날짜에 예약된 건이 없습니다.</p>
           ) : (
             <ul className="space-y-1">
-              {selList.map((b, i) => (
+              {selList.map(({ b, idx }, i) => (
                 <li key={i} className="text-xs text-gray-700 flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ background: colorOf(idx).dot }} />
                   <span className="font-semibold text-indigo-600 whitespace-nowrap">{slotText(b, sel)}</span>
                   <span className="break-words">{b.label}</span>
                 </li>
