@@ -40,7 +40,8 @@ const parseYmd = (s: string) => { const [y, m, d] = s.split("-").map(Number); re
 const fmtYmd = (t: number) => { const d = new Date(t); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`; };
 
 // 반복 설정을 실제 회차(날짜 목록)로 전개. 매월 반복에서 해당 일이 없는 달(예: 31일)은 건너뜀.
-// 폭주 방지: 최대 60회차. 반복이 없으면 시작 회차 1건만 반환.
+// 폭주 방지 상한: 매주 120회·매월 36회 — 반복 종료일 입력 제한(시작일+2년)보다 넉넉해
+// 구글 캘린더(EventSeries)와 회차가 어긋나지 않는다.
 export function expandOccurrences(date: string, endDate: string | undefined, repeat?: RentalRepeat): { date: string; endDate?: string }[] {
   const span = endDate && endDate !== date ? Math.max(0, Math.round((parseYmd(endDate) - parseYmd(date)) / DAY_MS)) : 0;
   const mk = (t: number) => ({ date: fmtYmd(t), endDate: span ? fmtYmd(t + span * DAY_MS) : undefined });
@@ -50,7 +51,7 @@ export function expandOccurrences(date: string, endDate: string | undefined, rep
   const until = parseYmd(repeat.until);
   const out = [mk(base)];
   if (repeat.freq === "weekly") {
-    for (let k = 1; k <= 60; k++) {
+    for (let k = 1; k <= 120; k++) {
       const t = base + k * 7 * DAY_MS;
       if (t > until) break;
       out.push(mk(t));
@@ -58,7 +59,7 @@ export function expandOccurrences(date: string, endDate: string | undefined, rep
   } else {
     const d0 = new Date(base);
     const dom = d0.getUTCDate();
-    for (let k = 1; k <= 24; k++) {
+    for (let k = 1; k <= 36; k++) {
       const t = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + k, dom);
       if (new Date(t).getUTCDate() !== dom) continue; // 그 일자가 없는 달은 건너뜀
       if (t > until) break;

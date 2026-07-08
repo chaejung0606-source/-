@@ -423,6 +423,7 @@ function RequestCard({ r, spaces, onStatus, onDelete, onSaveSchedule, onPreview 
     if (sch.endDate && sch.endDate < sch.date) return alert("종료일이 시작일보다 빠를 수 없습니다.");
     if (sch.repeatFreq && !sch.repeatUntil) return alert("반복 종료일을 선택해주세요.");
     if (sch.repeatFreq && sch.repeatUntil <= sch.date) return alert("반복 종료일이 시작일보다 늦어야 합니다.");
+    if (sch.repeatFreq && sch.repeatUntil > `${Number(sch.date.slice(0, 4)) + 2}${sch.date.slice(4)}`) return alert("반복 종료일은 시작일로부터 최대 2년까지 설정할 수 있습니다.");
     setSaving(true);
     try {
       await onSaveSchedule(r.id, {
@@ -652,10 +653,15 @@ function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () 
     if (photos.length === 0 && !memo.trim()) return alert("이용 사진·비고 중 하나 이상 입력해주세요.");
     setBusy(true);
     try {
-      // users/answers/files는 보내지 않음 → 서버가 기존 제출 값을 보존
+      // 입력한 항목만 전송 → 서버가 나머지(명단·답변·서류·기존 사진·비고)를 보존.
+      // 사진을 올린 경우에만 photos를 보내 기존 사진을 대체한다.
       const res = await fetch("/api/space-rental", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submitResult", requestId, photos, memo: memo.trim() ? `${memo.trim()} (관리자 직접 등록)` : "(관리자 직접 등록)" }),
+        body: JSON.stringify({
+          action: "submitResult", requestId,
+          ...(photos.length ? { photos } : {}),
+          ...(memo.trim() ? { memo: `${memo.trim()} (관리자 직접 등록)` } : {}),
+        }),
       });
       const j = await res.json().catch(() => ({ ok: false }));
       if (!j.ok) { alert("등록 실패: " + (j.error || res.status)); return; }
@@ -666,7 +672,7 @@ function AdminResultForm({ requestId, onDone }: { requestId: string; onDone: () 
 
   return (
     <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2.5">
-      <p className="text-[11px] font-semibold text-indigo-700">관리자 직접 등록 — 이용 사진·비고를 등록합니다 (신청자가 제출한 명단·답변·서류는 유지)</p>
+      <p className="text-[11px] font-semibold text-indigo-700">관리자 직접 등록 — 입력한 항목만 반영됩니다 (사진을 올리면 기존 사진 대체, 비워둔 항목과 명단·답변·서류는 유지)</p>
       <div>
         <label className="label !text-xs">공간 이용 사진</label>
         <div className="flex items-center gap-2 flex-wrap">
@@ -712,6 +718,7 @@ function AdminApplyModal({ spaces, onClose, onDone }: { spaces: RentalSpace[]; o
     if (!f.applicantName.trim() || !f.studentId.trim()) return alert("신청자 이름·학번/소속을 입력해주세요.");
     if (repeatFreq && !repeatUntil) return alert("반복 종료일을 선택해주세요.");
     if (repeatFreq && repeatUntil <= f.date) return alert("반복 종료일이 시작일보다 늦어야 합니다.");
+    if (repeatFreq && repeatUntil > `${Number(f.date.slice(0, 4)) + 2}${f.date.slice(4)}`) return alert("반복 종료일은 시작일로부터 최대 2년까지 설정할 수 있습니다.");
     setBusy(true);
     try {
       const res = await fetch("/api/space-rental", {

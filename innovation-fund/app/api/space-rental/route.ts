@@ -40,7 +40,8 @@ export async function GET() {
   // 플랫폼이 스스로 만든 구글 이벤트는 제외 — 접수건 슬롯과 이중 표시(중복) 방지.
   // ① 저장된 이벤트 ID(uid) 일치 ② (구버전·ID 미저장 이벤트 대비) 같은 시간·같은 공간이면 자체 이벤트로 간주
   const reqSlots = requestSlots(requests);
-  const ownIds = new Set(requests.map((r) => r.calendarEventId).filter(Boolean) as string[]);
+  // 반려 건은 접수건 슬롯에서 빠지므로, 그 건의 구글 이벤트가 남아 있다면 숨기지 말고 외부 일정으로 표시
+  const ownIds = new Set(requests.filter((r) => r.status !== "rejected").map((r) => r.calendarEventId).filter(Boolean) as string[]);
   const externalCalendar = calendar.filter((s) => {
     if (s.uid && ownIds.has(s.uid)) return false;
     return !reqSlots.some((q) => q.start === s.start && q.end === s.end

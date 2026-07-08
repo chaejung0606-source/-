@@ -1,4 +1,5 @@
 "use client";
+import { kstToday } from "@/lib/kst";
 import { useEffect, useState } from "react";
 import { X, CalendarDays } from "lucide-react";
 import type { ApplicationType } from "@/types";
@@ -11,7 +12,7 @@ interface Props { type: ApplicationType | null; onClose: () => void; }
 
 export default function FundTypeModal({ type, onClose }: Props) {
   const [content, setContent] = useState<TypeContent | null>(null);
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => kstToday());
   const [preProgs, setPreProgs] = useState<Program[]>([]);
   const [fundProgs, setFundProgs] = useState<Program[]>([]);
   const [period, setPeriod] = useState<TypePeriod | undefined>(undefined);

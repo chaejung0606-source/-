@@ -236,9 +236,16 @@ export async function PATCH(req: NextRequest) {
   // ── 상태 변경 ──
   const newStatus = ["pending", "approved", "rejected", "supplement"].includes(String(b.status)) ? String(b.status) : undefined;
   let eventId: string | undefined, webhookError: string | undefined;
+  let clearEventId = false;
   if (newStatus === "approved" && target.status !== "approved" && !target.calendarEventId) {
     const wr = await pushToCalendar(cfg.approveWebhook, target);
     eventId = wr.eventId; webhookError = wr.ok ? undefined : wr.error;
+  }
+  // 반려 시 이미 등록된 구글 캘린더 이벤트 삭제 — 반려된 예약이 캘린더를 점유하지 않도록
+  if (newStatus === "rejected" && target.calendarEventId) {
+    const wr = await callWebhook(cfg.approveWebhook, "delete", target);
+    if (wr.ok) clearEventId = true;
+    else webhookError = wr.error;
   }
   const next = list.map((r) => r.id === id ? {
     ...r,
@@ -246,7 +253,7 @@ export async function PATCH(req: NextRequest) {
     adminMemo: b.adminMemo != null ? String(b.adminMemo) : r.adminMemo,
     // 신청자 이용결과 제출 목록 숨김 토글
     hideFromResults: b.hideFromResults != null ? !!b.hideFromResults || undefined : r.hideFromResults,
-    calendarEventId: eventId || r.calendarEventId,
+    calendarEventId: clearEventId ? undefined : (eventId || r.calendarEventId),
   } : r);
   const { error } = await saveRequests(admin, next);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
