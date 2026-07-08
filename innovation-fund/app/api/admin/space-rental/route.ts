@@ -166,8 +166,14 @@ export async function PATCH(req: NextRequest) {
     if (!b.force && /^\d{4}-\d{2}-\d{2}$/.test(edited.date) && /^\d{2}:\d{2}$/.test(edited.start) && /^\d{2}:\d{2}$/.test(edited.end) && edited.spaceName) {
       let calendar: import("@/lib/space-rental").BookedSlot[] = [];
       try { calendar = await fetchCalendarSlots(cfg.calendarId || DEFAULT_CALENDAR_ID); } catch { /* 캘린더 접근 실패 시 접수건만으로 검증 */ }
+      // 자기 자신이 만든 구글 이벤트 제외: ① 저장된 이벤트 ID 일치 ② (ID 미저장 구버전 대비) 기존 일정과 같은 시간·같은 공간
+      const selfSlots = requestSlots([target]);
       const slots = [
-        ...calendar.filter((s) => !target.calendarEventId || s.uid !== target.calendarEventId),
+        ...calendar.filter((s) => {
+          if (target.calendarEventId && s.uid === target.calendarEventId) return false;
+          return !selfSlots.some((q) => q.start === s.start && q.end === s.end
+            && (sameSpace(s.location || "", q.spaceName || "") || textMatchesSpace(s.label, q.spaceName || "")));
+        }),
         ...requestSlots(list.filter((r) => r.id !== id)),
       ];
       for (const o of expandOccurrences(edited.date, edited.endDate, edited.repeat)) {

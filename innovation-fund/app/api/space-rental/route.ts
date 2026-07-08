@@ -37,7 +37,16 @@ export async function GET() {
   let calendar: BookedSlot[] = [];
   let calendarError = false;
   try { calendar = await fetchCalendarSlots(calendarId); } catch { calendarError = true; }
-  const booked = [...calendar, ...requestSlots(requests)];
+  // 플랫폼이 스스로 만든 구글 이벤트는 제외 — 접수건 슬롯과 이중 표시(중복) 방지.
+  // ① 저장된 이벤트 ID(uid) 일치 ② (구버전·ID 미저장 이벤트 대비) 같은 시간·같은 공간이면 자체 이벤트로 간주
+  const reqSlots = requestSlots(requests);
+  const ownIds = new Set(requests.map((r) => r.calendarEventId).filter(Boolean) as string[]);
+  const externalCalendar = calendar.filter((s) => {
+    if (s.uid && ownIds.has(s.uid)) return false;
+    return !reqSlots.some((q) => q.start === s.start && q.end === s.end
+      && (sameSpace(s.location || "", q.spaceName || "") || textMatchesSpace(s.label, q.spaceName || "")));
+  });
+  const booked = [...externalCalendar, ...reqSlots];
   // 신청자에게는 이름·수용인원·사진만 노출 (그 외 세부정보 비공개)
   const publicSpaces = spaces.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity, photos: s.photos }));
   const publicRequests = requests
