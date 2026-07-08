@@ -1,3 +1,4 @@
+import { kstToday } from "./kst";
 // 사업단 프로그램 관리 — Supabase `programs` 테이블 기반(공개 읽기, 쓰기는 관리자 서버 라우트).
 import { supabase } from "./supabase";
 import type { FundCategory, ReportFieldType } from "@/types";
@@ -205,7 +206,7 @@ export function applyWindow(p: Program, phase: ApplyPhase = "fund"): { start: st
 // 지정 날짜에 신청 가능 여부 (기본: 오늘). 비활성(enabled=false) 프로그램은 항상 false
 export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "fund"): boolean {
   if (!isPhaseEnabled(p, phase)) return false;
-  const d = date || new Date().toISOString().split("T")[0];
+  const d = date || kstToday();
   const { start, end } = applyWindow(p, phase);
   return !!start && !!end && start <= d && d <= end;
 }

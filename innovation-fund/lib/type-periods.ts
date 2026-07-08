@@ -1,3 +1,4 @@
+import { kstToday } from "./kst";
 // 성과형 지원(성적 우수·경진대회·자격증)의 학기별 신청기한 — 관리자 설정값.
 export interface TypePeriod { start: string; end: string; }
 export type TypePeriods = Record<string, TypePeriod>;
@@ -18,7 +19,7 @@ export async function fetchTypePeriods(): Promise<TypePeriods> {
 // 지정 날짜(기본 오늘)에 신청 가능한지. 기한 미설정(둘 다 빈값)이면 상시 허용.
 export function isTypeOpen(p: TypePeriod | undefined, date?: string): boolean {
   if (!p || (!p.start && !p.end)) return true;
-  const d = date || new Date().toISOString().slice(0, 10);
+  const d = date || kstToday();
   if (p.start && d < p.start) return false;
   if (p.end && d > p.end) return false;
   return true;

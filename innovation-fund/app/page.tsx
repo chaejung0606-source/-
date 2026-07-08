@@ -72,6 +72,7 @@ function toEmbedSrc(href: string): string {
     return href;
   }
 }
+import { kstToday } from "@/lib/kst";
 
 export default function Home() {
   const [modalType, setModalType] = useState<ApplicationType | null>(null);
@@ -109,7 +110,7 @@ export default function Home() {
   const [popupQueue, setPopupQueue] = useState<Popup[]>([]);
   useEffect(() => {
     fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = kstToday();
       const list: Popup[] = Array.isArray(d?.popups) ? d.popups : [];
       const active = list.filter((p) => {
         if (!p.enabled || !(p.title || p.content)) return false;
@@ -126,7 +127,7 @@ export default function Home() {
   const closePopup = (id: string, mode: "close" | "today" | "never") => {
     if (mode !== "close") {
       try {
-        const v = mode === "never" ? "never" : new Date().toISOString().slice(0, 10);
+        const v = mode === "never" ? "never" : kstToday();
         localStorage.setItem(`popupDismiss:${id}`, v);
       } catch { /* noop */ }
     }
