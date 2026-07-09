@@ -7,7 +7,7 @@ import type { Application, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
-import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
+import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey, statusMeta } from "@/lib/status-config";
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
 import { getProgramById } from "@/lib/md-courses";
@@ -126,6 +126,13 @@ export default function ApplicationDetailPage() {
   }, [app]);
 
   const handleSave = async () => {
+    // 반려·보완요청은 사유(안내 메모)를 반드시 남기도록 강제 — 신청자가 사유 없이 통보받는 것을 방지
+    if ((reviewStatus === "rejected" || reviewStatus === "supplement") && !adminMemo.trim()) {
+      alert(reviewStatus === "rejected"
+        ? "반려 사유를 '신청자 안내 메모'에 입력해주세요. (신청자에게 그대로 표시됩니다)"
+        : "보완 요청 내용을 '신청자 안내 메모'에 입력해주세요. (신청자에게 그대로 표시됩니다)");
+      return;
+    }
     setSaving(true);
     const res = await fetch(`/api/applications/${id}`, {
       method: "PATCH",
@@ -139,8 +146,14 @@ export default function ApplicationDetailPage() {
       }),
     }).catch(() => null);
     setSaving(false);
-    if (!res || !res.ok) { alert(res?.status === 403 ? "저장 실패: 승인 금액·지급 상태는 지출관리자만 변경할 수 있습니다." : "저장에 실패했습니다. 잠시 후 다시 시도해주세요."); return; }
-    setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount) } : a));
+    if (!res || !res.ok) {
+      const je = await res?.json().catch(() => null);
+      alert(res?.status === 403 ? "저장 실패: 승인 금액·지급 상태는 지출관리자만 변경할 수 있습니다."
+        : je?.error || "저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    const saved = await res.json().catch(() => null);
+    setApp((a) => (a ? { ...a, verifiedAccount: { ...vAccount }, reviewStatus, paymentStatus, adminMemo, approvedAmount: approvedAmount === "" ? undefined : Number(approvedAmount), statusHistory: saved?.statusHistory ?? a.statusHistory } : a));
     // 저장 후에는 화면에서 계좌·주민번호를 마스킹 표시
     if (vAccount.accountNumber || vAccount.residentNumber) setEditAccount(false);
     alert("저장되었습니다.");
@@ -745,6 +758,35 @@ export default function ApplicationDetailPage() {
               </button>
             )}
           </div>
+
+          {/* 상태 변경 이력(감사 로그) */}
+          {app.statusHistory && app.statusHistory.length > 0 && (
+            <div className="card">
+              <h2 className="section-title mb-2">상태 변경 이력</h2>
+              <ul className="space-y-2">
+                {[...app.statusHistory].reverse().map((h, i) => {
+                  const kind = h.field === "payment" ? "payment" : "review";
+                  const fromL = h.from ? statusMeta(statusCfg, kind, h.from).label : "-";
+                  const toL = statusMeta(statusCfg, kind, h.to).label;
+                  return (
+                    <li key={i} className="text-xs text-gray-600 border-l-2 border-indigo-200 pl-2.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="badge bg-gray-100 text-gray-500">{h.field === "payment" ? "지급" : "검토"}</span>
+                        <span className="text-gray-400">{fromL}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="font-semibold text-indigo-700">{toL}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">
+                        {new Date(h.at).toLocaleString("ko-KR")}
+                        {h.by && ` · ${h.by}`}{h.role && ` (${h.role === "expense" ? "지출관리자" : "프로그램 관리자"})`}
+                      </div>
+                      {h.memo && <div className="text-[11px] text-gray-500 mt-0.5">메모: {h.memo}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           <div className="card bg-gray-50">
             <h3 className="font-medium text-gray-600 text-sm mb-2">메모 예시</h3>

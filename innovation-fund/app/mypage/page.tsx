@@ -189,7 +189,7 @@ export default function MyPage() {
   const saveLogin = async () => {
     setLoginErr("");
     if (!loginForm.newPassword) { setLoginErr("새 비밀번호를 입력해주세요."); return; }
-    if (loginForm.newPassword.length < 6) { setLoginErr("새 비밀번호는 6자 이상이어야 합니다."); return; }
+    if (loginForm.newPassword.length < 8) { setLoginErr("새 비밀번호는 8자 이상이어야 합니다."); return; }
     if (loginForm.newPassword !== loginForm.confirmPassword) { setLoginErr("새 비밀번호가 일치하지 않습니다."); return; }
     if (!loginForm.currentPassword) { setLoginErr("현재 비밀번호를 입력해주세요."); return; }
     setLoginSaving(true);
@@ -482,7 +482,7 @@ export default function MyPage() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">새 비밀번호 <span className="text-red-500">*</span></label>
-                  <input className="input-field" type="password" value={loginForm.newPassword} onChange={(e) => setLoginForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="6자 이상" autoComplete="new-password" />
+                  <input className="input-field" type="password" value={loginForm.newPassword} onChange={(e) => setLoginForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="8자 이상" autoComplete="new-password" />
                 </div>
                 <div>
                   <label className="label">새 비밀번호 확인 <span className="text-red-500">*</span></label>

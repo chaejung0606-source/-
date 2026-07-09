@@ -13,6 +13,7 @@ import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES } from "@/lib/t
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
+import { confirmIfDuplicate } from "@/lib/duplicate-check";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
@@ -573,6 +574,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         router.push("/login?next=/apply");
         return;
       }
+      // 동일 유형 중복 신청 방지 — 같은 종류의 유효 신청이 있으면 확인 후 진행
+      if (!(await confirmIfDuplicate(user.id, applicationType, mode, draftId))) return;
       const row = toRow(buildPayload(false), user.id);
 
       let inserted: { id: string; receipt_number: string };

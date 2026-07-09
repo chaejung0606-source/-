@@ -129,6 +129,7 @@ export function fromRow(r: any): Application {
     adminMemo: r.admin_memo || "",
     reviewStage: r.review_stage ?? undefined,
     handoffNote: r.handoff_note || undefined,
+    statusHistory: Array.isArray(r.status_history) ? r.status_history : undefined,
     approvedAmount: r.approved_amount ?? undefined,
     requestAmount: r.request_amount ?? 0,
     calculatedAmount: r.calculated_amount ?? 0,

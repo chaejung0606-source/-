@@ -472,6 +472,8 @@ export interface Application {
   // 검토 단계(서류 인계): "program"=프로그램 관리자 검토중 / "expense"=지출관리자에게 전달됨
   reviewStage?: "program" | "expense";
   handoffNote?: string; // 지출관리자→프로그램관리자 보완 요청 메모
+  // 상태 변경 이력(감사 로그) — 검토/지급 상태 변경 시 누적 기록
+  statusHistory?: { at: string; by?: string; role?: string; field: "review" | "payment"; from?: string | null; to: string; memo?: string }[];
   // 관리자 폼 빌더(스키마)로 작성한 신청의 답변 모음
   formAnswers?: { programId?: string; programName?: string; fields: { id: string; label: string; type: string; value: string; step?: string }[] };
 

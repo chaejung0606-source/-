@@ -10,6 +10,7 @@ import { ALL_DAY } from "@/lib/space-rental";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
+import { confirmIfDuplicate } from "@/lib/duplicate-check";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
@@ -438,6 +439,8 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { alert("로그인이 필요합니다. 다시 로그인해 주세요."); router.push("/login?next=/apply"); return; }
+      // 동일 유형 중복 신청 방지 — 같은 종류의 유효 신청이 있으면 확인 후 진행
+      if (!(await confirmIfDuplicate(user.id, type, mode, draftId))) return;
       let receiptNumber: string | undefined;
       let appId: string | undefined;
       if (draftId) {

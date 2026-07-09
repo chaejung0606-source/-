@@ -207,6 +207,8 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS canceled_ip TEXT;
 -- 검토/지급 상태를 관리자가 추가·수정·삭제할 수 있도록 CHECK 제약 제거(커스텀 상태 키 허용)
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_review_status_check;
 ALTER TABLE applications DROP CONSTRAINT IF EXISTS applications_payment_status_check;
+-- applications: 상태 변경 이력(감사 로그) — 검토/지급 상태 변경 시 {at,by,role,field,from,to,memo} 누적
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS status_history JSONB DEFAULT '[]'::jsonb;
 -- applications: 임시저장(작성 중)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT FALSE;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS draft_step INT;

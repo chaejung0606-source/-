@@ -216,7 +216,7 @@ dl.kv dd{margin:0}
     <h1>플랫폼 기능 구현 및 운영 매뉴얼 웹북</h1>
     <div class="sub">관리자·신청자 기능 안내 / 구현 조건 / 상태값 / 테스트 체크리스트 통합본 — 혁신인재지원금·공간대여 플랫폼</div>
   </div>
-  <span class="ver" data-qa-badge><!--QA_STATUS-->기준 버전 v1.1.189 · QA 27/27 통과 (2026-07-09)<!--/QA_STATUS--></span>
+  <span class="ver" data-qa-badge><!--QA_STATUS-->기준 버전 v1.1.190 · QA 28/28 통과 (2026-07-09)<!--/QA_STATUS--></span>
   <button id="navtoggle" type="button" aria-label="목차 열기/닫기">☰ 목차</button>
 </header>
 
@@ -1404,11 +1404,11 @@ dl.kv dd{margin:0}
   <div class="tblwrap"><table class="tbl">
     <thead><tr><th class="c">우선순위</th><th>개선 필요사항</th><th>현재 상태(확인된 사실)</th><th>개선 방향</th><th>예상 효과</th></tr></thead>
     <tbody>
-      <tr><td class="c"><span class="pill red">상</span></td><td class="lb">상태 변경 이력(감사 기록) 부재</td><td>검토·지급 상태는 현재 값만 저장 — 누가 언제 바꿨는지 기록 없음</td><td>상태 변경 시 이력(일시·관리자·이전→이후 값) 저장 테이블 추가. 그 전까지는 중요 결정을 안내 메모·별도 대장에 기록하는 수칙 운영</td><td>운영 책임성·분쟁 대응</td></tr>
-      <tr><td class="c"><span class="pill red">상</span></td><td class="lb">반려·보완 사유 입력 미강제</td><td>사유(안내 메모) 없이도 반려·보완요청 저장 가능</td><td>반려·보완요청 선택 시 메모 필수화(저장 차단) 또는 확인창 추가</td><td>신청자 문의 감소, 재작업 단축</td></tr>
-      <tr><td class="c"><span class="pill red">상</span></td><td class="lb">지원금 동일 유형 중복 신청 검증 없음</td><td>같은 학생이 같은 유형을 여러 번 제출해도 시스템이 막지 않음(관리자 육안 확인)</td><td>제출 시 동일 유형·기간 기존 신청 존재 여부 경고(또는 차단) 추가</td><td>중복 지급 사고 예방</td></tr>
+      <tr><td class="c"><span class="pill green">해결 ✔</span></td><td class="lb">상태 변경 이력(감사 로그)</td><td>검토·지급 상태 변경 시 <b>일시·관리자·역할·이전→이후·메모</b>를 신청 데이터에 누적 기록, 신청 상세에 타임라인 표시(v1.1.191)</td><td>완료 — 기존 JSONB 컬럼(status_history)에 저장, 별도 테이블 불필요</td><td>운영 책임성·분쟁 대응 확보</td></tr>
+      <tr><td class="c"><span class="pill green">해결 ✔</span></td><td class="lb">반려·보완 사유 필수화</td><td>검토 상태를 반려·보완요청으로 저장 시 안내 메모가 비어 있으면 <b>화면·서버 모두 차단</b>(v1.1.191)</td><td>완료 — 사유 없는 통보 방지</td><td>신청자 문의 감소, 재작업 단축</td></tr>
+      <tr><td class="c"><span class="pill green">해결 ✔</span></td><td class="lb">동일 유형 중복 신청 방지</td><td>제출 직전 같은 종류의 유효 신청(취소·반려 제외)이 있으면 <b>확인창으로 경고</b>(v1.1.191)</td><td>완료 — 반려·취소 후 재신청은 정상 허용</td><td>중복 지급 사고 예방</td></tr>
       <tr><td class="c"><span class="pill orange">중</span></td><td class="lb">상태 변경 자동 알림 없음</td><td>보완요청·승인·반려 시 이메일·문자 자동 발송 없음 — 신청자가 마이페이지를 직접 확인해야 함</td><td>이메일 발송 연동(보완요청·승인·반려 시). 단기적으로는 [알림 보내기] 수동 활용 + 공지로 "마이페이지 확인" 안내</td><td>보완·수령 지연 감소</td></tr>
-      <tr><td class="c"><span class="pill orange">중</span></td><td class="lb">비밀번호 정책 불일치·셀프 재설정 부재</td><td>가입 8자 이상 vs 변경 6자 이상으로 기준 상이. 분실 시 관리자 재설정만 가능</td><td>기준을 8자로 통일, (선택) 이메일 본인확인 셀프 재설정 추가</td><td>보안 일관성, 문의 감소</td></tr>
+      <tr><td class="c"><span class="pill green">해결 ✔</span></td><td class="lb">비밀번호 기준 통일(8자)</td><td>마이페이지 비밀번호 변경도 가입과 동일하게 <b>8자 이상</b>으로 통일(v1.1.191). 셀프 재설정(이메일 인증)은 후속 과제로 유지</td><td>완료(통일) — 셀프 재설정은 알림 연동과 함께 검토</td><td>보안 일관성, 문의 감소</td></tr>
       <tr><td class="c"><span class="pill orange">중</span></td><td class="lb">신청 증빙 파일 용량 상한 미정의</td><td>사이트 파일 20MB·공간 사진 15MB는 제한 있음. 신청서 증빙은 코드상 상한 명시 없음(저장소 기본 정책 의존)</td><td>증빙 업로드에 용량 상한·안내 문구 추가</td><td>업로드 실패 예방</td></tr>
       <tr><td class="c"><span class="pill orange">중</span></td><td class="lb">개인정보 보유기간(5년) 자동 파기 없음</td><td>처리방침에 5년 명시, 자동 삭제 기능 없음</td><td>연 1회 파기 절차 수립(대상 추출 → 삭제), 장기적으로 자동화</td><td>개인정보보호법 준수</td></tr>
       <tr><td class="c"><span class="pill orange">중</span></td><td class="lb">공간대여 보완요청 후 자동 상태 전환 없음</td><td>지원금과 달리 공간대여는 재제출해도 '보완요청' 상태 유지(관리자 수동 변경)</td><td>이용결과 재제출 시 관리자에게 표시(배지) 또는 자동 상태 전환 추가</td><td>재확인 누락 방지</td></tr>
@@ -1429,10 +1429,10 @@ dl.kv dd{margin:0}
       <tr><td>신청</td><td class="lb">개인정보 동의 기록 저장</td><td>개인정보 처리 근거 증빙</td><td class="c"><span class="impl ok">구현</span></td><td>신청 데이터에 동의 3종 값 저장 확인(관리자 상세·인쇄 문서에 표시)</td></tr>
       <tr><td>신청</td><td class="lb">서명 이미지 저장·출력</td><td>신청서 증빙</td><td class="c"><span class="impl ok">구현</span></td><td>신청 상세·인쇄 문서에서 서명 표시 확인</td></tr>
       <tr><td>신청</td><td class="lb">신청 취소 기능</td><td>신청자 실수 대응</td><td class="c"><span class="impl ok">구현</span></td><td>마이페이지 [신청 취소] → 취소 내역 이동(데이터 보존형)</td></tr>
-      <tr><td>관리자</td><td class="lb">반려 사유 입력</td><td>신청자 안내·이력</td><td class="c"><span class="impl q">부분 구현</span></td><td>안내 메모로 전달 가능하나 <b>필수 강제 없음</b> — 15장 개선 과제</td></tr>
-      <tr><td>관리자</td><td class="lb">상태 변경 이력(감사 로그)</td><td>운영 책임성</td><td class="c"><span class="impl no">미구현</span></td><td>DB에 이력 테이블 없음(현재 값만). 15장 최우선 과제</td></tr>
+      <tr><td>관리자</td><td class="lb">반려 사유 입력</td><td>신청자 안내·이력</td><td class="c"><span class="impl ok">구현</span></td><td>v1.1.191 — 반려·보완요청 시 안내 메모(사유) 필수화(화면·서버 차단)</td></tr>
+      <tr><td>관리자</td><td class="lb">상태 변경 이력(감사 로그)</td><td>운영 책임성</td><td class="c"><span class="impl ok">구현</span></td><td>v1.1.191 — status_history JSONB에 일시·관리자·이전→이후·메모 누적, 상세에 타임라인 표시</td></tr>
       <tr><td>공간</td><td class="lb">중복 대여 방지</td><td>같은 공간·시간 이중 예약 방지</td><td class="c"><span class="impl ok">구현</span></td><td>동일 시간 이중 신청 테스트(409 차단). 단, 관리자 강제 저장은 예외 허용</td></tr>
-      <tr><td>지원금</td><td class="lb">동일 유형 중복 신청 방지</td><td>중복 지급 예방</td><td class="c"><span class="impl no">미구현</span></td><td>같은 유형 2건 제출 테스트 → 모두 접수됨(관리자 확인 필요). 15장 과제</td></tr>
+      <tr><td>지원금</td><td class="lb">동일 유형 중복 신청 방지</td><td>중복 지급 예방</td><td class="c"><span class="impl ok">구현</span></td><td>v1.1.191 — 제출 직전 유효 중복 신청 감지 시 확인창 경고</td></tr>
       <tr><td>식별</td><td class="lb">접수번호 중복 방지</td><td>신청 식별 오류 방지</td><td class="c"><span class="impl ok">구현</span></td><td>연도-순번 자동 부여 + 고유 제약, 삭제 번호 재사용 안 함</td></tr>
       <tr><td>알림</td><td class="lb">보완·승인 자동 알림(이메일·문자)</td><td>처리 지연 방지</td><td class="c"><span class="impl no">미구현</span></td><td>상태 변경 후 신청자 수신 채널 없음 확인(마이페이지 표시만). 수동 [알림 보내기]로 대체</td></tr>
       <tr><td>알림</td><td class="lb">공간대여 이용 전·반납 예정 알림</td><td>이용결과 제출 독려</td><td class="c"><span class="impl no">미구현</span></td><td>알림 기능 없음 — 운영 공지로 대체</td></tr>

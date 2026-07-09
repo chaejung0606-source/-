@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   if (!currentPassword) return NextResponse.json({ ok: false, error: "현재 비밀번호를 입력해주세요." }, { status: 400 });
   if (!newPassword) return NextResponse.json({ ok: false, error: "새 비밀번호를 입력해주세요." }, { status: 400 });
-  if (newPassword.length < 6) return NextResponse.json({ ok: false, error: "비밀번호는 6자 이상이어야 합니다." }, { status: 400 });
+  if (newPassword.length < 8) return NextResponse.json({ ok: false, error: "비밀번호는 8자 이상이어야 합니다." }, { status: 400 });
 
   // 본인 확인 — 현재 비밀번호로 재인증(별도 클라이언트라 현재 세션에 영향 없음)
   const reauth = createClient(

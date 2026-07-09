@@ -51,6 +51,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (session.role !== "expense" && (body.paymentStatus !== undefined || body.approvedAmount !== undefined)) {
     return NextResponse.json({ error: "승인 금액·지급 상태는 지출관리자만 변경할 수 있습니다." }, { status: 403 });
   }
+
+  // 반려·보완요청은 사유(안내 메모) 필수 — 최종 메모(변경분 우선, 없으면 기존)가 비면 차단
+  if (body.reviewStatus === "rejected" || body.reviewStatus === "supplement") {
+    const finalMemo = String((body.adminMemo !== undefined ? body.adminMemo : existing.admin_memo) || "").trim();
+    if (!finalMemo) {
+      return NextResponse.json({ error: body.reviewStatus === "rejected"
+        ? "반려 사유를 안내 메모에 입력해주세요." : "보완 요청 내용을 안내 메모에 입력해주세요." }, { status: 400 });
+    }
+  }
+
   const patch: Record<string, any> = {};
   if (body.reviewStatus !== undefined) patch.review_status = body.reviewStatus;
   if (body.paymentStatus !== undefined) patch.payment_status = body.paymentStatus;
@@ -64,9 +74,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.reviewStage !== undefined) stagePatch.review_stage = body.reviewStage;
   if (body.handoffNote !== undefined) stagePatch.handoff_note = body.handoffNote;
 
-  // 배포 DB에 없는 컬럼(review_stage/handoff_note/verified_account 등)은 자동 제외 후 재시도
+  // 상태 변경 이력(감사 로그) — 검토/지급 상태가 실제로 바뀌면 이전→이후 값을 누적 기록(누가·언제)
+  const prevLen = Array.isArray(existing.status_history) ? existing.status_history.length : 0;
+  const history: any[] = Array.isArray(existing.status_history) ? [...existing.status_history] : []; // 원본 참조 공유 방지(복사)
+  const nowIso = new Date().toISOString();
+  const memoForLog = String((body.adminMemo !== undefined ? body.adminMemo : existing.admin_memo) || "").trim();
+  if (body.reviewStatus !== undefined && body.reviewStatus !== existing.review_status) {
+    history.push({ at: nowIso, by: session.id, role: session.role, field: "review", from: existing.review_status || null, to: body.reviewStatus, memo: memoForLog || undefined });
+  }
+  if (body.paymentStatus !== undefined && body.paymentStatus !== existing.payment_status) {
+    history.push({ at: nowIso, by: session.id, role: session.role, field: "payment", from: existing.payment_status || null, to: body.paymentStatus });
+  }
+  const historyPatch = history.length !== prevLen ? { status_history: history } : {};
+
+  // 배포 DB에 없는 컬럼(review_stage/handoff_note/verified_account/status_history 등)은 자동 제외 후 재시도
   const { data, error } = await withMissingColumnRetry<Record<string, unknown>>(
-    { ...patch, ...stagePatch }, (r) => adminDb.from("applications").update(r).eq("id", id).select("*").maybeSingle(),
+    { ...patch, ...stagePatch, ...historyPatch }, (r) => adminDb.from("applications").update(r).eq("id", id).select("*").maybeSingle(),
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
