@@ -115,7 +115,7 @@ export default function ApplicationsPage() {
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
 
-  // 프로그램별 신청 건수 (취소 제외) — 프로그램 관리자 대시보드용
+  // 프로그램별 신청 건수 (취소 제외) — 프로그램 관리자: 본인 담당 건 / 지출관리자: 아래 pendingByProgram 사용
   const programCounts = useMemo(() => {
     const m: Record<string, number> = {};
     visibleApps.filter((a) => !a.canceled).forEach((a) => {
@@ -124,6 +124,19 @@ export default function ApplicationsPage() {
     });
     return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
   }, [visibleApps]);
+
+  // 지출관리자용: 프로그램별 '아직 지출관리자에게 전달되지 않은(프로그램 관리자 검토중)' 신청 건수.
+  // 프로그램 관리자가 배정된 프로그램만 대상 — 전달 전 적체 현황 확인용.
+  const pendingByProgram = useMemo(() => {
+    const m: Record<string, number> = {};
+    apps.filter((a) => !a.canceled && !a.isDraft && effStage(a) === "program").forEach((a) => {
+      const pid = ownerProgramId(a);
+      if (!pid || !allAssigned.has(pid)) return; // 담당 프로그램 관리자가 있는 프로그램만
+      const n = progNameOf(a) || "(프로그램 미지정)";
+      m[n] = (m[n] || 0) + 1;
+    });
+    return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
+  }, [apps, me, nameToId, allAssigned]);
 
   const filtered = useMemo(() => {
     return apps.filter((a) => {
@@ -295,7 +308,21 @@ export default function ApplicationsPage() {
               ))}
             </div>
           </>); })()}
-          {me?.role !== "expense" && (
+          {me?.role === "expense" ? (
+            <>
+              {/* 라벨 부연(회색 글씨)은 title 툴팁으로 이동 — 대시보드 높이 절약 */}
+              <div className="text-xs font-semibold text-gray-500 pt-1" title="프로그램 관리자 검토중(지출관리자 미전달) 건수">프로그램별 미전달</div>
+              <div className="flex flex-wrap gap-2">
+                {pendingByProgram.length === 0 ? <span className="text-xs text-gray-400 pt-1">프로그램 관리자가 검토중인(미전달) 신청이 없습니다.</span> : pendingByProgram.map(([name, cnt]) => (
+                  <span key={name} title="해당 프로그램 관리자가 아직 지출관리자에게 전달하지 않은 신청 건수"
+                    className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border bg-amber-50 text-amber-700 border-amber-100">
+                    <span className="max-w-[180px] truncate">{name}</span>
+                    <span className="font-bold">{cnt}</span>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
             <>
               <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별</div>
               <div className="flex flex-wrap gap-2">
