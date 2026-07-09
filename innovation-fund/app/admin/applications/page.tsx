@@ -115,7 +115,7 @@ export default function ApplicationsPage() {
   const canceledCount = useMemo(() => visibleApps.filter((a) => a.canceled).length, [visibleApps]);
   const activeCount = visibleApps.length - canceledCount;
 
-  // 프로그램별 신청 건수 (취소 제외) — 프로그램 관리자: 본인 담당 건 / 지출관리자: 아래 pendingByProgram 사용
+  // 프로그램별 신청 건수 (취소 제외) — 프로그램 관리자 대시보드용
   const programCounts = useMemo(() => {
     const m: Record<string, number> = {};
     visibleApps.filter((a) => !a.canceled).forEach((a) => {
@@ -124,19 +124,6 @@ export default function ApplicationsPage() {
     });
     return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
   }, [visibleApps]);
-
-  // 지출관리자용: 프로그램별 '아직 지출관리자에게 전달되지 않은(프로그램 관리자 검토중)' 신청 건수.
-  // 프로그램 관리자가 배정된 프로그램만 대상 — 전달 전 적체 현황 확인용.
-  const pendingByProgram = useMemo(() => {
-    const m: Record<string, number> = {};
-    apps.filter((a) => !a.canceled && !a.isDraft && effStage(a) === "program").forEach((a) => {
-      const pid = ownerProgramId(a);
-      if (!pid || !allAssigned.has(pid)) return; // 담당 프로그램 관리자가 있는 프로그램만
-      const n = progNameOf(a) || "(프로그램 미지정)";
-      m[n] = (m[n] || 0) + 1;
-    });
-    return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
-  }, [apps, me, nameToId, allAssigned]);
 
   const filtered = useMemo(() => {
     return apps.filter((a) => {
@@ -279,7 +266,7 @@ export default function ApplicationsPage() {
       )}
 
       {/* 대시보드 (신청 목록 상단 통합) — 좌: 미확인 신청 / 우: 상태 표시 */}
-      <div className="card mb-5 flex flex-col sm:flex-row gap-5">
+      <div className="card mb-4 flex flex-col sm:flex-row gap-5">
         <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
           <span className="text-sm text-gray-500">관리자 미확인 신청</span>
           <span className="text-5xl font-bold text-rose-600 my-1.5">{unconfirmedCount}<span className="text-lg text-gray-500 font-medium ml-1">건</span></span>
@@ -308,20 +295,7 @@ export default function ApplicationsPage() {
               ))}
             </div>
           </>); })()}
-          {me?.role === "expense" ? (
-            <>
-              <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별 미전달<span className="block text-[10px] font-normal text-gray-400">(프로그램 관리자 검토중)</span></div>
-              <div className="flex flex-wrap gap-2">
-                {pendingByProgram.length === 0 ? <span className="text-xs text-gray-400 pt-1">프로그램 관리자가 검토중인(미전달) 신청이 없습니다.</span> : pendingByProgram.map(([name, cnt]) => (
-                  <span key={name} title="해당 프로그램 관리자가 아직 지출관리자에게 전달하지 않은 신청 건수"
-                    className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium border bg-amber-50 text-amber-700 border-amber-100">
-                    <span className="max-w-[180px] truncate">{name}</span>
-                    <span className="font-bold">{cnt}</span>
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
+          {me?.role !== "expense" && (
             <>
               <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별</div>
               <div className="flex flex-wrap gap-2">
@@ -341,8 +315,16 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
+      {/* 신청/취소 목록 탭(좌) + 작업 버튼(우) — 한 줄 배치 */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div className="flex gap-2">
+          <button onClick={() => { setView("active"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "active" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>
+            신청 목록 ({activeCount})
+          </button>
+          <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
+            취소 목록 ({canceledCount})
+          </button>
+        </div>
         <div className="flex gap-2 flex-wrap">
           {me?.role === "program" && view === "active" && (
             <button onClick={sendToExpense} className="btn-primary flex items-center gap-2 text-sm">
@@ -369,18 +351,8 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* 신청 / 취소 목록 탭 */}
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => { setView("active"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "active" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>
-          신청 목록 ({activeCount})
-        </button>
-        <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
-          취소 목록 ({canceledCount})
-        </button>
-      </div>
-
       {/* 필터 */}
-      <div className="card mb-4">
+      <div className="card mb-3">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -428,8 +400,8 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* 테이블 */}
-      <div className="overflow-x-auto rounded-[32px]">
+      {/* 테이블 — 약 10행 높이까지만 보이고 나머지는 세로 스크롤(헤더 고정) */}
+      <div className="table-scroll rounded-[32px]">
         <table className="table-glass text-sm">
           <thead>
             <tr>

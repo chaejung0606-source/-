@@ -505,6 +505,20 @@
   .table-glass tbody tr:hover td { background: rgba(79, 140, 255, 0.06); }
   .table-glass tbody tr:last-child td { border-bottom: none; }
 
+  /* 긴 목록용 스크롤 컨테이너 — 약 10행 높이 이후는 세로 스크롤, 헤더는 상단 고정 */
+  .table-scroll {
+    max-height: 590px;
+    overflow: auto;
+  }
+  .table-scroll .table-glass thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
   /* ===== 업로드 카드 ===== */
   .upload-card {
     border-radius: var(--radius-lg);
