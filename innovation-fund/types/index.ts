@@ -59,6 +59,7 @@ export type ReviewStatus =
   | "received"    // 접수완료
   | "reviewing"   // 검토중
   | "supplement"  // 보완요청
+  | "supplemented" // 보완완료(보완요청 후 신청자가 재제출)
   | "committee"   // 심의필요
   | "approved"    // 승인
   | "rejected";   // 반려
@@ -494,6 +495,7 @@ export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   received: "신청완료",
   reviewing: "검토중",
   supplement: "보완요청",
+  supplemented: "보완완료",
   committee: "심의필요",
   approved: "승인",
   rejected: "반려",

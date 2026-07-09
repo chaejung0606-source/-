@@ -255,8 +255,8 @@ export default function ApplicationsPage() {
 
   // 대시보드는 현재 관리자가 담당·열람하는 신청만(visibleApps), 취소 건 제외하고 집계
   const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => visibleApps.filter((a) => !a.canceled && a[field] === val).length;
-  // 관리자가 아직 확인하지 못한(검토 상태 '신청완료') 신청 건수
-  const unconfirmedCount = visibleApps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
+  // 관리자가 아직 확인하지 못한(검토 상태 '신청완료'·'보완완료') 신청 건수 — 보완 후 재제출 건도 재확인 대상
+  const unconfirmedCount = visibleApps.filter((a) => !a.canceled && (a.reviewStatus === "received" || a.reviewStatus === "supplemented")).length;
 
   return (
     <AdminLayout wide>
@@ -279,11 +279,11 @@ export default function ApplicationsPage() {
       )}
 
       {/* 대시보드 (신청 목록 상단 통합) — 좌: 미확인 신청 / 우: 상태 표시 */}
-      <div className="card mb-5 flex flex-col sm:flex-row gap-5">
+      <div className="card mb-4 flex flex-col sm:flex-row gap-5">
         <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
           <span className="text-sm text-gray-500">관리자 미확인 신청</span>
           <span className="text-5xl font-bold text-rose-600 my-1.5">{unconfirmedCount}<span className="text-lg text-gray-500 font-medium ml-1">건</span></span>
-          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}’</span>
+          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}·{statusMeta(statusCfg, "review", "supplemented").label}’</span>
         </div>
         <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
           {(() => { const items = statusCfg.review.filter((o) => statCount("reviewStatus", o.key) > 0); return (<>
@@ -310,7 +310,8 @@ export default function ApplicationsPage() {
           </>); })()}
           {me?.role === "expense" ? (
             <>
-              <div className="text-xs font-semibold text-gray-500 pt-1">프로그램별 미전달<span className="block text-[10px] font-normal text-gray-400">(프로그램 관리자 검토중)</span></div>
+              {/* 라벨 부연(회색 글씨)은 title 툴팁으로 이동 — 대시보드 높이 절약 */}
+              <div className="text-xs font-semibold text-gray-500 pt-1" title="프로그램 관리자 검토중(지출관리자 미전달) 건수">프로그램별 미전달</div>
               <div className="flex flex-wrap gap-2">
                 {pendingByProgram.length === 0 ? <span className="text-xs text-gray-400 pt-1">프로그램 관리자가 검토중인(미전달) 신청이 없습니다.</span> : pendingByProgram.map(([name, cnt]) => (
                   <span key={name} title="해당 프로그램 관리자가 아직 지출관리자에게 전달하지 않은 신청 건수"
@@ -341,8 +342,16 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">{view === "active" ? "신청 목록" : "취소 목록"}</h1>
+      {/* 신청/취소 목록 탭(좌) + 작업 버튼(우) — 한 줄 배치 */}
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div className="flex gap-2">
+          <button onClick={() => { setView("active"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "active" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>
+            신청 목록 ({activeCount})
+          </button>
+          <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
+            취소 목록 ({canceledCount})
+          </button>
+        </div>
         <div className="flex gap-2 flex-wrap">
           {me?.role === "program" && view === "active" && (
             <button onClick={sendToExpense} className="btn-primary flex items-center gap-2 text-sm">
@@ -369,18 +378,8 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* 신청 / 취소 목록 탭 */}
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => { setView("active"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "active" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>
-          신청 목록 ({activeCount})
-        </button>
-        <button onClick={() => { setView("canceled"); setSelected(new Set()); }} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "canceled" ? "bg-rose-500 text-white" : "bg-white/60 text-gray-600"}`}>
-          취소 목록 ({canceledCount})
-        </button>
-      </div>
-
       {/* 필터 */}
-      <div className="card mb-4">
+      <div className="card mb-3">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -428,8 +427,8 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* 테이블 */}
-      <div className="overflow-x-auto rounded-[32px]">
+      {/* 테이블 — 약 10행 높이까지만 보이고 나머지는 세로 스크롤(헤더 고정) */}
+      <div className="table-scroll rounded-[32px]">
         <table className="table-glass text-sm">
           <thead>
             <tr>

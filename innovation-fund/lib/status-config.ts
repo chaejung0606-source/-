@@ -49,8 +49,18 @@ export function normalizeStatusConfig(value: unknown): StatusConfig {
       };
     }).filter((o) => o.label.trim() !== "");
   };
+  const review = norm(v.review, DEFAULT_STATUS_CONFIG.review);
+  // 'supplemented'(보완완료)는 보완요청 후 재제출 시 시스템이 자동 부여하는 상태 —
+  // 새 상태 추가 이전에 저장된 커스텀 설정에도 항상 포함되도록 병합(보완요청 뒤에 삽입)
+  if (!review.some((o) => o.key === "supplemented")) {
+    const def = DEFAULT_STATUS_CONFIG.review.find((o) => o.key === "supplemented");
+    if (def) {
+      const idx = review.findIndex((o) => o.key === "supplement");
+      review.splice(idx >= 0 ? idx + 1 : review.length, 0, def);
+    }
+  }
   return {
-    review: norm(v.review, DEFAULT_STATUS_CONFIG.review),
+    review,
     payment: norm(v.payment, DEFAULT_STATUS_CONFIG.payment),
   };
 }
