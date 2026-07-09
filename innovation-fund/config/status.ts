@@ -11,6 +11,7 @@ export const REVIEW_STATUS_META: Record<ReviewStatus, StatusMeta> = {
   received:   { label: REVIEW_STATUS_LABELS.received,   badge: "bg-blue-100 text-blue-700" },
   reviewing:  { label: REVIEW_STATUS_LABELS.reviewing,  badge: "bg-amber-100 text-amber-700" },
   supplement: { label: REVIEW_STATUS_LABELS.supplement, badge: "bg-orange-100 text-orange-700" },
+  supplemented: { label: REVIEW_STATUS_LABELS.supplemented, badge: "bg-teal-100 text-teal-700" },
   committee:  { label: REVIEW_STATUS_LABELS.committee,  badge: "bg-purple-100 text-purple-700" },
   approved:   { label: REVIEW_STATUS_LABELS.approved,   badge: "bg-green-100 text-green-700" },
   rejected:   { label: REVIEW_STATUS_LABELS.rejected,   badge: "bg-red-100 text-red-700" },
@@ -25,7 +26,7 @@ export const PAYMENT_STATUS_META: Record<PaymentStatus, StatusMeta> = {
 };
 
 export const REVIEW_STATUS_ORDER: ReviewStatus[] =
-  ["received", "reviewing", "supplement", "committee", "approved", "rejected"];
+  ["received", "reviewing", "supplement", "supplemented", "committee", "approved", "rejected"];
 
 export const PAYMENT_STATUS_ORDER: PaymentStatus[] =
   ["waiting", "processing", "completed", "hold", "refund"];

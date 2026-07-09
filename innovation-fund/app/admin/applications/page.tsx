@@ -255,8 +255,8 @@ export default function ApplicationsPage() {
 
   // 대시보드는 현재 관리자가 담당·열람하는 신청만(visibleApps), 취소 건 제외하고 집계
   const statCount = (field: "reviewStatus" | "paymentStatus", val: string) => visibleApps.filter((a) => !a.canceled && a[field] === val).length;
-  // 관리자가 아직 확인하지 못한(검토 상태 '신청완료') 신청 건수
-  const unconfirmedCount = visibleApps.filter((a) => !a.canceled && a.reviewStatus === "received").length;
+  // 관리자가 아직 확인하지 못한(검토 상태 '신청완료'·'보완완료') 신청 건수 — 보완 후 재제출 건도 재확인 대상
+  const unconfirmedCount = visibleApps.filter((a) => !a.canceled && (a.reviewStatus === "received" || a.reviewStatus === "supplemented")).length;
 
   return (
     <AdminLayout wide>
@@ -283,7 +283,7 @@ export default function ApplicationsPage() {
         <div className="sm:w-60 shrink-0 flex flex-col items-center justify-center text-center sm:border-r sm:border-gray-100 sm:pr-5 py-2">
           <span className="text-sm text-gray-500">관리자 미확인 신청</span>
           <span className="text-5xl font-bold text-rose-600 my-1.5">{unconfirmedCount}<span className="text-lg text-gray-500 font-medium ml-1">건</span></span>
-          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}’</span>
+          <span className="text-[11px] text-gray-400">검토 상태 ‘{statusMeta(statusCfg, "review", "received").label}·{statusMeta(statusCfg, "review", "supplemented").label}’</span>
         </div>
         <div className="flex-1 grid grid-cols-[56px_1fr] gap-x-3 gap-y-4 items-start">
           {(() => { const items = statusCfg.review.filter((o) => statCount("reviewStatus", o.key) > 0); return (<>

@@ -23,15 +23,17 @@ export async function POST(req: NextRequest) {
   const admin = supabaseAdmin();
   // 보안: 본인 소유로 강제, 임시저장 여부는 서버가 결정
   const payload: Record<string, any> = { ...row, applicant_id: user.id, is_draft: !finalize };
-  // 보완요청 후 재제출: 검토 상태를 '신청완료'로 되돌리고, 프로그램 관리자 재검토 단계로 복귀
+  // 최종 제출: 검토 상태를 '신청완료'로 설정하고, 프로그램 관리자 재검토 단계로 복귀
   if (finalize) { payload.review_status = "received"; payload.review_stage = null; }
 
   if (id) {
-    const { data: existing } = await admin.from("applications").select("applicant_id,is_draft").eq("id", id).maybeSingle();
+    const { data: existing } = await admin.from("applications").select("applicant_id,is_draft,review_status").eq("id", id).maybeSingle();
     if (!existing) return NextResponse.json({ ok: false, error: "내역을 찾을 수 없습니다." }, { status: 404 });
     if (existing.applicant_id !== user.id) return NextResponse.json({ ok: false, error: "본인 신청만 수정할 수 있습니다." }, { status: 403 });
     // 이미 제출된 신청(보완요청 수정 등)의 중간 저장은 임시저장으로 강등하지 않는다(신청 내역에서 사라짐 방지)
     if (!finalize && existing.is_draft === false) payload.is_draft = false;
+    // 보완요청 상태에서의 재제출은 '보완완료'로 자동 반영 — 관리자가 신규 신청과 구분 가능
+    if (finalize && existing.review_status === "supplement") payload.review_status = "supplemented";
     // 배포 DB에 없는 컬럼(is_test/review_stage/form_answers 등)은 자동 제외 후 재시도
     const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
       payload, (r) => admin.from("applications").update(r).eq("id", id).select("id,receipt_number").single(),

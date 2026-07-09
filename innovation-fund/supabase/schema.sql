@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS applications (
   approved_amount BIGINT,
 
   -- 관리자 필드
-  review_status TEXT DEFAULT 'received' CHECK (review_status IN ('received','reviewing','supplement','committee','approved','rejected')),
+  review_status TEXT DEFAULT 'received' CHECK (review_status IN ('received','reviewing','supplement','supplemented','committee','approved','rejected')),
   payment_status TEXT DEFAULT 'waiting' CHECK (payment_status IN ('waiting','processing','completed','hold','refund')),
   admin_memo TEXT DEFAULT ''
 );
