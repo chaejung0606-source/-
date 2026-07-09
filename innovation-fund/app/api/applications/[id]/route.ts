@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { fromRow, withMissingColumnRetry } from "@/lib/app-mapper";
 import { requireAdmin, requireExpense, canManageApplication } from "@/lib/admin-auth";
 import { encryptPII, decryptPII } from "@/lib/pii-crypto";
+import { notifyReviewStatusChange } from "@/lib/notify-server";
 
 // verified_account.residentNumber(주민등록번호)는 암호화 저장 → 인증된 관리자 응답에서만 복호화
 function decryptResident(app: ReturnType<typeof fromRow>) {
@@ -93,6 +94,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // 검토 상태가 보완요청·승인·반려로 바뀌면 신청자에게 인앱 알림 자동 생성(마이페이지 위젯)
+  if (body.reviewStatus !== undefined && body.reviewStatus !== existing.review_status) {
+    await notifyReviewStatusChange({
+      fromStatus: existing.review_status, toStatus: body.reviewStatus,
+      studentId: existing.student_id, applicantId: existing.applicant_id, name: existing.name,
+      applicationId: id, receiptNumber: existing.receipt_number,
+      memo: body.adminMemo !== undefined ? body.adminMemo : existing.admin_memo,
+      createdBy: session.id,
+    });
+  }
   return NextResponse.json(decryptResident(fromRow(data)));
 }
 

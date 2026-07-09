@@ -396,6 +396,19 @@ await step("F4", "신청자 — 승인·최종 승인액·지출완료 표시 + 
   await p.waitForTimeout(900);
   expectIncl(last(dA), "이미 지급 완료된 신청은 취소할 수 없습니다");
 });
+await step("F5", "상태 변경 인앱 알림 — 신청자 마이페이지 위젯 수신(보완요청·승인)", async () => {
+  const p = pageA;
+  await p.goto(BASE + "/mypage", { waitUntil: "networkidle", timeout: 45000 }).catch(() => {});
+  await p.waitForTimeout(1000);
+  // '내 신청 현황' 위젯이 접혀 있으면 열기
+  const bell = p.getByRole("button", { name: /현황/ }).first();
+  if (await bell.isVisible({ timeout: 3000 }).catch(() => false)) { await bell.click(); await p.waitForTimeout(600); }
+  // 관리자 요청 건에 상태 변경 알림(보완 요청·승인 완료)이 표시되어야 함
+  await p.waitForSelector("text=관리자 요청 건", { timeout: 8000 });
+  await p.waitForSelector("text=승인 완료", { timeout: 8000 });
+  await p.waitForSelector("text=보완 요청", { timeout: 8000 });
+  await shot(p, "mypage-noti-widget", false);
+});
 
 // ============ G. 공간대여 ============
 await step("G1", "공간대여 신청 접수", async () => {
