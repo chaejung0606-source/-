@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sync-version": "node scripts/sync-version.mjs"
+    "sync-version": "node scripts/sync-version.mjs",
+    "qa:e2e": "node scripts/qa/e2e.mjs",
+    "qa:webbook": "node scripts/qa/run.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.44.4",

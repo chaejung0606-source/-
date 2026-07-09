@@ -368,8 +368,12 @@ export default function Home() {
                   );
                 })}
               </div>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
                 <Link href="/privacy" className="text-xs text-gray-500 hover:text-indigo-500 font-medium">개인정보 처리방침</Link>
+                <span className="text-gray-300">|</span>
+                <a href="/manual-webbook.html" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-indigo-500 font-medium inline-flex items-center gap-1">
+                  <BookOpen className="w-3.5 h-3.5" /> 운영 매뉴얼
+                </a>
                 <span className="text-gray-300">|</span>
                 <Link href="/admin/login" className="text-xs text-gray-400 hover:text-indigo-500">관리자 로그인</Link>
               </div>

@@ -1,0 +1,62 @@
+name: QA 런타임 테스트 + 매뉴얼 웹북 갱신
+
+# master 배포 시 실제 앱을 구동해 27개 런타임 클릭 테스트(QA)를 수행하고,
+# 결과(통과수·검증일)를 매뉴얼 웹북 배지에 반영해 커밋합니다.
+# 수동 실행(workflow_dispatch)도 가능합니다.
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "docs/manual-webbook.html"
+      - "public/manual-webbook.html"
+  workflow_dispatch:
+
+concurrency:
+  group: qa-webbook-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innovation-fund
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innovation-fund/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Chromium 설치(Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: QA 파이프라인 실행(빌드 → 앱 기동 → 클릭 테스트 → 웹북 갱신)
+        run: npm run qa:webbook
+
+      - name: QA 산출물 업로드(캡처·로그·결과)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-artifacts
+          path: innovation-fund/scripts/qa/artifacts
+          retention-days: 14
+
+      - name: 웹북 갱신분 커밋
+        if: success()
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          if git diff --quiet -- innovation-fund/docs/manual-webbook.html innovation-fund/public/manual-webbook.html; then
+            echo "웹북 변경 없음 — 커밋 생략"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add innovation-fund/docs/manual-webbook.html innovation-fund/public/manual-webbook.html
+          git commit -m "chore(qa): 매뉴얼 웹북 QA 상태 갱신 [skip ci]"
+          git push
