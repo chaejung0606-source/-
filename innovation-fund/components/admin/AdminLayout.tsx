@@ -84,6 +84,7 @@ export default function AdminLayout({ children, wide }: { children: React.ReactN
       {/* 외부 바로가기 */}
       <div className="mt-auto pt-4">
         <div className="text-[11px] font-semibold text-gray-400 px-4 mb-1.5">바로가기 / 문의</div>
+        <a href="/manual-webbook.html" target="_blank" rel="noopener noreferrer" className="sidebar-item"><FileText className="w-[18px] h-[18px]" /> 운영 매뉴얼</a>
         <a href="https://sducoss.ac.kr/ko/index" target="_blank" rel="noopener noreferrer" className="sidebar-item"><Globe className="w-[18px] h-[18px]" /> 사업단 홈페이지</a>
         <a href="https://lms.sducoss.ac.kr/login.php" target="_blank" rel="noopener noreferrer" className="sidebar-item"><BookOpen className="w-[18px] h-[18px]" /> LMS 사이트</a>
         <a href="http://pf.kakao.com/_YnXnn/chat" target="_blank" rel="noopener noreferrer" className="sidebar-item"><MessageCircle className="w-[18px] h-[18px]" /> 카카오톡으로 문의하기</a>

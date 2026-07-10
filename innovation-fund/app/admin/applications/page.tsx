@@ -446,7 +446,6 @@ export default function ApplicationsPage() {
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
               <th className="text-center whitespace-nowrap">지급 상태</th>
-              <th className="text-center whitespace-nowrap">단계</th>
               {view === "canceled" && <th className="whitespace-nowrap">취소 일시 / IP</th>}
               <th className="whitespace-nowrap">첨부</th>
               <th className="text-center whitespace-nowrap">상세</th>
@@ -455,7 +454,7 @@ export default function ApplicationsPage() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={view === "canceled" ? 16 : 15} className="text-center py-12 text-gray-400">
+                <td colSpan={view === "canceled" ? 15 : 14} className="text-center py-12 text-gray-400">
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   검색 결과가 없습니다.
                 </td>
@@ -482,10 +481,6 @@ export default function ApplicationsPage() {
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "review", app.reviewStatus).badge}`}>{statusMeta(statusCfg, "review", app.reviewStatus).label}</span></td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "payment", app.paymentStatus).badge}`}>{statusMeta(statusCfg, "payment", app.paymentStatus).label}</span></td>
-                <td className="text-center text-xs whitespace-nowrap">
-                  {effStage(app) === "expense" ? <span className="badge bg-teal-100 text-teal-700">지출관리자</span> : <span className="badge bg-indigo-100 text-indigo-700">프로그램검토</span>}
-                  {app.handoffNote && <span title={app.handoffNote} className="ml-1 text-amber-500 cursor-help">⚠</span>}
-                </td>
                 {view === "canceled" && (
                   <td className="text-xs whitespace-nowrap text-gray-600">
                     {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}

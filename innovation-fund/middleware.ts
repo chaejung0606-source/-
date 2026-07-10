@@ -11,8 +11,10 @@ export function middleware(req: NextRequest) {
   const isApplicantApi = pathname.startsWith("/api/applications/cancel")
     || pathname.startsWith("/api/applications/draft");
   const isAdminApi = pathname.startsWith("/api/applications") && !isApplicantApi;
+  // 운영 매뉴얼(웹북)은 관리자 전용
+  const isManual = pathname === "/manual-webbook.html";
 
-  if ((isAdminPage || isAdminApi) && !authed) {
+  if ((isAdminPage || isAdminApi || isManual) && !authed) {
     if (isAdminApi) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const url = req.nextUrl.clone();
     url.pathname = "/admin/login";
@@ -22,5 +24,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/applications/:path*"],
+  matcher: ["/admin/:path*", "/api/applications/:path*", "/manual-webbook.html"],
 };
