@@ -1,15 +1,15 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield, CalendarClock } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
-import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from "@/lib/programs";
+import { fetchPrograms, filterActiveByType, applyOccurrences, addDaysStr, type Program, type ApplyPhase } from "@/lib/programs";
 import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriods } from "@/lib/type-periods";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
-import FundCalendar from "@/components/home/FundCalendar";
+import FundCalendar, { collectFundEvents } from "@/components/home/FundCalendar";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import { supabase } from "@/lib/supabase";
@@ -132,6 +132,38 @@ export default function Home() {
     }
     setPopupQueue((q) => q.filter((p) => p.id !== id));
   };
+
+  // 신청 마감 임박 팝업 — 종료일 3일 전부터, 마감 임박 항목을 팝업 1개로 종합 안내 (자동 생성)
+  const deadlineShown = useRef(false);
+  useEffect(() => {
+    if (deadlineShown.current) return;
+    const today = kstToday();
+    const limit = addDaysStr(today, 3);
+    const { events } = collectFundEvents(programs, typePeriods);
+    const items: { phase: string; name: string; end: string }[] = [];
+    for (const ev of events) {
+      if (!ev.end) continue;
+      // 반복 일정은 다가오는 발생 기간의 마감일 기준
+      const occs = ev.start ? applyOccurrences(ev.start, ev.end, ev.rule, limit) : [{ start: ev.start, end: ev.end }];
+      const hit = occs.find((o) => o.end >= today && o.end <= limit);
+      if (hit) items.push({ phase: ev.phase === "pre" ? "지원신청" : "지원금신청", name: ev.name, end: hit.end });
+    }
+    if (items.length === 0) return;
+    const id = `deadline:${today}`;
+    let dismiss = "";
+    try { dismiss = localStorage.getItem(`popupDismiss:${id}`) || ""; } catch { /* noop */ }
+    if (dismiss === "never" || dismiss === today) return;
+    const dday = (end: string) => Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
+    const lines = items
+      .sort((a, b) => a.end.localeCompare(b.end))
+      .map((it) => `• [${it.phase}] ${it.name} — ${it.end} 마감${dday(it.end) === 0 ? " (오늘 마감!)" : ` (D-${dday(it.end)})`}`);
+    deadlineShown.current = true;
+    setPopupQueue((q) => [{
+      id, enabled: true,
+      title: "⏰ 신청 마감 임박 안내",
+      content: `신청 종료가 3일 이내로 다가온 항목입니다. 마감 전에 신청을 완료해주세요.\n\n${lines.join("\n")}`,
+    }, ...q]);
+  }, [programs, typePeriods]);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));

@@ -23,7 +23,7 @@ const PHASE_META: Record<ApplyPhase, { label: string; chip: string; dot: string 
   fund: { label: "지원금신청", chip: "bg-emerald-100 text-emerald-700", dot: "#059669" },
 };
 
-interface FundEvent {
+export interface FundEvent {
   phase: ApplyPhase;
   name: string;       // 프로그램명 또는 유형명
   typeLabel: string;  // 지원금 유형 라벨
@@ -42,6 +42,35 @@ function typeLabelOf(p: Program): string {
   return p.programType === "staff" ? APPLICATION_TYPE_LABELS.staff : APPLICATION_TYPE_LABELS.program;
 }
 
+// 캘린더·마감 임박 팝업 공용 — 기간 이벤트 + 상시 신청 가능 목록 수집
+export function collectFundEvents(programs: Program[], typePeriods: TypePeriods): { events: FundEvent[]; always: { name: string; typeLabel: string }[] } {
+  const evs: FundEvent[] = [];
+  const alw: { name: string; typeLabel: string }[] = [];
+  for (const p of programs) {
+    if (p.programType === "club" || !p.name) continue; // 소학회 제외
+    const tl = typeLabelOf(p);
+    // 지원금신청(fund) 기간
+    if (isPhaseEnabled(p, "fund") && !isClosed(p.applyStart, p.applyEnd)) {
+      if (isAlways(p.applyStart, p.applyEnd)) alw.push({ name: p.name, typeLabel: tl });
+      else if (p.applyStart && p.applyEnd) evs.push({ phase: "fund", name: p.name, typeLabel: tl, start: p.applyStart, end: p.applyEnd, rule: p.repeatFund });
+    }
+    // 지원신청(pre) 기간 — 별도 기간을 설정한 프로그램만 (미설정은 지원금신청 기간과 동일해 중복 표시 방지)
+    if (isPhaseEnabled(p, "pre") && (p.preApplyStart || p.preApplyEnd)) {
+      const s = p.preApplyStart || p.applyStart;
+      const e = p.preApplyEnd || p.applyEnd;
+      if (!isClosed(s, e) && !isAlways(s, e) && s && e) evs.push({ phase: "pre", name: p.name, typeLabel: tl, start: s, end: e, rule: p.repeatPre });
+    }
+  }
+  // 성과형(성적·경진대회·자격증) 학기별 신청기한
+  for (const t of PERIOD_TYPES) {
+    const p = typePeriods[t];
+    const label = APPLICATION_TYPE_LABELS[t];
+    if (!p || (!p.start && !p.end)) { alw.push({ name: label, typeLabel: "우수성과 지원금" }); continue; }
+    evs.push({ phase: "fund", name: label, typeLabel: "우수성과 지원금", start: p.start || "", end: p.end || "" });
+  }
+  return { events: evs, always: alw };
+}
+
 export default function FundCalendar({ programs, typePeriods }: { programs: Program[]; typePeriods: TypePeriods }) {
   const [view, setView] = useState<{ y: number; m: number }>(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [sel, setSel] = useState<number | null>(null); // 선택한 날짜(YYYYMMDD)
@@ -49,33 +78,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
   const [phaseOff, setPhaseOff] = useState<Set<ApplyPhase>>(new Set());
 
   // 기간 이벤트 + 상시 신청 가능 목록
-  const { events, always } = useMemo(() => {
-    const evs: FundEvent[] = [];
-    const alw: { name: string; typeLabel: string }[] = [];
-    for (const p of programs) {
-      if (p.programType === "club" || !p.name) continue; // 소학회 제외
-      const tl = typeLabelOf(p);
-      // 지원금신청(fund) 기간
-      if (isPhaseEnabled(p, "fund") && !isClosed(p.applyStart, p.applyEnd)) {
-        if (isAlways(p.applyStart, p.applyEnd)) alw.push({ name: p.name, typeLabel: tl });
-        else if (p.applyStart && p.applyEnd) evs.push({ phase: "fund", name: p.name, typeLabel: tl, start: p.applyStart, end: p.applyEnd, rule: p.repeatFund });
-      }
-      // 지원신청(pre) 기간 — 별도 기간을 설정한 프로그램만 (미설정은 지원금신청 기간과 동일해 중복 표시 방지)
-      if (isPhaseEnabled(p, "pre") && (p.preApplyStart || p.preApplyEnd)) {
-        const s = p.preApplyStart || p.applyStart;
-        const e = p.preApplyEnd || p.applyEnd;
-        if (!isClosed(s, e) && !isAlways(s, e) && s && e) evs.push({ phase: "pre", name: p.name, typeLabel: tl, start: s, end: e, rule: p.repeatPre });
-      }
-    }
-    // 성과형(성적·경진대회·자격증) 학기별 신청기한
-    for (const t of PERIOD_TYPES) {
-      const p = typePeriods[t];
-      const label = APPLICATION_TYPE_LABELS[t];
-      if (!p || (!p.start && !p.end)) { alw.push({ name: label, typeLabel: "우수성과 지원금" }); continue; }
-      evs.push({ phase: "fund", name: label, typeLabel: "우수성과 지원금", start: p.start || "", end: p.end || "" });
-    }
-    return { events: evs, always: alw };
-  }, [programs, typePeriods]);
+  const { events, always } = useMemo(() => collectFundEvents(programs, typePeriods), [programs, typePeriods]);
 
   const { y, m } = view;
   const first = new Date(y, m, 1);
@@ -188,7 +191,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
                   <div className="space-y-0.5">
                     {list.slice(0, 3).map((mk, j) => (
                       <div key={j}
-                        className={`text-[10px] leading-tight rounded px-1 py-0.5 truncate ${PHASE_META[mk.ev.phase].chip} ${mk.kind !== "start" ? "font-bold" : ""}`}
+                        className={`text-[10px] leading-tight rounded px-1 py-0.5 truncate ${mk.kind === "start" ? PHASE_META[mk.ev.phase].chip : "bg-rose-100 text-rose-700 font-bold"}`}
                         title={`[${PHASE_META[mk.ev.phase].label}] ${mk.ev.typeLabel} · ${mk.ev.name} (${mk.occStart || "상시"} ~ ${mk.occEnd || "상시"})`}>
                         {mk.ev.name} {mk.kind === "both" ? "시작·마감" : mk.kind === "start" ? "시작" : "마감"}
                       </div>
@@ -215,7 +218,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
                   <span className={`px-1.5 py-0.5 rounded font-semibold ${PHASE_META[ev.phase].chip}`}>{PHASE_META[ev.phase].label}</span>
                   <span className="text-gray-400">{ev.typeLabel}</span>
                   <span className="font-semibold break-words">{ev.name}</span>
-                  <span className="text-gray-500 whitespace-nowrap">
+                  <span className={`whitespace-nowrap ${end === selDs ? "text-rose-600 font-bold" : "text-gray-500"}`}>
                     {start || "상시"} ~ {end || "상시"}
                     {ev.rule?.freq ? ` · ${ev.rule.freq === "weekly" ? "매주" : "매월"} 반복` : ""}
                     {end === selDs ? " · 오늘 마감" : ""}

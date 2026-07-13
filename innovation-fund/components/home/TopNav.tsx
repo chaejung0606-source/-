@@ -31,7 +31,7 @@ export default function TopNav() {
               onMouseLeave={() => setOpen((o) => (o === m.label ? null : o))}
             >
               {!m.items ? (
-                <Link href={m.href!} className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
+                <Link href={m.href!} className="flex items-center gap-1 px-3 py-2.5 text-[17px] font-bold text-black hover:text-indigo-600 transition-colors">
                   {m.label}
                 </Link>
               ) : (
@@ -40,7 +40,7 @@ export default function TopNav() {
                   <Link
                     href={m.href!}
                     onClick={() => setOpen(null)}
-                    className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                    className="flex items-center gap-1 px-3 py-2.5 text-[17px] font-bold text-black hover:text-indigo-600 transition-colors"
                     aria-expanded={open === m.label}
                   >
                     {m.label}
