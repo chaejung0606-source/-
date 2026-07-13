@@ -4,6 +4,11 @@ import {
   TRANSPORT_MODE_LABELS, calcSupportTotal,
 } from "@/types";
 
+// 첨부 파일이 이미지인지 판별 (base64 data URL 또는 확장자 기준)
+export function isImageFile(f: { name: string; url?: string }): boolean {
+  return !!f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name);
+}
+
 export function subTypeName(app: Application): string {
   if (app.gradeDetail) {
     const m = { microdegree: "성적 우수 - 마이크로디그리(MD)", minor: "성적 우수 - 부전공", double: "성적 우수 - 복수전공" };
@@ -154,8 +159,12 @@ export const PRINT_CSS = `
   .doc-break { page-break-before: always; }
   .ev-head { border: 1px solid #333; background: #ccd5e8; font-weight: 700; padding: 8px 10px; border-radius: 6px 6px 0 0; }
   .ev-head-sub { font-size: 11px; font-weight: 500; color: #334155; margin-top: 2px; }
-  .ev-img { width: 100%; height: 75vh; object-fit: contain; border: 1px solid #333; border-top: none; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
+  .ev-img { width: 100%; height: 75vh; object-fit: contain; border: 1px solid #333; border-top: none; border-radius: 0 0 6px 6px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; overflow: hidden; }
   .ev-img img { max-width: 100%; max-height: 100%; }
+  .ev-img .ev-frame { width: 100%; height: 100%; border: none; }
+  .ev-note { font-size: 11px; color: #64748b; margin-top: 6px; }
+  .ev-note a { color: #2563eb; }
+  @media print { .ev-note { display: none !important; } }
   .sign-row { margin-top: 30px; text-align: right; font-size: 13px; }
   .sign-img { display: inline-block; height: 46px; vertical-align: middle; margin: 0 6px; }
   .total-row th, .total-row td { background: #eef2ff !important; font-weight: 800; font-size: 15px; }
@@ -290,9 +299,22 @@ export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
                 <div className="ev-head-sub">접수번호 {app.receiptNumber} · {app.name}({app.studentId}) · {app.department}</div>
               </div>
               <div className="ev-img">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {f.url ? <img src={f.url} alt={f.name} /> : "이미지 미리보기 (업로드 파일 연동 시 자동 삽입)"}
+                {!f.url ? (
+                  "첨부 미리보기 (업로드 파일 연동 시 자동 삽입)"
+                ) : isImageFile(f) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={f.url} alt={f.name} />
+                ) : (
+                  // PDF 등 이미지가 아닌 첨부는 뷰어(iframe)로 표시 — img로는 깨져 보임
+                  <iframe src={f.url} title={f.name} className="ev-frame" />
+                )}
               </div>
+              {f.url && !isImageFile(f) && (
+                <p className="ev-note">
+                  ※ PDF 등 문서 첨부는 위 뷰어로 표시됩니다. 브라우저 인쇄 특성상 PDF가 인쇄본에 병합되지 않을 수 있으니,{" "}
+                  <a href={f.url} target="_blank" rel="noreferrer">첨부 원본 열기</a> 후 개별 인쇄하세요.
+                </p>
+              )}
             </div>
           ))}
         </>
