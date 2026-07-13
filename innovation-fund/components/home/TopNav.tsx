@@ -11,8 +11,8 @@ interface Menu { label: string; href?: string; items?: SubItem[]; }
 const MENUS: Menu[] = [
   { label: "지원신청", href: "/menu/pre", items: PICK_TYPES_PRE.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}&mode=pre` })) },
   { label: "지원금신청", href: "/menu/fund", items: PICK_TYPES_FUND.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}` })) },
-  // 자격증 목록 — 홈의 자격증 목록 섹션으로 이동(자동 펼침)
-  { label: "자격증 목록", href: "/#certs" },
+  // 자격증 목록 — 독립 페이지 (공간대여와 동일한 방식)
+  { label: "자격증 목록", href: "/certificates" },
   { label: "공간대여", href: "/space-rental" },
 ];
 

@@ -9,12 +9,9 @@ import { fetchPrograms, filterActiveByType, type Program, type ApplyPhase } from
 import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePeriods } from "@/lib/type-periods";
 import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
-import SpaceCalendar from "@/components/home/SpaceCalendar";
 import FundCalendar from "@/components/home/FundCalendar";
-import CollapsibleSection from "@/components/home/CollapsibleSection";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
-import CertList from "@/components/home/CertList";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
@@ -305,17 +302,7 @@ export default function Home() {
           <FundCalendar programs={programs} typePeriods={typePeriods} />
         </section>
 
-        {/* 자격증 목록 (접기/펼치기 — 기본 접힘, 상단바 메뉴에서 자동 펼침) */}
-        <CertList />
-
-        {/* 공간대여 예약 현황 (접기/펼치기 — 기본 접힘) */}
-        <CollapsibleSection
-          id="space-calendar"
-          title={<span className="flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황</span>}
-          sub={<>신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</>}
-        >
-          <SpaceCalendar />
-        </CollapsibleSection>
+        {/* 자격증 목록·공간대여 예약 현황은 상단바 메뉴의 독립 페이지에서 확인 (홈 본문에서는 제거) */}
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">

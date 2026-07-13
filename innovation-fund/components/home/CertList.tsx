@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Award, Search } from "lucide-react";
 import type { CertList as CertListType } from "@/lib/cert-list";
-import CollapsibleSection from "./CollapsibleSection";
 
 const PAGE_SIZE = 10;
 
@@ -39,20 +38,17 @@ export default function CertList() {
   if (sheets.length === 0) return null;
 
   return (
-    <CollapsibleSection
-      id="certs"
-      title={
-        <>
-          <span className="flex items-center gap-2"><Award className="w-6 h-6 text-amber-500" /> 자격증 목록</span>
-          {list?.updatedAt && (
-            <span className="text-xs font-normal text-gray-400">
-              업데이트 {new Date(list.updatedAt).toLocaleDateString("ko-KR")}{list.updateNote ? ` · ${list.updateNote}` : ""}
-            </span>
-          )}
-        </>
-      }
-      sub="구분을 선택하고, 자격증을 검색해 확인할 수 있습니다."
-    >
+    <section>
+      <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2 flex-wrap">
+        <span className="flex items-center gap-2"><Award className="w-6 h-6 text-amber-500" /> 자격증 목록</span>
+        {list?.updatedAt && (
+          <span className="text-xs font-normal text-gray-400">
+            업데이트 {new Date(list.updatedAt).toLocaleDateString("ko-KR")}{list.updateNote ? ` · ${list.updateNote}` : ""}
+          </span>
+        )}
+      </h2>
+      <p className="text-sm text-gray-500 mb-4">구분을 선택하고, 자격증을 검색해 확인할 수 있습니다.</p>
+
       {/* 시트(구분) 선택 */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {sheets.map((s, i) => (
@@ -97,6 +93,6 @@ export default function CertList() {
           </div>
         )}
       </div>
-    </CollapsibleSection>
+    </section>
   );
 }

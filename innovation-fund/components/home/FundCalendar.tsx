@@ -1,14 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Program } from "@/lib/programs";
-import { isPhaseEnabled, type ApplyPhase } from "@/lib/programs";
+import type { Program, RepeatRule } from "@/lib/programs";
+import { isPhaseEnabled, applyOccurrences, type ApplyPhase } from "@/lib/programs";
 import type { TypePeriods } from "@/lib/type-periods";
 import { PERIOD_TYPES } from "@/lib/type-periods";
 import { APPLICATION_TYPE_LABELS } from "@/types";
 
-// 지원금 신청용 월간 캘린더 — 유형별 지원신청(pre)·지원금신청(fund) 기간을 한눈에 보여준다.
-// 데이터: 프로그램(근로·참여지원비·진행요원비 등)의 신청 기간 + 성과형(성적·경진대회·자격증) 학기별 신청기한.
+// 지원금 신청용 월간 캘린더 — 유형별 지원신청(pre)·지원금신청(fund)의 '시작'과 '마감'만 표시한다.
+// 데이터: 프로그램(근로·참여지원비·진행요원비 등)의 신청 기간(반복 규칙 포함) + 성과형(성적·경진대회·자격증) 학기별 신청기한.
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -27,9 +27,13 @@ interface FundEvent {
   phase: ApplyPhase;
   name: string;       // 프로그램명 또는 유형명
   typeLabel: string;  // 지원금 유형 라벨
-  start: string;      // YYYY-MM-DD ('' = 제한 없음)
+  start: string;      // 기준 기간 시작 YYYY-MM-DD ('' = 제한 없음)
   end: string;
+  rule?: RepeatRule;  // 매주/매월 반복 규칙
 }
+
+// 캘린더 셀에 찍는 시작/마감 마커
+interface Marker { ev: FundEvent; kind: "start" | "end" | "both"; occStart: string; occEnd: string }
 
 // 프로그램 → 지원금 유형 라벨
 function typeLabelOf(p: Program): string {
@@ -54,13 +58,13 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
       // 지원금신청(fund) 기간
       if (isPhaseEnabled(p, "fund") && !isClosed(p.applyStart, p.applyEnd)) {
         if (isAlways(p.applyStart, p.applyEnd)) alw.push({ name: p.name, typeLabel: tl });
-        else if (p.applyStart && p.applyEnd) evs.push({ phase: "fund", name: p.name, typeLabel: tl, start: p.applyStart, end: p.applyEnd });
+        else if (p.applyStart && p.applyEnd) evs.push({ phase: "fund", name: p.name, typeLabel: tl, start: p.applyStart, end: p.applyEnd, rule: p.repeatFund });
       }
       // 지원신청(pre) 기간 — 별도 기간을 설정한 프로그램만 (미설정은 지원금신청 기간과 동일해 중복 표시 방지)
       if (isPhaseEnabled(p, "pre") && (p.preApplyStart || p.preApplyEnd)) {
         const s = p.preApplyStart || p.applyStart;
         const e = p.preApplyEnd || p.applyEnd;
-        if (!isClosed(s, e) && !isAlways(s, e) && s && e) evs.push({ phase: "pre", name: p.name, typeLabel: tl, start: s, end: e });
+        if (!isClosed(s, e) && !isAlways(s, e) && s && e) evs.push({ phase: "pre", name: p.name, typeLabel: tl, start: s, end: e, rule: p.repeatPre });
       }
     }
     // 성과형(성적·경진대회·자격증) 학기별 신청기한
@@ -77,20 +81,39 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
   const first = new Date(y, m, 1);
   const startWeekday = first.getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const monthEnd = `${y}-${String(m + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
   const dateStr = (d: number) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  // 날짜별 이벤트 (단계 필터 적용)
-  const byDay = useMemo(() => {
-    const map: Record<number, FundEvent[]> = {};
+  // 이벤트별 발생 기간(반복 전개) — 보고 있는 달까지 전개해 시작/마감 마커와 날짜별 상세에 사용
+  const occurrences = useMemo(() => {
     const visible = events.filter((e) => !phaseOff.has(e.phase));
-    for (let d = 1; d <= daysInMonth; d++) {
-      const ds = dateStr(d);
-      const key = y * 10000 + (m + 1) * 100 + d;
-      const hits = visible.filter((e) => (!e.start || e.start <= ds) && (!e.end || ds <= e.end));
-      if (hits.length) map[key] = hits;
+    return visible.flatMap((ev) => {
+      // 시작·마감 중 한쪽이 비어 있으면(성과형 편측 설정) 그대로 1건으로 취급
+      if (!ev.start || !ev.end) return [{ ev, start: ev.start, end: ev.end }];
+      return applyOccurrences(ev.start, ev.end, ev.rule, monthEnd).map((o) => ({ ev, start: o.start, end: o.end }));
+    });
+  }, [events, phaseOff, monthEnd]);
+
+  // 날짜별 시작/마감 마커 — 각 발생 기간의 시작일·마감일에만 표시
+  const markersByDay = useMemo(() => {
+    const map: Record<number, Marker[]> = {};
+    const put = (ds: string, mk: Marker) => {
+      const [yy, mm, dd] = ds.split("-").map(Number);
+      if (yy !== y || mm !== m + 1) return; // 보고 있는 달만
+      const key = y * 10000 + mm * 100 + dd;
+      (map[key] ||= []).push(mk);
+    };
+    for (const { ev, start, end } of occurrences) {
+      if (start && start === end) { put(start, { ev, kind: "both", occStart: start, occEnd: end }); continue; }
+      if (start) put(start, { ev, kind: "start", occStart: start, occEnd: end });
+      if (end) put(end, { ev, kind: "end", occStart: start, occEnd: end });
     }
     return map;
-  }, [events, phaseOff, y, m, daysInMonth]);
+  }, [occurrences, y, m]);
+
+  // 선택한 날짜에 신청 기간인 항목 (기간 전체 기준 — 셀에는 시작/마감만 표시해도 상세에서는 확인 가능)
+  const coveringOf = (ds: string) =>
+    occurrences.filter(({ start, end }) => (!start || start <= ds) && (!end || ds <= end));
 
   const prevMonth = () => setView((v) => v.m === 0 ? { y: v.y - 1, m: 11 } : { y: v.y, m: v.m - 1 });
   const nextMonth = () => setView((v) => v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 });
@@ -105,15 +128,8 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
     return next;
   });
 
-  // 셀 안 표기: 시작일 '시작' · 마감일 '마감' 강조
-  const cellText = (e: FundEvent, ds: string) => {
-    if (e.end && ds === e.end) return `${e.name} 마감`;
-    if (e.start && ds === e.start) return `${e.name} 시작`;
-    return e.name;
-  };
-
-  const selList = sel != null ? (byDay[sel] || []) : [];
   const selDs = sel != null ? `${Math.floor(sel / 10000)}-${String(Math.floor((sel % 10000) / 100)).padStart(2, "0")}-${String(sel % 100).padStart(2, "0")}` : "";
+  const selList = sel != null ? coveringOf(selDs) : [];
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
@@ -140,7 +156,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
             </button>
           );
         })}
-        <span className="text-[11px] text-gray-400 ml-1">기간이 설정된 유형·프로그램만 캘린더에 표시됩니다.</span>
+        <span className="text-[11px] text-gray-400 ml-1">각 항목의 <b>시작일·마감일</b>만 표시됩니다. 날짜를 누르면 그날 신청 가능한 항목을 볼 수 있습니다.</span>
       </div>
 
       <div className="overflow-x-auto">
@@ -157,8 +173,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const d = i + 1;
               const key = y * 10000 + (m + 1) * 100 + d;
-              const ds = dateStr(d);
-              const list = byDay[key] || [];
+              const list = markersByDay[key] || [];
               const wd = (startWeekday + i) % 7;
               const isToday = key === todayKey;
               return (
@@ -171,10 +186,11 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
                     <span className={`${isToday ? "bg-indigo-500 text-white rounded-full w-5 h-5 flex items-center justify-center" : ""}`}>{d}</span>
                   </div>
                   <div className="space-y-0.5">
-                    {list.slice(0, 3).map((e, j) => (
-                      <div key={j} className={`text-[10px] leading-tight rounded px-1 py-0.5 truncate ${PHASE_META[e.phase].chip} ${e.end === ds ? "font-bold" : ""}`}
-                        title={`[${PHASE_META[e.phase].label}] ${e.typeLabel} · ${e.name} (${e.start || "상시"} ~ ${e.end || "상시"})`}>
-                        {cellText(e, ds)}
+                    {list.slice(0, 3).map((mk, j) => (
+                      <div key={j}
+                        className={`text-[10px] leading-tight rounded px-1 py-0.5 truncate ${PHASE_META[mk.ev.phase].chip} ${mk.kind !== "start" ? "font-bold" : ""}`}
+                        title={`[${PHASE_META[mk.ev.phase].label}] ${mk.ev.typeLabel} · ${mk.ev.name} (${mk.occStart || "상시"} ~ ${mk.occEnd || "상시"})`}>
+                        {mk.ev.name} {mk.kind === "both" ? "시작·마감" : mk.kind === "start" ? "시작" : "마감"}
                       </div>
                     ))}
                     {list.length > 3 && <div className="text-[10px] text-gray-400 px-1">+{list.length - 3}건</div>}
@@ -186,7 +202,7 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
         </div>
       </div>
 
-      {/* 선택한 날짜 상세 */}
+      {/* 선택한 날짜 상세 — 그날 신청 기간 중인 모든 항목 */}
       {sel != null && (
         <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/60">
           <p className="text-xs font-bold text-gray-600 mb-1.5">{Math.floor((sel % 10000) / 100)}월 {sel % 100}일 신청 가능 {selList.length}건</p>
@@ -194,12 +210,16 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
             <p className="text-xs text-gray-400">이 날짜에 신청 기간인 항목이 없습니다.</p>
           ) : (
             <ul className="space-y-1">
-              {selList.map((e, i) => (
+              {selList.map(({ ev, start, end }, i) => (
                 <li key={i} className="text-xs text-gray-700 flex items-start gap-2 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded font-semibold ${PHASE_META[e.phase].chip}`}>{PHASE_META[e.phase].label}</span>
-                  <span className="text-gray-400">{e.typeLabel}</span>
-                  <span className="font-semibold break-words">{e.name}</span>
-                  <span className="text-gray-500 whitespace-nowrap">{e.start || "상시"} ~ {e.end || "상시"}{e.end === selDs ? " · 오늘 마감" : ""}</span>
+                  <span className={`px-1.5 py-0.5 rounded font-semibold ${PHASE_META[ev.phase].chip}`}>{PHASE_META[ev.phase].label}</span>
+                  <span className="text-gray-400">{ev.typeLabel}</span>
+                  <span className="font-semibold break-words">{ev.name}</span>
+                  <span className="text-gray-500 whitespace-nowrap">
+                    {start || "상시"} ~ {end || "상시"}
+                    {ev.rule?.freq ? ` · ${ev.rule.freq === "weekly" ? "매주" : "매월"} 반복` : ""}
+                    {end === selDs ? " · 오늘 마감" : ""}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -217,8 +237,8 @@ export default function FundCalendar({ programs, typePeriods }: { programs: Prog
         </div>
       )}
 
-      {Object.keys(byDay).length === 0 && sel == null && (
-        <div className="px-4 py-3 text-xs text-gray-400 border-t border-gray-100">이 달에는 기간이 설정된 신청 일정이 없습니다. 이전/다음 달을 살펴보거나 상시 신청 가능 항목을 확인하세요.</div>
+      {Object.keys(markersByDay).length === 0 && sel == null && (
+        <div className="px-4 py-3 text-xs text-gray-400 border-t border-gray-100">이 달에는 시작·마감 일정이 없습니다. 날짜를 눌러 신청 가능한 항목을 확인하거나 이전/다음 달을 살펴보세요.</div>
       )}
     </div>
   );

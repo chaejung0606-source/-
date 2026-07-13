@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, Search } from "lucide-react";
 import type { FundCategory } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program } from "@/lib/programs";
+import { fetchPrograms, SEED, newProgramId, effectiveReportFields, type Program, type RepeatRule } from "@/lib/programs";
 import SchemaForm from "@/components/apply/SchemaForm";
 import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, cloneSchema } from "@/lib/form-schema";
 import ContentPanel from "@/components/admin/ContentPanel";
@@ -40,6 +40,8 @@ export default function ProgramsAdminPage() {
   // 성과형(성적·경진대회·자격증) 학기별 신청기한
   const [periods, setPeriods] = useState<Record<string, { start: string; end: string }>>({ grade: { start: "", end: "" }, contest: { start: "", end: "" }, certificate: { start: "", end: "" } });
   const [periodsSaved, setPeriodsSaved] = useState(false);
+  // 프로그램별 신청 기간 반복 규칙 (매주/매월) — app_config 저장
+  const [repeats, setRepeats] = useState<Record<string, { pre?: RepeatRule; fund?: RepeatRule }>>({});
   const [searchStart, setSearchStart] = useState("");
   const [searchEnd, setSearchEnd] = useState("");
   const [tplSearch, setTplSearch] = useState("");
@@ -53,8 +55,10 @@ export default function ProgramsAdminPage() {
       fetch("/api/admin/program-forms").then((r) => r.json()).catch(() => ({})),
       fetch("/api/admin/form-templates").then((r) => r.json()).catch(() => ({ templates: [] })),
       fetch("/api/type-periods").then((r) => r.json()).catch(() => ({ periods: {} })),
-    ]).then(([l, forms, tpl, per]) => {
+      fetch("/api/program-repeats").then((r) => r.json()).catch(() => ({ map: {} })),
+    ]).then(([l, forms, tpl, per, rep]) => {
       if (per?.periods) setPeriods((prev) => ({ ...prev, ...per.periods }));
+      if (rep?.map) setRepeats(rep.map);
       const base = l.length ? l : SEED;
       const fm = (forms || {}) as Record<string, { pre?: FormSchema; fund?: FormSchema }>;
       setList(base.map((p) => ({
@@ -145,6 +149,49 @@ export default function ProgramsAdminPage() {
   const updatePreStart = (p: Program, val: string) => update(p.id, p.preApplyStart ? { preApplyStart: val } : { preApplyStart: val, applyStart: val });
   const updatePreEnd = (p: Program, val: string) => update(p.id, p.preApplyEnd ? { preApplyEnd: val } : { preApplyEnd: val, applyEnd: val });
 
+  // 반복 규칙 조회/변경 — 규칙이 없으면 항목 자체를 비워 저장 데이터를 최소화
+  const ruleOf = (pid: string, ph: "pre" | "fund"): RepeatRule | undefined => repeats[pid]?.[ph];
+  const setRule = (pid: string, ph: "pre" | "fund", rule: RepeatRule | undefined) => setRepeats((prev) => {
+    const cur = { ...(prev[pid] || {}) };
+    if (rule) cur[ph] = rule; else delete cur[ph];
+    const next = { ...prev };
+    if (cur.pre || cur.fund) next[pid] = cur; else delete next[pid];
+    return next;
+  });
+
+  // 기간 반복 설정 UI (지원신청/지원금 신청 공용)
+  const repeatEditor = (pid: string, ph: "pre" | "fund") => {
+    const rule = ruleOf(pid, ph);
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <label className="label">반복</label>
+            <select className="input-field" value={rule?.freq || ""}
+              onChange={(e) => { const f = e.target.value; setRule(pid, ph, f === "weekly" || f === "monthly" ? { freq: f, until: rule?.until } : undefined); }}>
+              <option value="">반복 안 함</option>
+              <option value="weekly">매주 반복</option>
+              <option value="monthly">매월 반복</option>
+            </select>
+          </div>
+          {rule?.freq && (
+            <div>
+              <label className="label">반복 종료일</label>
+              <input type="date" className="input-field" value={rule.until || ""}
+                onChange={(e) => setRule(pid, ph, { freq: rule.freq, until: e.target.value || undefined })} />
+            </div>
+          )}
+        </div>
+        {rule?.freq && (
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            ※ 신청 시작일부터 {rule.freq === "weekly" ? "매주" : "매월"} 같은 길이의 신청 기간이 반복됩니다.
+            반복 종료일{rule.until ? `(${rule.until})` : ""}을 지나면 반복이 멈춥니다. {!rule.until && "(종료일 미설정 시 계속 반복)"}
+          </p>
+        )}
+      </>
+    );
+  };
+
 
   // ===== 전체 신청 폼 빌더 (단계·항목·필수) =====
   const schemaKey: SchemaKey = selectedStep === "pre" ? "preFormSchema" : "fundFormSchema";
@@ -166,6 +213,7 @@ export default function ProgramsAdminPage() {
         post("/api/admin/program-forms", { forms }),
         post("/api/type-periods", { periods }),
         post("/api/admin/form-templates", { templates }),
+        post("/api/program-repeats", { map: repeats }),
       ]);
       const js = await Promise.all(rs.map((r) => r.json().catch(() => ({}))));
       if (js.every((j) => j.ok)) { setSaved(true); setPeriodsSaved(true); setTimeout(() => setSaved(false), 2500); }
@@ -376,31 +424,39 @@ export default function ProgramsAdminPage() {
                     <div className="flex gap-1.5">
                       <button
                         type="button"
-                        onClick={() => always ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: ALWAYS_START, preApplyEnd: ALWAYS_END })}
+                        onClick={() => { if (always || closed) update(p.id, { preApplyStart: today(), preApplyEnd: today() }); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${!always && !closed ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"}`}
+                      >{!always && !closed ? "● 기간 설정 중" : "기간설정"}</button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!always) { update(p.id, { preApplyStart: ALWAYS_START, preApplyEnd: ALWAYS_END }); setRule(p.id, "pre", undefined); } }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-indigo-500 text-white border-indigo-500" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"}`}
                       >{always ? "● 상시 신청 중" : "상시 신청"}</button>
                       <button
                         type="button"
-                        onClick={() => closed ? update(p.id, { preApplyStart: today(), preApplyEnd: today() }) : update(p.id, { preApplyStart: CLOSED_START, preApplyEnd: CLOSED_END })}
+                        onClick={() => { if (!closed) { update(p.id, { preApplyStart: CLOSED_START, preApplyEnd: CLOSED_END }); setRule(p.id, "pre", undefined); } }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${closed ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-600 border-gray-200 hover:border-red-300"}`}
                       >{closed ? "● 신청 마감됨" : "신청마감"}</button>
                     </div>
                   </div>
                   {always ? (
-                    <p className="text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                    <p className="text-[11px] text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다. 기간을 다시 지정하려면 <strong>[기간설정]</strong>을 누르세요.</p>
                   ) : closed ? (
-                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다.</p>
+                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다. 기간을 다시 지정하려면 <strong>[기간설정]</strong>을 누르세요.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="label">신청 시작</label>
-                        <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="label">신청 시작</label>
+                          <input type="date" className="input-field" value={p.preApplyStart || ""} onChange={(e) => updatePreStart(p, e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="label">신청 마감</label>
+                          <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
+                        </div>
                       </div>
-                      <div>
-                        <label className="label">신청 마감</label>
-                        <input type="date" className="input-field" value={p.preApplyEnd || ""} onChange={(e) => updatePreEnd(p, e.target.value)} />
-                      </div>
-                    </div>
+                      {repeatEditor(p.id, "pre")}
+                    </>
                   )}
                   <p className="text-[11px] text-gray-500 mt-1.5">※ 처음 입력하면 지원금 신청기간에도 동일하게 채워집니다. 미설정 시 지원금 신청기간을 따릅니다.</p>
                   </>
@@ -415,20 +471,25 @@ export default function ProgramsAdminPage() {
                     <div className="flex gap-1.5">
                       <button
                         type="button"
-                        onClick={() => always ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: ALWAYS_START, applyEnd: ALWAYS_END })}
+                        onClick={() => { if (always || closed) update(p.id, { applyStart: today(), applyEnd: today() }); }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${!always && !closed ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
+                      >{!always && !closed ? "● 기간 설정 중" : "기간설정"}</button>
+                      <button
+                        type="button"
+                        onClick={() => { if (!always) { update(p.id, { applyStart: ALWAYS_START, applyEnd: ALWAYS_END }); setRule(p.id, "fund", undefined); } }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${always ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
                       >{always ? "● 상시 신청 중" : "상시 신청"}</button>
                       <button
                         type="button"
-                        onClick={() => closed ? update(p.id, { applyStart: today(), applyEnd: today() }) : update(p.id, { applyStart: CLOSED_START, applyEnd: CLOSED_END })}
+                        onClick={() => { if (!closed) { update(p.id, { applyStart: CLOSED_START, applyEnd: CLOSED_END }); setRule(p.id, "fund", undefined); } }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${closed ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-600 border-gray-200 hover:border-red-300"}`}
                       >{closed ? "● 신청 마감됨" : "신청마감"}</button>
                     </div>
                   </div>
                   {always ? (
-                    <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다.</p>
+                    <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">상시 신청 — 기한 제약 없이 계속 신청할 수 있습니다. 기간을 다시 지정하려면 <strong>[기간설정]</strong>을 누르세요.</p>
                   ) : closed ? (
-                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다.</p>
+                    <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">신청 마감 — 신청자가 이 프로그램을 신청할 수 없습니다. 기간을 다시 지정하려면 <strong>[기간설정]</strong>을 누르세요.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -441,6 +502,7 @@ export default function ProgramsAdminPage() {
                       </div>
                     </div>
                   )}
+                  {!always && !closed && repeatEditor(p.id, "fund")}
                   </>
                   ); })()}
                 </>
