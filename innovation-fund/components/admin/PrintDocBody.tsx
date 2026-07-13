@@ -3,11 +3,7 @@ import {
   APPLICATION_TYPE_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS,
   TRANSPORT_MODE_LABELS, calcSupportTotal,
 } from "@/types";
-
-// 첨부 파일이 이미지인지 판별 (base64 data URL 또는 확장자 기준)
-export function isImageFile(f: { name: string; url?: string }): boolean {
-  return !!f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name);
-}
+import { EvidenceAttachment } from "./EvidenceAttachment";
 
 export function subTypeName(app: Application): string {
   if (app.gradeDetail) {
@@ -172,7 +168,8 @@ export const PRINT_CSS = `
 `;
 
 // 한 신청 건의 문서 본문 (제목 + 섹션). doc: form | payment | review | evidence
-export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
+// onAttachmentReady: 첨부(이미지·PDF)가 렌더링 완료될 때마다 호출 — 인쇄 준비 표시에 사용
+export function PrintDocBody({ app, doc, onAttachmentReady }: { app: Application; doc: string; onAttachmentReady?: (fileId: string) => void }) {
   const studentInfoBlock = (
     <>
       <div className="sec">신청자 정보</div>
@@ -293,29 +290,15 @@ export function PrintDocBody({ app, doc }: { app: Application; doc: string }) {
             </tbody></table>
           </div>
           {app.files.map((f) => (
-            <div className="ev-page" key={f.id}>
-              <div className="ev-head">
-                {DOCUMENT_TYPE_LABELS[f.type]} — {f.name}
-                <div className="ev-head-sub">접수번호 {app.receiptNumber} · {app.name}({app.studentId}) · {app.department}</div>
-              </div>
-              <div className="ev-img">
-                {!f.url ? (
-                  "첨부 미리보기 (업로드 파일 연동 시 자동 삽입)"
-                ) : isImageFile(f) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.url} alt={f.name} />
-                ) : (
-                  // PDF 등 이미지가 아닌 첨부는 뷰어(iframe)로 표시 — img로는 깨져 보임
-                  <iframe src={f.url} title={f.name} className="ev-frame" />
-                )}
-              </div>
-              {f.url && !isImageFile(f) && (
-                <p className="ev-note">
-                  ※ PDF 등 문서 첨부는 위 뷰어로 표시됩니다. 브라우저 인쇄 특성상 PDF가 인쇄본에 병합되지 않을 수 있으니,{" "}
-                  <a href={f.url} target="_blank" rel="noreferrer">첨부 원본 열기</a> 후 개별 인쇄하세요.
-                </p>
-              )}
-            </div>
+            <EvidenceAttachment
+              key={f.id}
+              file={f}
+              receiptNumber={app.receiptNumber}
+              name={app.name}
+              studentId={app.studentId}
+              department={app.department}
+              onReady={onAttachmentReady}
+            />
           ))}
         </>
       )}

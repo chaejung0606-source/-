@@ -21,6 +21,11 @@ function BatchPrintContent() {
 
   const [apps, setApps] = useState<Application[] | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
+  const [ready, setReady] = useState<Set<string>>(new Set());
+  const onAttachmentReady = (fileId: string) => setReady((prev) => prev.has(fileId) ? prev : new Set(prev).add(fileId));
+  // 증빙 첨부가 인쇄본에 포함되는 문서(지출자료)에서만 변환 대기 표시
+  const expected = apps && doc === "payment" ? apps.reduce((n, a) => n + a.files.length, 0) : 0;
+  const attachmentsReady = ready.size >= expected;
 
   useEffect(() => {
     if (ids.length === 0) { setApps([]); return; }
@@ -57,6 +62,11 @@ function BatchPrintContent() {
         <button onClick={() => window.close()} style={{ background: "#888" }}>닫기</button>
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
           선택한 <b>{apps.length}건</b>을 한 문서로 모았습니다. 인쇄 대화상자에서 &quot;PDF로 저장&quot;을 선택하세요.
+          {expected > 0 && (
+            <><br />{attachmentsReady
+              ? <span style={{ color: "#16a34a" }}>✓ 첨부 {expected}건 준비 완료 — 인쇄하세요.</span>
+              : <span style={{ color: "#dc2626" }}>첨부 변환 중… ({ready.size}/{expected}) 완료 후 인쇄하세요.</span>}</>
+          )}
           {failed.length > 0 && (
             <><br /><span style={{ color: "#dc2626" }}>불러오지 못한 {failed.length}건이 있습니다. (권한 또는 네트워크 문제)</span></>
           )}
@@ -64,7 +74,7 @@ function BatchPrintContent() {
       </div>
       {apps.map((app, i) => (
         <div key={app.id} className={i > 0 ? "doc-break" : undefined}>
-          <PrintDocBody app={app} doc={doc} />
+          <PrintDocBody app={app} doc={doc} onAttachmentReady={onAttachmentReady} />
         </div>
       ))}
     </div>

@@ -11,6 +11,11 @@ function PrintContent() {
   const params = useSearchParams();
   const doc = params.get("doc") || "form";
   const [app, setApp] = useState<Application | null>(null);
+  const [ready, setReady] = useState<Set<string>>(new Set());
+  const onAttachmentReady = (fileId: string) => setReady((prev) => prev.has(fileId) ? prev : new Set(prev).add(fileId));
+  // 증빙(첨부)이 인쇄본에 포함되는 문서에서만 변환 대기 표시
+  const expected = app && (doc === "payment" || doc === "evidence") ? app.files.length : 0;
+  const attachmentsReady = ready.size >= expected;
 
   useEffect(() => {
     fetch(`/api/applications/${id}`).then((r) => r.json()).then((d: Application) => {
@@ -37,9 +42,14 @@ function PrintContent() {
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
           저장 파일명: <b>{app.receiptNumber} {docLabelOf(app, doc)}_({app.name}_{app.studentId})</b><br />
           인쇄 대화상자에서 &quot;PDF로 저장&quot;을 선택하면 위 파일명으로 저장됩니다.
+          {expected > 0 && (
+            <><br />{attachmentsReady
+              ? <span style={{ color: "#16a34a" }}>✓ 첨부 {expected}건 준비 완료 — 인쇄하세요.</span>
+              : <span style={{ color: "#dc2626" }}>첨부 변환 중… ({ready.size}/{expected}) 완료 후 인쇄하세요.</span>}</>
+          )}
         </p>
       </div>
-      <PrintDocBody app={app} doc={doc} />
+      <PrintDocBody app={app} doc={doc} onAttachmentReady={onAttachmentReady} />
     </div>
   );
 }
