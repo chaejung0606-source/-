@@ -11,11 +11,8 @@ interface Menu { label: string; href?: string; items?: SubItem[]; }
 const MENUS: Menu[] = [
   { label: "지원신청", href: "/menu/pre", items: PICK_TYPES_PRE.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}&mode=pre` })) },
   { label: "지원금신청", href: "/menu/fund", items: PICK_TYPES_FUND.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}` })) },
-  // 소학회는 독립 메뉴 — 하위로 지원신청/지원금신청
-  { label: "소학회", href: "/menu/club", items: [
-    { label: "지원신청", href: "/apply?type=club&mode=pre" },
-    { label: "지원금신청", href: "/apply?type=club" },
-  ] },
+  // 자격증 목록 — 홈의 자격증 목록 섹션으로 이동(자동 펼침)
+  { label: "자격증 목록", href: "/#certs" },
   { label: "공간대여", href: "/space-rental" },
 ];
 

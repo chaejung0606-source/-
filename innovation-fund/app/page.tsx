@@ -10,6 +10,8 @@ import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePerio
 import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
 import SpaceCalendar from "@/components/home/SpaceCalendar";
+import FundCalendar from "@/components/home/FundCalendar";
+import CollapsibleSection from "@/components/home/CollapsibleSection";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import CertList from "@/components/home/CertList";
@@ -192,7 +194,7 @@ export default function Home() {
               <div className="font-bold text-sm sm:text-lg leading-tight holo-text truncate">학생 지원금 신청 플랫폼</div>
             </div>
           </div>
-          {/* 상단바 메뉴 — 지원신청/지원금신청/소학회(하위목록) + 공간대여 */}
+          {/* 상단바 메뉴 — 지원신청/지원금신청(하위목록) + 자격증 목록 + 공간대여 */}
           <TopNav />
           {/* 관리자·신청자 로그인 상태는 상호 배타적으로 표시(중복 로그인 UI 방지) */}
           <div className="flex items-center gap-2 shrink-0">
@@ -294,17 +296,26 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 자격증 목록 (독립 섹션) */}
-        <CertList />
-
-        {/* 공간대여 예약 현황 (구글 캘린더 보기 전용) — 자격증 목록 아래 */}
+        {/* 지원금 신청 일정 캘린더 — 유형별 지원신청·지원금신청 기간 */}
         <section>
           <h2 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
-            <CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황
+            <CalendarClock className="w-6 h-6 text-indigo-500" /> 지원금 신청 일정
           </h2>
-          <p className="text-sm text-gray-500 mb-4">신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</p>
-          <SpaceCalendar />
+          <p className="text-sm text-gray-500 mb-4">유형별 <strong>지원신청·지원금신청 기간</strong>을 캘린더로 확인할 수 있습니다. 날짜를 누르면 그날 신청 가능한 항목이 표시됩니다.</p>
+          <FundCalendar programs={programs} typePeriods={typePeriods} />
         </section>
+
+        {/* 자격증 목록 (접기/펼치기 — 기본 접힘, 상단바 메뉴에서 자동 펼침) */}
+        <CertList />
+
+        {/* 공간대여 예약 현황 (접기/펼치기 — 기본 접힘) */}
+        <CollapsibleSection
+          id="space-calendar"
+          title={<span className="flex items-center gap-2"><CalendarClock className="w-6 h-6 text-indigo-500" /> 공간대여 예약 현황</span>}
+          sub={<>신청은 상단 <strong>공간대여</strong> 메뉴에서 할 수 있습니다.</>}
+        >
+          <SpaceCalendar />
+        </CollapsibleSection>
 
         {/* 지급 대상 / 제한 */}
         <div className="grid sm:grid-cols-2 gap-6">

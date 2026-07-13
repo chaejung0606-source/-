@@ -9,9 +9,9 @@ import { type FormSchema, defaultSchemaFromFields, defaultInnovationSchema, clon
 import ContentPanel from "@/components/admin/ContentPanel";
 import CertificatesPanel from "@/components/admin/CertificatesPanel";
 
-// 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비
+// 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비 (소학회는 서비스 제외)
 type ProgKind = "labor" | "program" | "staff" | "club";
-const KINDS: ProgKind[] = ["labor", "program", "staff", "club"];
+const KINDS: ProgKind[] = ["labor", "program", "staff"];
 const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비", club: "소학회" };
 const kindOf = (p: Program): ProgKind => p.programType === "club" ? "club" : (p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : "program"));
 const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : k === "club" ? "activity" : "innovation");
