@@ -189,15 +189,19 @@ export default function ApplicationsPage() {
     exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
   };
 
-  // 선택 항목의 지출자료 / 심의요청서 PDF 내보내기 — 항목별로 각각(유형에 맞는 파일명·경로)
+  // 선택 항목의 지출자료 / 심의요청서 PDF 내보내기 — 한 창에 모아서 인쇄
+  // (항목마다 window.open을 반복하면 브라우저 팝업 차단으로 첫 건만 열리던 문제를 해결)
   const exportPdfBatch = (doc: "payment" | "review") => {
     const sel = filtered.filter((a) => selected.has(a.id));
     if (sel.length === 0) { alert("먼저 내보낼 항목을 선택하세요."); return; }
-    if (sel.length > 8 && !confirm(`${sel.length}건을 항목별로 각각 인쇄 창으로 엽니다. 계속할까요?`)) return;
-    // 항목마다 개별 인쇄 창 — 각 신청 건의 유형에 맞는 파일명으로 저장됩니다.
-    sel.forEach((a, i) => {
-      setTimeout(() => window.open(`/admin/applications/${a.id}/print?doc=${doc}`, `print_${doc}_${a.id}`), i * 350);
-    });
+    if (sel.length === 1) {
+      // 단건은 개별 인쇄 창(유형별 파일명 유지)
+      window.open(`/admin/applications/${sel[0].id}/print?doc=${doc}`, `print_${doc}_${sel[0].id}`);
+      return;
+    }
+    // 여러 건은 선택 순서대로 한 문서로 병합해 인쇄 — 팝업 창은 1개만 연다.
+    const ids = sel.map((a) => a.id).join(",");
+    window.open(`/admin/applications/print?doc=${doc}&ids=${encodeURIComponent(ids)}`, `print_batch_${doc}`);
   };
 
   // 서류 인계: 선택 건을 지출관리자에게 보내기 / 프로그램 관리자에게 돌려보내기
