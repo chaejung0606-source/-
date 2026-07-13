@@ -1,16 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Save, Info } from "lucide-react";
-import type { ApplicationType } from "@/types";
-import { APPLICATION_TYPE_LABELS } from "@/types";
+import { Save, Info, FolderOpen } from "lucide-react";
 import {
-  type ExportSetting, type ExportSettings,
-  DEFAULT_FILENAME, EXPORT_KINDS, getExportSettings, saveExportSettings,
+  type ExportSetting, type ExportSettings, type ExportKindInfo,
+  EXCEL_KINDS, PDF_KINDS, getExportSettings, saveExportSettings,
 } from "@/lib/export-settings";
 
-const TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate"];
-
 // '파일 저장 경로' 본문 — 사이트 설정 메뉴 탭 및 독립 페이지에서 사용
+// 관리자 화면에서 실제 내려받을 수 있는 파일 종류만 나열한다. (export-settings의 EXCEL_KINDS·PDF_KINDS와 1:1)
 export default function FileStoragePanel() {
   const [settings, setSettings] = useState<ExportSettings>({});
   const [saved, setSaved] = useState(false);
@@ -19,10 +16,6 @@ export default function FileStoragePanel() {
     setSettings(getExportSettings());
   }, []);
 
-  const update = (type: ApplicationType, field: keyof ExportSetting, value: string) => {
-    setSettings((prev) => ({ ...prev, [type]: { ...(prev[type] || { filename: DEFAULT_FILENAME, path: "" }), [field]: value } }));
-    setSaved(false);
-  };
   const updateKind = (key: string, field: keyof ExportSetting, value: string, def: string) => {
     setSettings((prev) => ({ ...prev, [key]: { ...(prev[key] || { filename: def, path: "" }), [field]: value } }));
     setSaved(false);
@@ -34,70 +27,62 @@ export default function FileStoragePanel() {
     setTimeout(() => setSaved(false), 2500);
   };
 
+  const kindCard = (k: ExportKindInfo) => (
+    <div key={k.key} className="card">
+      <h3 className="font-bold text-gray-800">{k.label}</h3>
+      <p className="text-xs text-gray-400 mb-1">{k.desc}</p>
+      <p className="text-[11px] text-gray-400 mb-3">사용 가능 변수: {k.vars.map((v) => <code key={v} className="mr-1">{`{${v}}`}</code>)}</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="label">파일명 형식</label>
+          <input className="input-field" value={settings[k.key]?.filename ?? k.defaultName} onChange={(e) => updateKind(k.key, "filename", e.target.value, k.defaultName)} placeholder={k.defaultName} />
+        </div>
+        <div>
+          <label className="label">보관 경로 (메모)</label>
+          <input className="input-field" value={settings[k.key]?.path ?? ""} onChange={(e) => updateKind(k.key, "path", e.target.value, k.defaultName)} placeholder="예: 2026 지출자료" />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-2">파일 저장 경로</h1>
-      <p className="text-gray-500 text-sm mb-6">혁신인재지원금 유형별로 PDF 저장 파일명과 보관 경로(메모)를 설정할 수 있습니다.</p>
+      <p className="text-gray-500 text-sm mb-6">관리자 화면에서 다운로드할 수 있는 파일별로 저장 파일명과 보관 경로(메모)를 설정합니다. 아래 목록은 현재 다운로드 가능한 항목과 1:1로 대응합니다.</p>
 
       <div className="card mb-4 flex items-start gap-2 text-sm text-blue-700" style={{ background: "rgba(59,130,246,0.08)" }}>
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="font-semibold mb-1">사용 가능한 변수</p>
-          <p><code>{"{접수번호}"}</code> <code>{"{이름}"}</code> <code>{"{학번}"}</code> <code>{"{유형}"}</code> <code>{"{날짜}"}</code></p>
-          <p className="mt-1 text-blue-600">※ 브라우저 보안상 폴더에 자동 저장은 불가합니다. 경로는 관리자용 보관 안내(메모)로 사용되며, 저장 시 파일명이 자동으로 채워집니다.</p>
+          <p className="font-semibold mb-1">파일명 변수</p>
+          <p>각 항목의 &lsquo;사용 가능 변수&rsquo;를 파일명 형식에 넣으면 다운로드 시 실제 값으로 채워집니다. 예: <code>{"{접수번호} {유형} 지출자료_({이름}_{학번})"}</code></p>
         </div>
       </div>
 
-      {/* 엑셀 다운로드 종류별 설정 */}
-      <h2 className="font-bold text-gray-800 mb-2">엑셀 다운로드</h2>
-      <p className="text-gray-500 text-sm mb-3">목록 다운로드(전체·선택)의 파일명·경로를 설정합니다. ※ 지출자료·심의요청서 PDF는 각 신청 건의 <strong>유형에 맞춰 파일명이 자동</strong> 설정됩니다.</p>
-      <div className="space-y-3 mb-8">
-        {EXPORT_KINDS.map((k) => (
-          <div key={k.key} className="card">
-            <h3 className="font-bold text-gray-800">{k.label}</h3>
-            <p className="text-xs text-gray-400 mb-3">{k.desc}</p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label">파일명 형식</label>
-                <input className="input-field" value={settings[k.key]?.filename ?? k.defaultName} onChange={(e) => updateKind(k.key, "filename", e.target.value, k.defaultName)} placeholder={k.defaultName} />
-              </div>
-              <div>
-                <label className="label">보관 경로 (메모)</label>
-                <input className="input-field" value={settings[k.key]?.path ?? ""} onChange={(e) => updateKind(k.key, "path", e.target.value, k.defaultName)} placeholder="예: 2026 지출자료" />
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="card mb-6 flex items-start gap-2 text-sm text-amber-700" style={{ background: "rgba(245,158,11,0.08)" }}>
+        <FolderOpen className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="font-semibold mb-1">보관 경로에 자동 저장하는 방법</p>
+          <p className="mb-1">브라우저 보안상 플랫폼이 특정 폴더에 파일을 직접 저장할 수는 없습니다. 대신 아래처럼 설정하면 다운로드할 때마다 원하는 폴더를 지정할 수 있습니다.</p>
+          <ol className="list-decimal ml-4 space-y-0.5">
+            <li>크롬/엣지 설정 → 다운로드 → <b>&lsquo;다운로드 전에 각 파일의 저장 위치 확인&rsquo;</b>을 켭니다.</li>
+            <li>다운로드/인쇄(PDF 저장) 시 저장 대화상자가 뜨면, 여기 적어둔 <b>보관 경로(메모)</b>를 참고해 해당 폴더를 선택합니다. 파일명은 위 형식대로 자동으로 채워집니다.</li>
+            <li>보관 경로 메모는 인쇄·다운로드 창에도 함께 표시되어 저장할 폴더를 바로 확인할 수 있습니다.</li>
+          </ol>
+        </div>
       </div>
 
-      <h2 className="font-bold text-gray-800 mb-2">지급신청서 (유형별)</h2>
+      {/* 엑셀 다운로드 */}
+      <h2 className="font-bold text-gray-800 mb-2">엑셀 다운로드</h2>
+      <p className="text-gray-500 text-sm mb-3">버튼을 누르면 파일이 바로 저장되는 엑셀 다운로드 항목입니다.</p>
+      <div className="space-y-3 mb-8">
+        {EXCEL_KINDS.map(kindCard)}
+      </div>
 
+      {/* PDF 인쇄 · 일괄 ZIP */}
+      <h2 className="font-bold text-gray-800 mb-2">PDF 인쇄 · 일괄 다운로드</h2>
+      <p className="text-gray-500 text-sm mb-3">지출자료·심의요청서는 단건이면 인쇄 창에서 &lsquo;PDF로 저장&rsquo;, 여러 건 선택 시 건별 PDF가 담긴 ZIP 파일로 다운로드됩니다.</p>
       <div className="space-y-3">
-        {TYPES.map((type) => (
-          <div key={type} className="card">
-            <h3 className="font-bold text-gray-800 mb-3">{APPLICATION_TYPE_LABELS[type]}</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label">파일명 형식</label>
-                <input
-                  className="input-field"
-                  value={settings[type]?.filename ?? DEFAULT_FILENAME}
-                  onChange={(e) => update(type, "filename", e.target.value)}
-                  placeholder={DEFAULT_FILENAME}
-                />
-              </div>
-              <div>
-                <label className="label">보관 경로 (메모)</label>
-                <input
-                  className="input-field"
-                  value={settings[type]?.path ?? ""}
-                  onChange={(e) => update(type, "path", e.target.value)}
-                  placeholder="예: 2026 혁신인재지원금/자격증"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
+        {PDF_KINDS.map(kindCard)}
       </div>
 
       <div className="mt-6 flex items-center gap-3">

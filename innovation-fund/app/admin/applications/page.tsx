@@ -189,8 +189,9 @@ export default function ApplicationsPage() {
     exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
   };
 
-  // 선택 항목의 지출자료 / 심의요청서 PDF 내보내기 — 한 창에 모아서 인쇄
-  // (항목마다 window.open을 반복하면 브라우저 팝업 차단으로 첫 건만 열리던 문제를 해결)
+  // 선택 항목의 지출자료 / 심의요청서 내보내기
+  // 단건: 개별 인쇄 창(PDF로 저장) / 여러 건: 일괄 창에서 건별 PDF를 ZIP으로 다운로드
+  // (건마다 window.open을 반복하면 브라우저 팝업 차단으로 첫 건만 열리므로 창은 1개만 연다)
   const exportPdfBatch = (doc: "payment" | "review") => {
     const sel = filtered.filter((a) => selected.has(a.id));
     if (sel.length === 0) { alert("먼저 내보낼 항목을 선택하세요."); return; }
@@ -199,7 +200,6 @@ export default function ApplicationsPage() {
       window.open(`/admin/applications/${sel[0].id}/print?doc=${doc}`, `print_${doc}_${sel[0].id}`);
       return;
     }
-    // 여러 건은 선택 순서대로 한 문서로 병합해 인쇄 — 팝업 창은 1개만 연다.
     const ids = sel.map((a) => a.id).join(",");
     window.open(`/admin/applications/print?doc=${doc}&ids=${encodeURIComponent(ids)}`, `print_batch_${doc}`);
   };

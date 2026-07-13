@@ -8,6 +8,7 @@ import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS, REVIEW_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/types";
 import { fetchPrograms, audienceOf, type Program } from "@/lib/programs";
 import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
+import { buildExportName } from "@/lib/export-settings";
 
 // 지정 키: "프로그램id::단계(pre|fund)" — 단계별로 따로 지정
 const DESIG_PHASES = [["pre", "지원신청"], ["fund", "지원금 신청"]] as const;
@@ -182,7 +183,7 @@ export default function ApplicantsPage() {
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "신청 가능 학생");
-    XLSX.writeFile(wb, `프로그램별신청가능학생_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, buildExportName("eligibleList", { 날짜: new Date().toISOString().slice(0, 10) }) + ".xlsx");
   };
 
   // 프로그램별 지정학생 저장 (모달에서 호출)
