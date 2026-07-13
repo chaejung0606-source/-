@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Application } from "@/types";
 import { APPLICATION_TYPE_LABELS } from "@/types";
-import { buildExportName, getExportPath, type ExportKind } from "@/lib/export-settings";
+import { buildExportName, type ExportKind } from "@/lib/export-settings";
 import { PRINT_CSS, PrintDocBody } from "@/components/admin/PrintDocBody";
 
 // 여러 신청 건 일괄 다운로드 — 건별 PDF를 생성해 ZIP 하나로 저장한다.
@@ -147,8 +147,6 @@ function BatchPrintContent() {
   if (!apps) return <div className="p-10 text-center text-gray-400">불러오는 중...</div>;
   if (apps.length === 0) return <div className="p-10 text-center text-gray-400">인쇄할 신청 건이 없습니다.</div>;
 
-  const pathMemo = getExportPath(doc as ExportKind) || getExportPath("batchZip");
-
   return (
     <div className="print-page">
       <style>{PRINT_CSS}</style>
@@ -160,7 +158,6 @@ function BatchPrintContent() {
         <button onClick={() => window.close()} style={{ background: "#888" }}>닫기</button>
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
           선택한 <b>{apps.length}건</b> — &lsquo;ZIP으로 저장&rsquo;은 신청 건마다 개별 PDF 파일을 만들어 ZIP 하나로 다운로드합니다.
-          {pathMemo && <><br />보관 경로(메모): <b>{pathMemo}</b></>}
           {expected > 0 && !attachmentsReady && (
             <><br /><span style={{ color: "#dc2626" }}>첨부 변환 중… ({ready.size}/{expected}) 완료 후 저장할 수 있습니다.</span></>
           )}

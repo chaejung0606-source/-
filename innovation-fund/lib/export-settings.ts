@@ -1,6 +1,6 @@
 import type { ApplicationType } from "@/types";
 
-export interface ExportSetting { filename: string; path: string; }
+export interface ExportSetting { filename?: string; path?: string; } // path는 구버전 설정 호환용(더 이상 사용 안 함)
 export type ExportSettings = Record<string, ExportSetting>;
 
 export const DEFAULT_FILENAME = "{접수번호} 혁신인재지원금 지급신청서_({이름}_{학번})";
@@ -64,10 +64,4 @@ export function buildExportName(kind: ExportKind, vars: Record<string, string>):
   const def = EXPORT_KINDS.find((k) => k.key === kind)?.defaultName || "{날짜}";
   const tpl = s[kind]?.filename || def;
   return applyVars(tpl, vars);
-}
-
-// 내보내기 종류별 보관 경로(메모)
-export function getExportPath(kind: ExportKind): string {
-  const s = getExportSettings();
-  return s[kind]?.path || "";
 }
