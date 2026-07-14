@@ -28,19 +28,6 @@ function loadFilters(): Partial<SavedFilters> {
   try { return JSON.parse(sessionStorage.getItem(FILTERS_KEY) || "{}") as Partial<SavedFilters>; } catch { return {}; }
 }
 
-// 신청목록 조건검색(필터) 상태 — 상세 진입 후 복귀·새로고침에도 유지되도록 sessionStorage에 보존.
-// (탭을 닫으면 자동 초기화되어 다른 세션에 남지 않음)
-const FILTERS_KEY = "adminAppsFilters";
-interface SavedFilters {
-  view: "active" | "canceled"; search: string; typeFilter: string;
-  reviewFilter: string; payFilter: string; dateFrom: string; dateTo: string;
-  roleFilter: string; progFilter: string;
-}
-function loadFilters(): Partial<SavedFilters> {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(sessionStorage.getItem(FILTERS_KEY) || "{}") as Partial<SavedFilters>; } catch { return {}; }
-}
-
 export default function ApplicationsPage() {
   // 신청 목록 비밀번호 게이트 — 좌측 메뉴 클릭 시에만 재확인.
   // 메뉴 안에서의 이동(목록↔상세)은 sessionStorage 플래그로 통과 유지(lib/pw-gate).
