@@ -70,7 +70,7 @@ function typeDetailRows(app: Application): [string, string][] {
       const mdEx = mc.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
       rows.push(["전공명", d.minorMajorName || "-"]);
       if (mc.length) {
-        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${c.mdProgramId ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`).join(", ")]);
+        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${(c.mdProgramId || c.isMd) ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`).join(", ")]);
         rows.push(["총 이수 학점", `${total}학점`], ["MD 학점 불인정", `-${mdEx}학점`]);
       }
       rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)]);

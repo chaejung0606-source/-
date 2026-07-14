@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import type { ApplicationType, ApplicationPhase, UploadedFile, WorkLogEntry, EventLocation, ActivityKind, PaperDetail, CostDetail, ReportEntry, Application, ClassTime, ClubDetail } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal, CLUB_PRESIDENT_MONTHLY, isMdYearRecognized } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, calcSupportTotal, CLUB_PRESIDENT_MONTHLY, isMdYearRecognized, MD_2026_REQUIRED_FROM } from "@/types";
 import {
   calcContestAmount, calcCertAmount, calcGradeAmount, calcStaffAmount,
 } from "@/lib/amount-calculator";
@@ -522,22 +522,27 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       const reasons: string[] = [];
       const reqCredits = gradeDetail.subType === "minor" ? 21 : 36;
       const courses = gradeDetail.minorCourses || [];
+      // 졸업 2027-08 이전(미선택 포함)은 구(2025) MD 방식: 과정명 없이 MD 여부만, 전 학점 인정
+      const isOldMd = !gradeDetail.minorGradDate || gradeDetail.minorGradDate < MD_2026_REQUIRED_FROM;
+      const courseIsMd = (c: { mdProgramId?: string; isMd?: boolean }) => (isOldMd ? !!c.isMd : !!c.mdProgramId);
       const netCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0)
-        - courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
-      const hasMd = courses.some((c) => c.mdProgramId);
+        - (isOldMd ? 0 : courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0));
+      const hasMd = courses.some(courseIsMd);
       if (!gradeDetail.minorMajorName) reasons.push("• 부전공/복수전공 전공명을 선택해야 합니다.");
       if (!gradeDetail.minorIsMirae) reasons.push("• 미래융합가상학과 이수(예정)자 확인이 필요합니다.");
       if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
-      if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과정을 1개 이상 지정해야 합니다.");
-      // MD 발급 학년도 인정 필터 (세부지침 2026-07-07 개정)
-      const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
-      const mdYears = gradeDetail.minorMdYears || {};
+      if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과목을 1개 이상 지정해야 합니다.");
       if (!gradeDetail.minorGradDate) reasons.push("• 졸업(예정) 시기를 선택해야 합니다.");
-      if (usedMdIds.some((id) => !mdYears[id])) reasons.push("• 이수 MD의 발급 학년도를 선택해야 합니다.");
-      else if (gradeDetail.minorGradDate && usedMdIds.length > 0 && !usedMdIds.some((id) => isMdYearRecognized(gradeDetail.minorGradDate, mdYears[id])))
-        reasons.push("• 2027년 8월 졸업(예정)자부터는 2026학년도 개편 MD만 인정됩니다. (2025학년도 발급 MD 불인정)");
+      // MD 발급 학년도 인정 필터 (2026 개편 MD 방식에서만 적용, 세부지침 2026-07-07 개정)
+      if (!isOldMd) {
+        const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
+        const mdYears = gradeDetail.minorMdYears || {};
+        if (usedMdIds.some((id) => !mdYears[id])) reasons.push("• 이수 MD의 발급 학년도를 선택해야 합니다.");
+        else if (usedMdIds.length > 0 && !usedMdIds.some((id) => isMdYearRecognized(gradeDetail.minorGradDate, mdYears[id])))
+          reasons.push("• 2027년 8월 졸업(예정)자부터는 2026학년도 개편 MD만 인정됩니다. (2025학년도 발급 MD 불인정)");
+      }
       if (courses.length === 0) reasons.push("• 이수 교과목 내역을 입력해야 합니다.");
-      else if (netCredits < reqCredits) reasons.push(`• MD 학점 불인정 제외 인정 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
+      else if (netCredits < reqCredits) reasons.push(`• 인정 이수 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
       if (reasons.length > 0) {
         alert("지원 자격을 충족하지 않아 제출할 수 없습니다.\n\n" + reasons.join("\n"));
         return;

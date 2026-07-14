@@ -346,8 +346,9 @@ export interface MinorCourse {
   name: string;          // 교과목명 (관리자 설정 카탈로그에서 선택)
   credits: number;       // 학점 (1/2/3)
   grade: string;         // 평점 (A+~F, 가/부)
-  mdProgramId?: string;  // 이 과목이 이수한 MD 과정 id (MD 이수과목인 경우)
-  excluded?: boolean;    // MD 이수과목 중 학점 불인정 → 이수학점에서 제외
+  mdProgramId?: string;  // 이 과목이 이수한 MD 과정 id (2026 개편 MD 이수과목인 경우)
+  isMd?: boolean;        // 구(2025학년도) MD 방식: 과정명 선택 없이 'MD 이수과목 여부'만 표시 (졸업 2027-08 이전)
+  excluded?: boolean;    // MD 이수과목 중 학점 불인정 → 이수학점에서 제외 (2026 개편 MD만 해당)
 }
 
 export interface GradeDetail {

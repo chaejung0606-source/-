@@ -266,7 +266,7 @@ export default function ApplicationDetailPage() {
           ["미래융합가상학과 이수(예정)자", g.minorIsMirae ? "확인함" : "미확인"],
           ["이수 교과목 내역", (g.minorCourses || []).length
             ? (g.minorCourses || []).map((c) =>
-                `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${c.mdProgramId ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
+                `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
               ).join("\n")
             : "-"],
           ["인정 이수 학점", `${g.minorMajorCredits ?? g.credits}학점 (기준 ${g.subType === "minor" ? 21 : 36}학점)`],
