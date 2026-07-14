@@ -117,13 +117,24 @@ CREATE TABLE IF NOT EXISTS applications (
   admin_memo TEXT DEFAULT ''
 );
 
--- 접수번호 자동 생성
+-- 접수번호 자동 생성 (YYYY-NNN)
+-- 순번은 "그 해 최대 번호 + 1"로 계산해 삭제(탈퇴·테스트 삭제)로 인한 번호 재사용을 막고,
+-- 연도별 자문 잠금으로 동시 제출을 직렬화해 중복(UNIQUE 위반)을 방지한다.
+-- SECURITY DEFINER + search_path 고정으로 RLS(신청자 본인 행만 조회) 영향 없이 전체 행 기준 계산.
 CREATE OR REPLACE FUNCTION generate_receipt_number()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE year_str TEXT; seq_num INT;
 BEGIN
   year_str := TO_CHAR(NOW(), 'YYYY');
-  SELECT COUNT(*) + 1 INTO seq_num FROM applications WHERE TO_CHAR(created_at, 'YYYY') = year_str;
+  PERFORM pg_advisory_xact_lock(hashtext('applications_receipt_' || year_str));
+  SELECT COALESCE(MAX(CAST(SPLIT_PART(receipt_number, '-', 2) AS INT)), 0) + 1
+    INTO seq_num
+    FROM applications
+   WHERE receipt_number LIKE year_str || '-%'
+     AND SPLIT_PART(receipt_number, '-', 2) ~ '^[0-9]+$';
   NEW.receipt_number := year_str || '-' || LPAD(seq_num::TEXT, 3, '0');
   RETURN NEW;
 END;

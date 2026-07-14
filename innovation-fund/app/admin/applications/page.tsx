@@ -14,6 +14,19 @@ import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 const progNameOf = (a: Application): string =>
   a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName || a.staffDetail?.programName || "";
 
+// 신청목록 조건검색(필터) 상태 — 상세 진입 후 복귀·새로고침에도 유지되도록 sessionStorage에 보존.
+// (탭을 닫으면 자동 초기화되어 다른 세션에 남지 않음)
+const FILTERS_KEY = "adminAppsFilters";
+interface SavedFilters {
+  view: "active" | "canceled"; search: string; typeFilter: string;
+  reviewFilter: string; payFilter: string; dateFrom: string; dateTo: string;
+  roleFilter: string; progFilter: string;
+}
+function loadFilters(): Partial<SavedFilters> {
+  if (typeof window === "undefined") return {};
+  try { return JSON.parse(sessionStorage.getItem(FILTERS_KEY) || "{}") as Partial<SavedFilters>; } catch { return {}; }
+}
+
 export default function ApplicationsPage() {
   // 신청 목록 비밀번호 게이트 — 좌측 메뉴 클릭 시에만 재확인.
   // 메뉴 안에서의 이동(목록↔상세)은 sessionStorage 플래그로 통과 유지(lib/pw-gate).
@@ -48,18 +61,31 @@ export default function ApplicationsPage() {
   const [statusCfg, setStatusCfg] = useState<StatusConfig>(DEFAULT_STATUS_CONFIG);
   useEffect(() => { fetch("/api/admin/status-config").then((r) => r.json()).then(setStatusCfg).catch(() => {}); }, []);
 
+  // 필터 초기값 — sessionStorage에 저장된 직전 조건검색을 복원 (한 번만 읽음)
+  const savedFilters = useMemo(loadFilters, []);
+
   // 신청 / 취소 목록 분리
-  const [view, setView] = useState<"active" | "canceled">("active");
+  const [view, setView] = useState<"active" | "canceled">(savedFilters.view === "canceled" ? "canceled" : "active");
 
   // 필터 상태
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<ApplicationType | "">("");
-  const [reviewFilter, setReviewFilter] = useState<ReviewStatus | "">("");
-  const [payFilter, setPayFilter] = useState<PaymentStatus | "">("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [progFilter, setProgFilter] = useState(""); // 대시보드 '프로그램별'에서 선택한 프로그램으로 목록 필터
+  const [search, setSearch] = useState(savedFilters.search ?? "");
+  const [typeFilter, setTypeFilter] = useState<ApplicationType | "">((savedFilters.typeFilter as ApplicationType | "") ?? "");
+  const [reviewFilter, setReviewFilter] = useState<ReviewStatus | "">((savedFilters.reviewFilter as ReviewStatus | "") ?? "");
+  const [payFilter, setPayFilter] = useState<PaymentStatus | "">((savedFilters.payFilter as PaymentStatus | "") ?? "");
+  const [dateFrom, setDateFrom] = useState(savedFilters.dateFrom ?? "");
+  const [dateTo, setDateTo] = useState(savedFilters.dateTo ?? "");
+  const [roleFilter, setRoleFilter] = useState(savedFilters.roleFilter ?? "");
+  const [progFilter, setProgFilter] = useState(savedFilters.progFilter ?? ""); // 대시보드 '프로그램별'에서 선택한 프로그램으로 목록 필터
+
+  // 조건검색이 바뀔 때마다 sessionStorage에 저장 (다음 진입/복귀 시 복원)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(FILTERS_KEY, JSON.stringify({
+        view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, progFilter,
+      } satisfies SavedFilters));
+    } catch { /* 저장 실패는 무시 (기능 동작에 영향 없음) */ }
+  }, [view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, progFilter]);
 
   // 신청 건의 역할 추출 — 근로는 laborDetail.role, 스키마 폼은 '역할' 항목 답변
   const roleOf = (a: Application): string => {
@@ -143,7 +169,12 @@ export default function ApplicationsPage() {
       if (!roleVisible(a)) return false;
       if (view === "active" && a.canceled) return false;
       if (view === "canceled" && !a.canceled) return false;
-      if (search && !a.name.includes(search) && !a.studentId.includes(search)) return false;
+      // 검색: 이름·학번 + 프로그램명(하위 프로그램)·역할까지 포함해 매칭
+      if (search) {
+        const q = search.trim().toLowerCase();
+        const hay = `${a.name} ${a.studentId} ${progNameOf(a)} ${roleOf(a)}`.toLowerCase();
+        if (q && !hay.includes(q)) return false;
+      }
       if (typeFilter && a.applicationType !== typeFilter) return false;
       if (reviewFilter && a.reviewStatus !== reviewFilter) return false;
       if (payFilter && a.paymentStatus !== payFilter) return false;
@@ -387,7 +418,7 @@ export default function ApplicationsPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input className="input-field pl-9" placeholder="이름 또는 학번 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="input-field pl-9" placeholder="이름·학번·프로그램명 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <select className="input-field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as ApplicationType | "")}>
             <option value="">신청 유형 전체</option>
