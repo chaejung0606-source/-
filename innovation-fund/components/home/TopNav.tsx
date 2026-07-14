@@ -11,11 +11,8 @@ interface Menu { label: string; href?: string; items?: SubItem[]; }
 const MENUS: Menu[] = [
   { label: "지원신청", href: "/menu/pre", items: PICK_TYPES_PRE.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}&mode=pre` })) },
   { label: "지원금신청", href: "/menu/fund", items: PICK_TYPES_FUND.map((t) => ({ label: APPLICATION_TYPE_LABELS[t], href: `/apply?type=${t}` })) },
-  // 소학회는 독립 메뉴 — 하위로 지원신청/지원금신청
-  { label: "소학회", href: "/menu/club", items: [
-    { label: "지원신청", href: "/apply?type=club&mode=pre" },
-    { label: "지원금신청", href: "/apply?type=club" },
-  ] },
+  // 자격증 목록 — 독립 페이지 (공간대여와 동일한 방식)
+  { label: "자격증 목록", href: "/certificates" },
   { label: "공간대여", href: "/space-rental" },
 ];
 
@@ -34,7 +31,7 @@ export default function TopNav() {
               onMouseLeave={() => setOpen((o) => (o === m.label ? null : o))}
             >
               {!m.items ? (
-                <Link href={m.href!} className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
+                <Link href={m.href!} className="flex items-center gap-1 px-3 py-2.5 text-[17px] font-bold text-black hover:text-indigo-600 transition-colors">
                   {m.label}
                 </Link>
               ) : (
@@ -43,7 +40,7 @@ export default function TopNav() {
                   <Link
                     href={m.href!}
                     onClick={() => setOpen(null)}
-                    className="flex items-center gap-1 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                    className="flex items-center gap-1 px-3 py-2.5 text-[17px] font-bold text-black hover:text-indigo-600 transition-colors"
                     aria-expanded={open === m.label}
                   >
                     {m.label}

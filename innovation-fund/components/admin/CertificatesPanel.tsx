@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, Download, Eye, EyeOff, FileSpreadsheet, Search } from "lucide-react";
 import { type CertList, type CertSheet, defaultCertList, newCertId } from "@/lib/cert-list";
+import { buildExportName } from "@/lib/export-settings";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1N4H_igfGJ3UTvjCjSfnB2Ap5g0aNK1_myW0EJQ388_I/edit?usp=sharing";
 
@@ -86,7 +87,7 @@ export default function CertificatesPanel() {
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 30) || "시트");
     });
-    XLSX.writeFile(wb, `자격증목록_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, buildExportName("certList", { 날짜: new Date().toISOString().slice(0, 10) }) + ".xlsx");
   };
 
   const terms = q.split(/[\s,]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);

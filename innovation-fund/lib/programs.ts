@@ -67,6 +67,13 @@ function normAudience(v: unknown): Audience {
   return v === "virtual" ? "virtual" : (v === "designated" ? "designated" : "anyone");
 }
 
+// 신청 기간 반복 규칙 — 시작~마감 기간이 매주/매월 같은 간격으로 반복된다.
+// (programs 테이블에 컬럼이 없어 app_config 'program_repeat_rules'에 별도 저장)
+export interface RepeatRule {
+  freq: "weekly" | "monthly";
+  until?: string;           // 반복 종료일 YYYY-MM-DD (마지막 반복 시작일 한도)
+}
+
 export interface Program {
   id: string;
   category: FundCategory;   // labor / innovation / activity
@@ -95,6 +102,8 @@ export interface Program {
   enabled?: boolean;        // (구버전 호환) 전체 활성/비활성. 기본 활성
   enabledPre?: boolean;     // 지원신청(활동 전) 단계 활성 여부. 기본 활성
   enabledFund?: boolean;    // 지원금 신청(활동 후) 단계 활성 여부. 기본 활성
+  repeatPre?: RepeatRule;   // 지원신청 기간 반복 규칙 (app_config에서 병합)
+  repeatFund?: RepeatRule;  // 지원금 신청 기간 반복 규칙
 }
 
 // 단계별 활성 여부 (단계 플래그 우선, 없으면 구버전 enabled로 폴백, 그래도 없으면 활성)
@@ -189,6 +198,17 @@ export async function fetchPrograms(): Promise<Program[]> {
       }
     }
   } catch { /* 네트워크/서버 사이드 호출 등은 컬럼 값으로 폴백 */ }
+  // 신청 기간 반복 규칙(매주/매월)도 app_config에 저장 — 있으면 병합
+  try {
+    const map = await fetch("/api/program-repeats", { cache: "no-store" }).then((r) => r.json()).then((j) => j?.map || {});
+    for (const p of progs) {
+      const r = map[p.id];
+      if (r && typeof r === "object") {
+        if (r.pre?.freq === "weekly" || r.pre?.freq === "monthly") p.repeatPre = { freq: r.pre.freq, until: r.pre.until || undefined };
+        if (r.fund?.freq === "weekly" || r.fund?.freq === "monthly") p.repeatFund = { freq: r.fund.freq, until: r.fund.until || undefined };
+      }
+    }
+  } catch { /* 미설정/네트워크 오류 시 반복 없음으로 동작 */ }
   return progs;
 }
 
@@ -203,12 +223,65 @@ export function applyWindow(p: Program, phase: ApplyPhase = "fund"): { start: st
   return { start: p.applyStart, end: p.applyEnd };
 }
 
+// ===== 신청 기간 반복(매주/매월) =====
+// 날짜 문자열(YYYY-MM-DD) 계산 도우미
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const dstr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+export function addDaysStr(s: string, n: number): string {
+  const d = new Date(`${s}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return dstr(d);
+}
+function addMonthsStr(s: string, n: number): string {
+  const [y, m, day] = s.split("-").map(Number);
+  const total = (m - 1) + n;
+  const ny = y + Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  const last = new Date(ny, nm, 0).getDate(); // 해당 달 말일 (1/31 → 2월이면 말일로 보정)
+  return `${ny}-${pad2(nm)}-${pad2(Math.min(day, last))}`;
+}
+function diffDaysStr(a: string, b: string): number {
+  return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86400000);
+}
+// 상시/마감 센티넬 기간(신청폼 편집과 동일 값)에는 반복 규칙을 적용하지 않는다
+const isSentinelWindow = (s?: string, e?: string) =>
+  (s === "2000-01-01" && e === "2099-12-31") || (s === "1900-01-01" && e === "1900-01-01");
+
+// 기준 기간(start~end)을 규칙에 따라 반복시켜, rangeEnd 이전에 시작하는 모든 발생 기간을 반환.
+// 반복 없음(rule 미지정)이면 기준 기간 1건. 반복 시작일 = start, 반복 종료일(until)을 넘는 발생은 제외.
+export function applyOccurrences(start: string, end: string, rule: RepeatRule | undefined, rangeEnd: string): { start: string; end: string }[] {
+  if (!start || !end) return [];
+  if (!rule?.freq || isSentinelWindow(start, end)) return [{ start, end }];
+  const len = Math.max(0, diffDaysStr(start, end));
+  const limit = rule.until && rule.until < rangeEnd ? rule.until : rangeEnd;
+  const out: { start: string; end: string }[] = [];
+  for (let k = 0; k < 400; k++) {
+    const s = rule.freq === "weekly" ? addDaysStr(start, 7 * k) : addMonthsStr(start, k);
+    if (s > limit) break;
+    out.push({ start: s, end: addDaysStr(s, len) });
+  }
+  return out;
+}
+
+// 단계별 반복 규칙 — 지원신청(pre)이 자체 기간 없이 지원금 기간을 따르면 규칙도 지원금 것을 따른다
+export function repeatRuleOf(p: Program, phase: ApplyPhase): RepeatRule | undefined {
+  if (phase === "pre") return (p.preApplyStart || p.preApplyEnd) ? p.repeatPre : (p.repeatPre ?? p.repeatFund);
+  return p.repeatFund;
+}
+
+// 지정 날짜가 신청 기간(반복 포함) 안에 있는지
+export function isInApplyWindow(start: string, end: string, rule: RepeatRule | undefined, d: string): boolean {
+  if (!start || !end) return false;
+  if (!rule?.freq || isSentinelWindow(start, end)) return start <= d && d <= end;
+  return applyOccurrences(start, end, rule, d).some((o) => o.start <= d && d <= o.end);
+}
+
 // 지정 날짜에 신청 가능 여부 (기본: 오늘). 비활성(enabled=false) 프로그램은 항상 false
 export function isProgramActive(p: Program, date?: string, phase: ApplyPhase = "fund"): boolean {
   if (!isPhaseEnabled(p, phase)) return false;
   const d = date || kstToday();
   const { start, end } = applyWindow(p, phase);
-  return !!start && !!end && start <= d && d <= end;
+  return isInApplyWindow(start, end, repeatRuleOf(p, phase), d);
 }
 
 // 목록을 카테고리 + 날짜 + 단계(pre/fund)로 필터

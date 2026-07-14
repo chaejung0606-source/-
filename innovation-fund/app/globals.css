@@ -184,18 +184,22 @@
   }
   /* 빨강 클릭 중에는 원본 숨김 (확대 오버레이로 대체) */
   .walker-still.red-hidden { opacity: 0; }
-  /* 빨강이 있던 자리(좌하단 코너)에서 60배로 커지다 팡 */
+  /* 빨강이 원래 있던 자리(엔드바 경계선 왼쪽)에서 그대로 커지다 팡 —
+     뷰포트(fixed) 기준으로 내려보내지 않고 .footer-walkers(경계선) 기준으로 렌더 */
   .red-blast {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0;
     z-index: 200;
     pointer-events: none;
     overflow: visible;
   }
   .red-blast-img {
     position: absolute;
-    left: 0.5%;
-    bottom: 6px;
+    left: 0;
+    bottom: 1px; /* .walker-still(bottom:-1px)과 동일한 자리 */
     height: 54px;
     width: auto;
     transform-origin: left bottom;
@@ -213,8 +217,8 @@
   /* 무지갯빛 비눗방울 — 코너에서 위/바깥으로 떠오르며 팡 */
   .red-blast .soap-bubble {
     position: absolute;
-    left: 0.5%;
-    bottom: 10px;
+    left: 8px;
+    bottom: 5px;
     border-radius: 50%;
     opacity: 0;
     background:
@@ -234,8 +238,8 @@
   /* 글리터 입자 (코너에서 위쪽으로 퍼짐) */
   .red-blast .glit {
     position: absolute;
-    left: 0.5%;
-    bottom: 10px;
+    left: 8px;
+    bottom: 5px;
     border-radius: 2px;
     clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
     opacity: 0;
