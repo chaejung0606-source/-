@@ -169,7 +169,12 @@ export default function ApplicationsPage() {
       if (!roleVisible(a)) return false;
       if (view === "active" && a.canceled) return false;
       if (view === "canceled" && !a.canceled) return false;
-      if (search && !a.name.includes(search) && !a.studentId.includes(search)) return false;
+      // 검색: 이름·학번 + 프로그램명(하위 프로그램)·역할까지 포함해 매칭
+      if (search) {
+        const q = search.trim().toLowerCase();
+        const hay = `${a.name} ${a.studentId} ${progNameOf(a)} ${roleOf(a)}`.toLowerCase();
+        if (q && !hay.includes(q)) return false;
+      }
       if (typeFilter && a.applicationType !== typeFilter) return false;
       if (reviewFilter && a.reviewStatus !== reviewFilter) return false;
       if (payFilter && a.paymentStatus !== payFilter) return false;
@@ -413,7 +418,7 @@ export default function ApplicationsPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input className="input-field pl-9" placeholder="이름 또는 학번 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="input-field pl-9" placeholder="이름·학번·프로그램명 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <select className="input-field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as ApplicationType | "")}>
             <option value="">신청 유형 전체</option>

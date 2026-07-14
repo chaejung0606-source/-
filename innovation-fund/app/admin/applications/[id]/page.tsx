@@ -11,7 +11,6 @@ import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
 import { getProgramById } from "@/lib/md-courses";
-import { fetchPrograms } from "@/lib/programs";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -110,18 +109,27 @@ export default function ApplicationDetailPage() {
     });
   }, [id]);
 
-  // 구버전 신청(답변에 step 미저장)도 신청폼 편집의 단계 구분으로 묶어 보여주기 위한 필드→단계 매핑
+  // 신청폼 스키마의 '전체 필드 순서'(특수 블록 포함) — 상세 화면을 신청폼과 동일한 순서로 표시하는 데 사용.
+  // fieldStepMap: 필드→단계(구버전 답변에 step 미저장 시 단계 구분 복원)
   const [fieldStepMap, setFieldStepMap] = useState<Record<string, string>>({});
+  const [schemaTop, setSchemaTop] = useState<{ id: string; label: string; type: string; step: string }[]>([]);
   useEffect(() => {
     const fa = app?.formAnswers;
-    if (!fa?.programId || !fa.fields?.length || fa.fields.some((f) => f.step)) return;
-    fetchPrograms().then((list) => {
-      const p = list.find((x) => x.id === fa.programId);
-      const schema = app?.applicationPhase === "pre" ? p?.preFormSchema : p?.fundFormSchema;
-      if (!schema) return;
+    if (!fa?.programId || !fa.fields?.length) { setSchemaTop([]); return; }
+    // 신청폼 스키마는 programs 테이블이 아니라 program-forms(별도)에 저장됨
+    fetch("/api/admin/program-forms").then((r) => r.json()).then((forms) => {
+      const f = (forms || {})[fa.programId as string];
+      const schema = app?.applicationPhase === "pre" ? f?.pre : f?.fund;
+      if (!schema) { setSchemaTop([]); return; }
       const m: Record<string, string> = {};
-      (schema.steps || []).forEach((s) => (s.fields || []).forEach((f) => { m[f.id] = s.title || ""; }));
+      const top: { id: string; label: string; type: string; step: string }[] = [];
+      (schema.steps || []).forEach((s: { title?: string; fields?: { id: string; label: string; type: string }[] }) =>
+        (s.fields || []).forEach((fl) => {
+          m[fl.id] = s.title || "";
+          top.push({ id: fl.id, label: fl.label, type: fl.type, step: s.title || "" });
+        }));
       setFieldStepMap(m);
+      setSchemaTop(top);
     }).catch(() => {});
   }, [app]);
 
@@ -488,20 +496,117 @@ export default function ApplicationDetailPage() {
             };
             const bankbook = app.files.find((f) => f.type === "bankbook");
             if (bankbook) usedIds.add(bankbook.id);
-            // 스키마 폼 신청은 작성 내용이 아래 단계별 답변에 모두 표시되므로,
-            // 고정 양식 상세(구 필드)는 값이 있는 항목만 남긴다 — 묻지 않은 항목이 '미작성'으로 나열되는 것 방지
             const isSchemaApp = !!(app.formAnswers?.fields && app.formAnswers.fields.length > 0);
-            const detailRows = isSchemaApp
-              ? getDetail().filter(([, v]) => { const s = String(v ?? "").trim(); return s && s !== "-"; })
-              : getDetail();
-            // 폼 답변을 신청폼 편집의 단계(예: 기본 정보/프로그램 정보/서류 업로드/동의 및 서명)로 묶기
             const faFields = app.formAnswers?.fields || [];
-            const groups: { title: string; items: typeof faFields }[] = [];
-            faFields.forEach((f) => {
-              const t = f.step || fieldStepMap[f.id] || "신청 내용";
+
+            // 한 신청 항목(폼 필드) 렌더 — 표/서명/파일/텍스트
+            const renderField = (f: (typeof faFields)[number]) => {
+              const grid = f.type === "table" ? parseTableGrid(f.value) : null;
+              const isSig = f.type === "signature";
+              const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
+              const inlineFiles = f.type === "file" ? filesForField(f.label) : [];
+              return (
+                <div>
+                  <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
+                  {grid ? (
+                    <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
+                      {grid.map((row, r) => (
+                        <tr key={r}>{row.map((cell, c) => (
+                          <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
+                        ))}</tr>
+                      ))}
+                    </tbody></table></div>
+                  ) : isSig ? (
+                    sigImg
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
+                      : <div className="text-sm text-gray-500">{f.value ? "서명 완료" : "미서명"}</div>
+                  ) : f.type === "file" ? (
+                    inlineFiles.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">{inlineFiles.map(fileThumb)}</div>
+                    ) : (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" style={{ minHeight: 38 }}>{f.value || "첨부 없음"}</div>
+                    )
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
+                      {f.value || <span className="text-gray-400">미작성</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            };
+
+            // 특수 블록(행사 장소·비용·근무기록·구성원)은 formAnswers.fields에 없으므로, 앱 상세에서 값을 만들어 스키마 위치에 끼워 넣는다.
+            const AD = app.activityDetail, PD = app.programDetail, SD = app.staffDetail, CLUB = app.clubDetail;
+            const specialRowsOf = (type: string): [string, string][] => {
+              if (type === "eventLocation") return locationRows(AD?.eventLocation ?? PD?.eventLocation);
+              if (type === "registration" || type === "transport" || type === "lodging")
+                return costRows(AD?.costDetail ?? PD?.costDetail ?? SD?.costDetail, AD?.transport ?? PD?.transport ?? SD?.transport, AD?.extraCosts ?? PD?.extraCosts ?? SD?.extraCosts);
+              if (type === "workLog") {
+                const wl = PD?.workLog ?? SD?.workLog;
+                if (!wl?.length) return [];
+                return [
+                  ["근무 기록", wl.map((e) => `${e.date} ${e.startTime}~${e.endTime}(${e.hours}h)${e.detail ? ` ${e.detail}` : ""}`).join(" / ")],
+                  ["총 근무시간", `${wl.reduce((s, e) => s + (Number(e.hours) || 0), 0)}시간`],
+                ];
+              }
+              if (type === "clubMembers" && CLUB) {
+                const members = (CLUB.members || []).filter((m) => m.name || m.studentId);
+                if (!members.length) return [];
+                return [
+                  ["구성원", members.map((m) => `${m.role} ${m.name}(${m.studentId}${m.department ? `·${m.department}` : ""}${m.isMirae ? "·가상" : ""})`).join("\n")],
+                  ["미래융합가상학과 인원", `${members.filter((m) => m.isMirae).length} / ${members.length}명`],
+                ];
+              }
+              return [];
+            };
+
+            // 스키마 필드 순서대로 항목을 나열(특수 블록 포함) → 신청폼과 동일한 순서로 표시
+            type DetailItem = { step: string; fa?: (typeof faFields)[number]; row?: [string, string] };
+            const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+            const renderedVals = new Set<string>();
+            const items: DetailItem[] = [];
+            const pushFa = (f: (typeof faFields)[number], step: string) => { items.push({ step, fa: f }); if (f.value) renderedVals.add(norm(String(f.value))); };
+            const pushRows = (rows: [string, string][], step: string) => rows.forEach((r) => { items.push({ step, row: r }); if (r[1]) renderedVals.add(norm(r[1])); });
+            const SKIP_INLINE = new Set(["applicantInfo", "account", "privacyConsent", "fileDownload"]); // 전용 섹션(기본정보·계좌·동의)·다운로드는 인라인 제외
+            const COST_TYPES = new Set(["registration", "transport", "lodging"]);
+
+            if (isSchemaApp && schemaTop.length > 0) {
+              const topIds = new Set(schemaTop.map((t) => t.id));
+              let ptr = 0, costDone = false;
+              for (const T of schemaTop) {
+                if (SKIP_INLINE.has(T.type)) continue;
+                if (T.type === "eventLocation") { pushRows(specialRowsOf("eventLocation"), T.step); continue; }
+                if (COST_TYPES.has(T.type)) { if (!costDone) { pushRows(specialRowsOf(T.type), T.step); costDone = true; } continue; }
+                if (T.type === "workLog") { pushRows(specialRowsOf("workLog"), T.step); continue; }
+                if (T.type === "clubMembers") { pushRows(specialRowsOf("clubMembers"), T.step); continue; }
+                // 텍스트류: 답변에서 찾아 렌더(+뒤따르는 조건부 하위항목)
+                const idx = faFields.findIndex((f, i) => i >= ptr && f.id === T.id);
+                if (idx === -1) continue;
+                pushFa(faFields[idx], T.step); ptr = idx + 1;
+                while (ptr < faFields.length && !topIds.has(faFields[ptr].id)) { pushFa(faFields[ptr], faFields[ptr].step || T.step); ptr++; }
+              }
+              while (ptr < faFields.length) { pushFa(faFields[ptr], faFields[ptr].step || "신청 내용"); ptr++; }
+            } else {
+              // 스키마 미로딩/구버전: 답변 순서대로(기존 동작)
+              faFields.forEach((f) => pushFa(f, f.step || fieldStepMap[f.id] || "신청 내용"));
+            }
+
+            // 단계(파란 소제목)별로 묶기
+            const groups: { title: string; items: DetailItem[] }[] = [];
+            items.forEach((it) => {
               const last = groups[groups.length - 1];
-              if (last && last.title === t) last.items.push(f);
-              else groups.push({ title: t, items: [f] });
+              if (last && last.title === it.step) last.items.push(it);
+              else groups.push({ title: it.step, items: [it] });
+            });
+
+            // 신청 상세(비용·자동 산출) — 스키마 폼은 폼에 이미 표시된 값은 제외하고 자동 산출/보충 값만 남긴다(중복 방지).
+            // 고정형(비스키마)은 기존대로 전체 표시.
+            const detailRows = getDetail().filter(([, v]) => {
+              if (!isSchemaApp) return true;
+              const s = String(v ?? "").trim();
+              if (!s || s === "-") return false;
+              return !renderedVals.has(norm(s));
             });
 
             return (
@@ -521,46 +626,16 @@ export default function ApplicationDetailPage() {
                   )}
                 </div>
 
-                {/* 신청 내용 — 신청폼 편집의 단계 구분(파란 소제목) 그대로 묶어서 표시 */}
-                {groups.map((g) => (
-                  <div key={g.title}>
+                {/* 신청 내용 — 신청폼과 동일한 순서(단계별 파란 소제목). 특수 블록(행사 장소·비용 등)도 폼 위치에 표시 */}
+                {groups.map((g, gi) => (
+                  <div key={`${g.title}-${gi}`}>
                     {sub(g.title)}
                     <div className="space-y-3">
-                      {g.items.map((f) => {
-                        const grid = f.type === "table" ? parseTableGrid(f.value) : null;
-                        const isSig = f.type === "signature";
-                        const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
-                        const inlineFiles = f.type === "file" ? filesForField(f.label) : [];
-                        return (
-                          <div key={f.id}>
-                            <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
-                            {grid ? (
-                              <div className="overflow-x-auto"><table className="border-collapse text-sm"><tbody>
-                                {grid.map((row, r) => (
-                                  <tr key={r}>{row.map((cell, c) => (
-                                    <td key={c} className="border border-gray-300 px-2 py-1 align-top whitespace-pre-line">{cell || "-"}</td>
-                                  ))}</tr>
-                                ))}
-                              </tbody></table></div>
-                            ) : isSig ? (
-                              sigImg
-                                // eslint-disable-next-line @next/next/no-img-element
-                                ? <img src={f.value} alt="서명" className="h-16 border border-gray-200 rounded bg-white" />
-                                : <div className="text-sm text-gray-500">{f.value ? "서명 완료" : "미서명"}</div>
-                            ) : f.type === "file" ? (
-                              inlineFiles.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">{inlineFiles.map(fileThumb)}</div>
-                              ) : (
-                                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500" style={{ minHeight: 38 }}>{f.value || "첨부 없음"}</div>
-                              )
-                            ) : (
-                              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
-                                {f.value || <span className="text-gray-400">미작성</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {g.items.map((it, i) => (
+                        <div key={it.fa ? `f-${it.fa.id}-${i}` : `r-${i}`}>
+                          {it.fa ? renderField(it.fa) : fv(it.row![0], it.row![1])}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
