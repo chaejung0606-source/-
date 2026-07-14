@@ -75,11 +75,6 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   const isPre = mode === "pre";  // 지원신청(활동 전): 계좌·비용·금액 제외
   // 성적·경진대회·자격증: 개인정보 동의를 기본정보 위로 + 서류 개별 업로드 슬롯 + 전 항목 필수
   const consentFirst = applicationType === "grade" || applicationType === "contest" || applicationType === "certificate";
-  // 서류 개별 업로드 슬롯을 쓰는 유형
-  const docSlots: DocSlot[] | null =
-    applicationType === "grade" ? GRADE_SLOTS :
-    applicationType === "contest" ? CONTEST_SLOTS :
-    applicationType === "certificate" ? CERT_SLOTS : null;
   const [step, setStep] = useState(draft?.draftStep || 1);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -265,7 +260,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     mdDepartment: string; mdProgramId: string; mdProgramName: string;
     mdCourses: { name: string; grade: string; isBase: boolean }[];
     minorMajorName: string; minorMajorCredits: number;
-    minorCourses: { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean }[];
+    minorCourses: { name: string; credits: number; grade: string; mdProgramId?: string; isMd?: boolean; excluded?: boolean }[];
     minorIsMirae: boolean; minorMdCompleted: boolean;
     minorMdName: string;
     minorGradDate: string; minorMdYears: Record<string, string>;
@@ -277,6 +272,15 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     minorIsMirae: false, minorMdCompleted: false, minorMdName: "",
     minorGradDate: "", minorMdYears: {},
   });
+
+  // 서류 개별 업로드 슬롯을 쓰는 유형(성적·경진대회·자격증). 부전공·복수전공은 MD 이수증 슬롯 추가.
+  const docSlots: DocSlot[] | null =
+    applicationType === "grade"
+      ? ((gradeDetail.subType === "minor" || gradeDetail.subType === "double")
+          ? [...GRADE_SLOTS, { type: "completion_proof", label: "마이크로디그리(MD) 이수증", required: true, notice: "부전공·복수전공 성적우수 지원은 이수한 마이크로디그리(MD) 이수증(또는 이수 확인 서류)을 제출해야 합니다." }]
+          : GRADE_SLOTS)
+      : applicationType === "contest" ? CONTEST_SLOTS
+      : applicationType === "certificate" ? CERT_SLOTS : null;
   const [contestDetail, setContestDetail] = useState({
     contestName: "", contestTheme: "", relevanceDescription: "", organizer: "",
     scale: "A" as "A" | "B", isTeam: false,
@@ -532,6 +536,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       if (!gradeDetail.minorIsMirae) reasons.push("• 미래융합가상학과 이수(예정)자 확인이 필요합니다.");
       if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
       if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과목을 1개 이상 지정해야 합니다.");
+      if (isOldMd && hasMd && !gradeDetail.minorMdName?.trim()) reasons.push("• 이수한 MD 과정명을 입력해야 합니다.");
       if (!gradeDetail.minorGradDate) reasons.push("• 졸업(예정) 시기를 선택해야 합니다.");
       // MD 발급 학년도 인정 필터 (2026 개편 MD 방식에서만 적용, 세부지침 2026-07-07 개정)
       if (!isOldMd) {

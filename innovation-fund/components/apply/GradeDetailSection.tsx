@@ -277,7 +277,8 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               gpa: calcMinorGpa(cs),
               minorMajorCredits: tot,                 // 구 MD: 전 학점 인정
               minorMdCompleted: has,
-              minorMdName: has ? "2025학년도 MD" : "",
+              // 구 MD 과정명은 신청자가 직접 입력(아래 'MD 과정명' 란) → 기존 입력값 보존
+              minorMdName: patch.minorMdName ?? values.minorMdName ?? "",
             };
           }
           const ids = Array.from(new Set(cs.map((c) => c.mdProgramId).filter(Boolean) as string[]));
@@ -325,7 +326,9 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               : "인정되는 MD 이수 — 2027년 2월 졸업(예정)자까지 2025학년도 발급 MD 인정",
           },
           { ok: netCredits >= reqCredits, label: isOldMd ? `인정 이수 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` : `MD 학점 불인정 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
-          ...(isOldMd ? [] : [{ ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" }]),
+          ...(isOldMd
+            ? [{ ok: !hasMd || !!values.minorMdName?.trim(), label: "이수한 MD 과정명 입력" }]
+            : [{ ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" }]),
         ];
         const allOk = conditions.every((c) => c.ok);
         return (
@@ -473,7 +476,21 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
             <p className="text-[11px] text-gray-400">※ 평점평균은 입력한 평점·학점으로 자동 계산됩니다. (가/부 과목은 평점평균에서 제외)</p>
           </div>
 
-          {/* 이수 MD 발급 학년도 — 졸업 시기에 따라 인정 여부 판정 */}
+          {/* 이수한 MD 과정명 — 구(2025학년도) MD 방식: 신청자가 직접 입력 (이수 교과목 내역 아래) */}
+          {isOldMd && (
+            <div>
+              <label className="label">이수한 MD 과정명 {hasMd && <span className="text-red-500">*</span>}</label>
+              <input
+                className="input-field"
+                value={values.minorMdName || ""}
+                onChange={(e) => set("minorMdName", e.target.value)}
+                placeholder="예: 정보보호 마이크로디그리 (여러 개면 쉼표로 구분)"
+              />
+              <p className="text-[11px] text-gray-500 mt-1">※ 위 이수 교과목에서 「MD 이수과목」으로 표시한 과목이 속한 MD 과정명을 적어주세요. (MD 이수증은 서류 업로드 단계에서 제출)</p>
+            </div>
+          )}
+
+          {/* 이수 MD 발급 학년도 — 졸업 시기에 따라 인정 여부 판정 (2026 개편 MD만) */}
           {usedMdIds.length > 0 && (
             <div className="rounded-2xl p-4 space-y-2.5" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}>
               <label className="label !mb-0">이수 MD 발급 학년도 <span className="text-red-500">*</span></label>
