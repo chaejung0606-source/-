@@ -296,12 +296,17 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   }, [allFields, workLogByField, group]);
 
   const costAmount = hasCost ? calcSupportTotal(cost) : 0;
-  // 지원신청(pre)도 금액(근무·비용) 항목을 작성하면 신청금액을 자동 산정한다. (항목이 없으면 0)
-  const requestAmount = workLogAmount + costAmount;
   const setAns = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
   // 드롭다운 선택에 따라 현재 노출 중인 하위질문까지 펼친 목록
   const activeFields = (fields: FormField[]): FormField[] =>
     fields.flatMap((f) => f.type === "select" ? [f, ...activeFields(f.branches?.[answers[f.id] || ""] || [])] : [f]);
+  // 금액을 적는 일반 질문(숫자 항목 중 라벨에 '(원'·'금액'·'비'가 있는 것)의 합계 —
+  // 관리자가 비용 블록 대신 일반 숫자 질문으로 금액을 받는 폼(지원신청 포함)도 자동 산정되도록 한다.
+  const isMoneyField = (f: FormField) => f.type === "number" && /\(\s*원|금액|비\s*\(|비$/.test((f.label || "").trim());
+  const numberAmount = activeFields(allFields).filter(isMoneyField)
+    .reduce((s, f) => s + (Number(String(answers[f.id] || "").replace(/[^\d]/g, "")) || 0), 0);
+  // 지원신청(pre)·지원금신청 모두 금액(근무·비용·금액 질문) 항목을 작성하면 신청금액을 자동 산정 (항목이 없으면 0)
+  const requestAmount = workLogAmount + costAmount + numberAmount;
   const summary = { name: basicInfo.name, type: APPLICATION_TYPE_LABELS[type], amount: requestAmount, calculatedAmount: requestAmount };
 
   // 단계별 필수 검증
@@ -680,9 +685,9 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         </div>
       )}
 
-      {(workLogAmount > 0 || costAmount > 0) && (
+      {requestAmount > 0 && (
         <div className="card flex items-center justify-between">
-          <span className="font-semibold text-gray-700">신청 금액</span>
+          <span className="font-semibold text-gray-700">신청 금액 (자동 산정)</span>
           <span className="text-xl font-bold text-primary-700">{requestAmount.toLocaleString()}원</span>
         </div>
       )}

@@ -568,15 +568,38 @@ export default function ApplicationDetailPage() {
               return [];
             };
 
+            // 프로그램명(하위 프로그램) — 기본정보 위에 먼저 표시 (아래 항목·상세에서 같은 값은 중복 제거)
+            const programName = app.programDetail?.programName || app.staffDetail?.programName
+              || app.laborDetail?.programName || app.activityDetail?.activityName
+              || app.clubDetail?.clubName || app.formAnswers?.programName || "";
+
             // 스키마 필드 순서대로 항목을 나열(특수 블록 포함) → 신청폼과 동일한 순서로 표시
             type DetailItem = { step: string; fa?: (typeof faFields)[number]; row?: [string, string] };
             const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
             const renderedVals = new Set<string>();
             const items: DetailItem[] = [];
-            const pushFa = (f: (typeof faFields)[number], step: string) => { items.push({ step, fa: f }); if (f.value) renderedVals.add(norm(String(f.value))); };
-            const pushRows = (rows: [string, string][], step: string) => rows.forEach((r) => { items.push({ step, row: r }); if (r[1]) renderedVals.add(norm(r[1])); });
+            // 상단에 이미 표시한 '프로그램명'과 같은 항목은 중복 방지 차원에서 건너뛴다
+            const isDupProgram = (label: string, value: string) =>
+              !!programName && label.replace(/\s/g, "") === "프로그램명" && norm(value) === norm(programName);
+            const pushFa = (f: (typeof faFields)[number], step: string) => {
+              if (isDupProgram(f.label || "", String(f.value || ""))) return;
+              items.push({ step, fa: f });
+              if (f.value) renderedVals.add(norm(String(f.value)));
+            };
+            const pushRows = (rows: [string, string][], step: string) => rows.forEach((r) => {
+              if (isDupProgram(r[0], r[1])) return;
+              items.push({ step, row: r });
+              if (r[1]) renderedVals.add(norm(r[1]));
+            });
             const SKIP_INLINE = new Set(["applicantInfo", "account", "privacyConsent", "fileDownload"]); // 전용 섹션(기본정보·계좌·동의)·다운로드는 인라인 제외
             const COST_TYPES = new Set(["registration", "transport", "lodging"]);
+            // 특수 블록 전체(비용은 1회) — 스키마 미로딩 폴백에서 누락 방지용
+            const pushAllSpecialRows = (step: string) => {
+              pushRows(specialRowsOf("eventLocation"), step);
+              pushRows(specialRowsOf("registration"), step); // 비용(등록·교통·숙박) 통합 1회
+              pushRows(specialRowsOf("workLog"), step);
+              pushRows(specialRowsOf("clubMembers"), step);
+            };
 
             if (isSchemaApp && schemaTop.length > 0) {
               const topIds = new Set(schemaTop.map((t) => t.id));
@@ -594,9 +617,10 @@ export default function ApplicationDetailPage() {
                 while (ptr < faFields.length && !topIds.has(faFields[ptr].id)) { pushFa(faFields[ptr], faFields[ptr].step || T.step); ptr++; }
               }
               while (ptr < faFields.length) { pushFa(faFields[ptr], faFields[ptr].step || "신청 내용"); ptr++; }
-            } else {
-              // 스키마 미로딩/구버전: 답변 순서대로(기존 동작)
+            } else if (isSchemaApp) {
+              // 스키마 미로딩/구버전: 답변 순서대로 표시 + 특수 블록(행사 장소·비용·근무기록·구성원)도 빠짐없이 표시
               faFields.forEach((f) => pushFa(f, f.step || fieldStepMap[f.id] || "신청 내용"));
+              pushAllSpecialRows(faFields[faFields.length - 1]?.step || "신청 내용");
             }
 
             // 단계(파란 소제목)별로 묶기
@@ -607,19 +631,14 @@ export default function ApplicationDetailPage() {
               else groups.push({ title: it.step, items: [it] });
             });
 
-            // 신청 상세(비용·자동 산출) — 스키마 폼은 폼에 이미 표시된 값은 제외하고 자동 산출/보충 값만 남긴다(중복 방지).
-            // 고정형(비스키마)은 기존대로 전체 표시.
-            const detailRows = getDetail().filter(([, v]) => {
+            // 신청 상세 — 고정형(비스키마)만 표시하며, 상단 프로그램명과 같은 행은 중복 제거.
+            const detailRows = getDetail().filter(([k, v]) => {
+              if (isDupProgram(k, String(v ?? ""))) return false;
               if (!isSchemaApp) return true;
               const s = String(v ?? "").trim();
               if (!s || s === "-") return false;
               return !renderedVals.has(norm(s));
             });
-
-            // 프로그램명(하위 프로그램) — 기본정보 위에 먼저 표시
-            const programName = app.programDetail?.programName || app.staffDetail?.programName
-              || app.laborDetail?.programName || app.activityDetail?.activityName
-              || app.clubDetail?.clubName || app.formAnswers?.programName || "";
 
             return (
               <div className="card">

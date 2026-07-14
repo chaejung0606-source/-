@@ -192,6 +192,11 @@ export default function ApplicationsPage() {
     () => Array.from(new Set(visibleApps.map(roleOf).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [visibleApps],
   );
+  // 하위 프로그램 드롭다운 목록 (현재 표시 대상 신청 건들의 프로그램명)
+  const progOptions = useMemo(
+    () => Array.from(new Set(visibleApps.map((a) => progNameOf(a) || "(프로그램 미지정)"))).sort((a, b) => a.localeCompare(b, "ko")),
+    [visibleApps],
+  );
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -441,7 +446,13 @@ export default function ApplicationsPage() {
           </select>
         </div>
         <div className="flex gap-3 items-center flex-wrap">
-          <span className="text-sm text-gray-500">신청일:</span>
+          {/* 하위 프로그램 드롭다운 — 현재 표시 대상 신청들의 프로그램명 목록 */}
+          <span className="text-sm text-gray-500">프로그램:</span>
+          <select className="input-field w-auto max-w-[240px]" value={progFilter} onChange={(e) => setProgFilter(e.target.value)}>
+            <option value="">프로그램 전체</option>
+            {progOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <span className="text-sm text-gray-500 ml-2">신청일:</span>
           <input type="date" className="input-field w-auto" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <span className="text-gray-400">~</span>
           <input type="date" className="input-field w-auto" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
