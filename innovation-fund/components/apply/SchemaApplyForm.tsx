@@ -95,7 +95,7 @@ function WorkLogField({ field, entries, onChange, group, isPre }: { field: FormF
       ))}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100 text-xs">
         <span className="text-gray-500">합계 근무시간 <strong className="text-gray-700">{totalHours}시간</strong>{maxH > 0 ? <span className="text-amber-600"> · 최대 {maxH}시간</span> : null}</span>
-        {!isPre && unit ? <span className="text-gray-700 font-semibold">합계 <span className="text-primary-700">{amount.toLocaleString()}원</span></span> : null}
+        {unit && (!isPre || amount > 0) ? <span className="text-gray-700 font-semibold">합계 <span className="text-primary-700">{amount.toLocaleString()}원</span></span> : null}
       </div>
       {maxH > 0 && totalHours > maxH && <p className="text-[11px] text-amber-600">최대 {maxH}시간까지만 지급에 반영됩니다.</p>}
     </div>
@@ -296,7 +296,8 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
   }, [allFields, workLogByField, group]);
 
   const costAmount = hasCost ? calcSupportTotal(cost) : 0;
-  const requestAmount = isPre ? 0 : workLogAmount + costAmount;
+  // 지원신청(pre)도 금액(근무·비용) 항목을 작성하면 신청금액을 자동 산정한다. (항목이 없으면 0)
+  const requestAmount = workLogAmount + costAmount;
   const setAns = (id: string, v: string) => setAnswers((a) => ({ ...a, [id]: v }));
   // 드롭다운 선택에 따라 현재 노출 중인 하위질문까지 펼친 목록
   const activeFields = (fields: FormField[]): FormField[] =>
@@ -667,7 +668,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-600">신청자</span><span className="font-medium">{summary.name || "-"}</span></div>
             <div className="flex justify-between"><span className="text-gray-600">신청 유형</span><span className="font-medium">{summary.type}</span></div>
-            {!isPre && <div className="flex justify-between"><span className="text-gray-600">신청 금액</span><span className="font-medium text-primary-700">{summary.amount.toLocaleString()}원</span></div>}
+            {(!isPre || summary.amount > 0) && <div className="flex justify-between"><span className="text-gray-600">신청 금액</span><span className="font-medium text-primary-700">{summary.amount.toLocaleString()}원</span></div>}
           </div>
         </div>
       )}
@@ -679,7 +680,7 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         </div>
       )}
 
-      {!isPre && (workLogAmount > 0 || costAmount > 0) && (
+      {(workLogAmount > 0 || costAmount > 0) && (
         <div className="card flex items-center justify-between">
           <span className="font-semibold text-gray-700">신청 금액</span>
           <span className="text-xl font-bold text-primary-700">{requestAmount.toLocaleString()}원</span>

@@ -12,7 +12,8 @@ import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 
 // 신청 건의 프로그램명 추출
 const progNameOf = (a: Application): string =>
-  a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName || a.staffDetail?.programName || "";
+  a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName
+  || a.staffDetail?.programName || a.clubDetail?.clubName || a.formAnswers?.programName || "";
 
 // 신청목록 조건검색(필터) 상태 — 상세 진입 후 복귀·새로고침에도 유지되도록 sessionStorage에 보존.
 // (탭을 닫으면 자동 초기화되어 다른 세션에 남지 않음)
@@ -512,6 +513,8 @@ export default function ApplicationsPage() {
                 <td className="text-xs">
                   <span className={`badge ${app.applicationPhase === "pre" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"}`}>{APPLICATION_PHASE_LABELS[app.applicationPhase || "fund"]}</span>
                   <span className="block mt-0.5">{APPLICATION_TYPE_LABELS[app.applicationType]}</span>
+                  {/* 하위 프로그램명 — 확인·검색 대상 */}
+                  {progNameOf(app) && <span className="block mt-0.5 text-[11px] text-gray-500 max-w-[150px] truncate" title={progNameOf(app)}>{progNameOf(app)}</span>}
                 </td>
                 <td className="text-right font-mono">{app.requestAmount.toLocaleString()}</td>
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>

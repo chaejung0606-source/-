@@ -413,8 +413,9 @@ export default function ApplicationDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {/* ① 관리자 확인 입력 (최상단). 미입력 시 빨강, 저장 후 초록 */}
-          {(() => {
+          {/* ① 관리자 확인 입력 (최상단). 미입력 시 빨강, 저장 후 초록.
+              지원신청(활동 전)은 지급이 없어 계좌·주민번호 확인이 불필요하므로 숨김 */}
+          {app.applicationPhase !== "pre" && (() => {
             const confirmed = !!(app.verifiedAccount?.accountNumber || app.verifiedAccount?.residentNumber);
             const theme = confirmed
               ? { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.35)", title: "#047857" }
@@ -499,12 +500,18 @@ export default function ApplicationDetailPage() {
             const isSchemaApp = !!(app.formAnswers?.fields && app.formAnswers.fields.length > 0);
             const faFields = app.formAnswers?.fields || [];
 
+            // 금액(정수) 문자열에 천단위 쉼표 — number 항목·'금액/원'이 포함된 라벨에 적용
+            const commafy = (label: string, type: string, value: string) => {
+              const isMoney = type === "number" || /금액|비용|원/.test(label);
+              return isMoney && /^\d{4,}$/.test(value.trim()) ? Number(value.trim()).toLocaleString() : value;
+            };
             // 한 신청 항목(폼 필드) 렌더 — 표/서명/파일/텍스트
             const renderField = (f: (typeof faFields)[number]) => {
               const grid = f.type === "table" ? parseTableGrid(f.value) : null;
               const isSig = f.type === "signature";
               const sigImg = isSig && (f.value.startsWith("data:") || f.value.startsWith("http"));
               const inlineFiles = f.type === "file" ? filesForField(f.label) : [];
+              const textVal = commafy(f.label, f.type, f.value);
               return (
                 <div>
                   <div className="text-[13px] font-semibold text-gray-700 mb-1">{f.label}</div>
@@ -529,7 +536,7 @@ export default function ApplicationDetailPage() {
                     )
                   ) : (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-line break-words" style={{ minHeight: 38 }}>
-                      {f.value || <span className="text-gray-400">미작성</span>}
+                      {textVal || <span className="text-gray-400">미작성</span>}
                     </div>
                   )}
                 </div>
@@ -609,9 +616,17 @@ export default function ApplicationDetailPage() {
               return !renderedVals.has(norm(s));
             });
 
+            // 프로그램명(하위 프로그램) — 기본정보 위에 먼저 표시
+            const programName = app.programDetail?.programName || app.staffDetail?.programName
+              || app.laborDetail?.programName || app.activityDetail?.activityName
+              || app.clubDetail?.clubName || app.formAnswers?.programName || "";
+
             return (
               <div className="card">
                 <h2 className="section-title">신청자가 작성한 신청서 <span className="text-xs font-normal text-gray-400">(보기 전용 · 수정 불가 · 파일 클릭 시 미리보기)</span></h2>
+
+                {/* 프로그램명(하위 프로그램) — 기본정보 위 */}
+                {programName && <div className="mt-1">{fv("프로그램명", programName)}</div>}
 
                 {/* 기본 정보 — 고정형 신청폼은 계좌 입력도 기본 정보 단계에 포함되므로 함께 표시 */}
                 {sub("기본 정보")}
@@ -640,11 +655,11 @@ export default function ApplicationDetailPage() {
                   </div>
                 ))}
 
-                {/* 신청 내용 (유형별 항목·비용 내역) — 고정형 폼의 2단계 제목 '신청 내용' 그대로.
-                    스키마 폼 신청은 답변에 없는 비용·자동 산출 값만 보충 표시 */}
-                {detailRows.length > 0 && (
+                {/* 신청 내용 (유형별 항목·비용 내역) — 고정형 폼(성적·경진대회·자격증 등)만 표시.
+                    스키마 폼 신청은 위 '신청 내용'이 신청폼 순서 그대로 전체를 보여주므로 별도 상세 섹션을 두지 않는다. */}
+                {!isSchemaApp && detailRows.length > 0 && (
                   <>
-                    {sub(isSchemaApp ? "신청 상세 내용 (비용·자동 산출)" : "신청 내용")}
+                    {sub("신청 내용")}
                     <div className="space-y-3">
                       {detailRows.map(([k, v]) => fv(k, String(v ?? "")))}
                     </div>
