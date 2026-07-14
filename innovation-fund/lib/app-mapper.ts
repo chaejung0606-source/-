@@ -4,6 +4,24 @@ import type { Application } from "@/types";
 // PostgREST가 "Could not find the 'X' column ... in the schema cache" 오류를 내면
 // (배포 DB가 일부 컬럼 미마이그레이션) 해당 컬럼을 제외하고 자동 재시도한다.
 // exec: 주어진 row로 insert/update 등을 수행하고 { data, error }를 반환.
+// 접수번호 UNIQUE 충돌(동시 제출 경쟁 등) 시 재시도 — DB 트리거가 순번을 다시 계산해 새 번호로 저장한다.
+// (근본 해결은 supabase/fix-receipt-number.sql 적용. 이 재시도는 방어적 보완이며, receipt_number를
+//  row에 넣지 않아야 트리거가 매번 새 번호를 생성한다.)
+export async function insertApplicationWithReceiptRetry<T>(
+  row: Record<string, unknown>,
+  exec: (r: Record<string, unknown>) => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+  maxTries = 5,
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  let last = await withMissingColumnRetry<T>(row, exec);
+  for (let i = 0; i < maxTries && last.error; i++) {
+    const msg = last.error.message || "";
+    if (!/receipt_number|duplicate key value/i.test(msg)) break; // 접수번호 충돌만 재시도
+    await new Promise((r) => setTimeout(r, 120 * (i + 1)));
+    last = await withMissingColumnRetry<T>(row, exec);
+  }
+  return last;
+}
+
 export async function withMissingColumnRetry<T>(
   row: Record<string, unknown>,
   exec: (r: Record<string, unknown>) => PromiseLike<{ data: T | null; error: { message: string } | null }>,

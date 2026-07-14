@@ -18,6 +18,13 @@
 
 ---
 
+## v1.1.201 / 2026-07-14
+
+### 버그 수정
+- **접수번호 중복으로 신청 저장 실패 수정 (`duplicate key value violates unique constraint "applications_receipt_number_key"`)**: 접수번호 생성 트리거가 `COUNT(*)+1`을 써서 ① 취소·탈퇴·테스트 삭제로 행이 빠지면 이미 쓰인 번호를 재생성하고 ② 동시 제출 시 같은 번호를 만들어 UNIQUE 제약을 위반하던 문제.
+  - **DB 수정(필수, 1회 실행)**: `supabase/fix-receipt-number.sql`을 Supabase SQL Editor에서 실행. '그 해 최대 번호 + 1' 방식 + 연도별 자문 잠금(`pg_advisory_xact_lock`)으로 삭제·동시성 모두 대응, `SECURITY DEFINER`로 RLS 영향 제거. (신규 설치용 `supabase/schema.sql`도 동일하게 갱신)
+  - **앱 방어 보완**: 신청 제출 시 접수번호 중복 오류가 나면 새 번호로 자동 재시도(`insertApplicationWithReceiptRetry`) — 드문 동시 제출 경쟁을 사용자 오류 없이 흡수.
+
 ## v1.1.200 / 2026-07-14
 
 ### 기능 변경

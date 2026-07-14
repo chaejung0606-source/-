@@ -9,7 +9,7 @@ import { workLogGroupOfGrade } from "@/lib/form-schema";
 import { ALL_DAY } from "@/lib/space-rental";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { toRow, withMissingColumnRetry } from "@/lib/app-mapper";
+import { toRow, insertApplicationWithReceiptRetry } from "@/lib/app-mapper";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
@@ -454,8 +454,8 @@ export default function SchemaApplyForm({ schema, type, mode, programId, program
         receiptNumber = j.receiptNumber; appId = j.id;
       } else {
         const row = toRow(buildPayload(), user.id);
-        // 배포 DB에 없는 컬럼(is_test/form_answers 등)은 자동 제외하고 재시도 — 답변은 programDetail에 보존됨
-        const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+        // 배포 DB에 없는 컬럼(is_test/form_answers 등)은 자동 제외하고, 접수번호 중복(동시 제출) 시 새 번호로 재시도
+        const { data, error } = await insertApplicationWithReceiptRetry<{ id: string; receipt_number: string }>(
           row, (r) => supabase.from("applications").insert(r).select("id,receipt_number").single(),
         );
         if (error || !data) { alert("신청 저장 중 오류가 발생했습니다.\n" + (error?.message || "알 수 없는 오류")); return; }
