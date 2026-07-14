@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Home as HomeIcon } from "lucide-react";
 import { DEFAULT_GUIDE, type GuideSection } from "@/lib/guide";
+import { LATEST_CHANGELOG, displayVersion, formatKoreanDate } from "@/lib/changelog";
 
 // 신청자 이용안내 — 사이드바 '이용안내'에서 새 탭으로 열리고, 직접 접속(/guide)도 가능.
 // 내용은 관리자 페이지(사이트 설정 → 이용안내)에서 편집한 것을 '그대로' 표시한다(미설정 시 코드 기본값).
@@ -73,7 +74,7 @@ export default function GuidePage() {
         )}
         <p className="text-[11px] text-gray-400 text-center mt-8">
           강원대학교 데이터보안·활용 혁신융합대학사업단 · 이용안내
-          <br />플랫폼 {process.env.NEXT_PUBLIC_BUILD_VERSION || ""} · 업데이트 {process.env.NEXT_PUBLIC_BUILD_DATE || ""} 기준
+          <br />플랫폼 {displayVersion(LATEST_CHANGELOG?.version)}{LATEST_CHANGELOG ? ` · 업데이트 ${formatKoreanDate(LATEST_CHANGELOG.date)} 기준` : ""}
         </p>
       </main>
     </div>

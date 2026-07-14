@@ -10,6 +10,7 @@ import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES, type TypePerio
 import FundTypeModal from "@/components/home/FundTypeModal";
 import TopNav from "@/components/home/TopNav";
 import FundCalendar, { collectFundEvents } from "@/components/home/FundCalendar";
+import UpdateInfo from "@/components/home/UpdateInfo";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
 import { supabase } from "@/lib/supabase";
@@ -403,9 +404,10 @@ export default function Home() {
                 <span className="text-gray-300">|</span>
                 <Link href="/admin/login" className="text-xs text-gray-400 hover:text-indigo-500">관리자 로그인</Link>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                {site.footer.version ?? DEFAULT_SITE_CONFIG.footer.version} · 최종 업데이트: {site.footer.updateDate ?? DEFAULT_SITE_CONFIG.footer.updateDate}
-              </p>
+              {/* 버전·업데이트 내역 — 클릭 시 모달 (lib/changelog.ts 최신 항목 기준) */}
+              <div className="mt-2">
+                <UpdateInfo />
+              </div>
             </div>
 
             {/* 우측: 사업단 가로형 로고 (오른쪽 정렬) */}
