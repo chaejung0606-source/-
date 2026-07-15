@@ -261,9 +261,10 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         // 2027-08~는 2026 개편(총장명의) MD 카탈로그에서만 선택하므로 MD 1개 이상이면 인정 (발급 학년도 선택 폐지)
         const hasRecognizedMd = hasMd;
 
-        // 졸업(예정) 시기 옵션 — 현재 연도(진행 중·지난 시기)는 자동 제외하고 다음 연도부터 표시. (졸업월: 2·8월)
-        const curYear = new Date().getFullYear();
-        const gradOpts = GRAD_YEARS.flatMap((y) => ["02", "08"].map((m) => ({ y, m }))).filter((o) => o.y > curYear);
+        // 졸업(예정) 시기 옵션 — 현재 달(YYYY-MM) 기준으로 지난 시기만 자동 제외 (당월·이후는 표시). (졸업월: 2·8월)
+        const gradNow = new Date();
+        const curYm = gradNow.getFullYear() * 100 + (gradNow.getMonth() + 1);
+        const gradOpts = GRAD_YEARS.flatMap((y) => ["02", "08"].map((m) => ({ y, m }))).filter((o) => o.y * 100 + Number(o.m) >= curYm);
         const gradYearOpts = Array.from(new Set(gradOpts.map((o) => o.y)));
         const gradMonthsFor = (y: string) => gradOpts.filter((o) => String(o.y) === String(y)).map((o) => o.m);
 
