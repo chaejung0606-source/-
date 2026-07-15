@@ -12,7 +12,7 @@ import { fetchPrograms, effectiveReportFields, type ReportField } from "@/lib/pr
 import { fetchTypePeriods, isTypeOpen, periodLabel, PERIOD_TYPES } from "@/lib/type-periods";
 import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { toRow, insertApplicationWithReceiptRetry } from "@/lib/app-mapper";
+import { toRow } from "@/lib/app-mapper";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
 import BasicInfoSection from "./BasicInfoSection";
 import ProgramDetailSection from "./ProgramDetailSection";
@@ -612,15 +612,18 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         if (!j.ok) { alert("신청 제출 중 오류가 발생했습니다.\n" + (j.error || "")); return; }
         inserted = { id: j.id, receipt_number: j.receiptNumber };
       } else {
-        // 배포 DB에 없는 컬럼(is_test/form_answers 등)은 자동 제외하고, 접수번호 중복(동시 제출) 시 새 번호로 재시도
-        const { data, error } = await insertApplicationWithReceiptRetry<{ id: string; receipt_number: string }>(
-          row, (r) => supabase.from("applications").insert(r).select("id,receipt_number").single(),
-        );
-        if (error || !data) {
-          alert("신청 저장 중 오류가 발생했습니다.\n" + (error?.message || "알 수 없는 오류"));
-          return;
-        }
-        inserted = data;
+        // 신규 제출도 서버 라우트(service_role)로 저장한다.
+        // 클라이언트 직접 insert는 RLS 때문에 접수번호 생성 트리거가 '본인 행'만 보고 MAX+1을 계산해
+        // 다른 신청자 번호와 충돌(applications_receipt_number_key)할 수 있어, 임시저장 없이 제출 시 실패하던 문제를 방지.
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/applications/draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ row, finalize: true }),
+        });
+        const j = await res.json().catch(() => ({ ok: false }));
+        if (!j.ok) { alert("신청 저장 중 오류가 발생했습니다.\n" + (j.error || "알 수 없는 오류")); return; }
+        inserted = { id: j.id, receipt_number: j.receiptNumber };
       }
 
       // Google Drive 동기화 (비민감 정보만, 실패해도 신청은 정상 처리)

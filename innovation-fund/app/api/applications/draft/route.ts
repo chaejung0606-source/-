@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { withMissingColumnRetry } from "@/lib/app-mapper";
+import { withMissingColumnRetry, insertApplicationWithReceiptRetry } from "@/lib/app-mapper";
 
 // 임시저장(작성 중) 신청의 생성/갱신/최종제출.
 // RLS상 신청자는 UPDATE가 불가하므로 JWT 인증 후 service_role로 처리한다.
@@ -42,7 +42,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, id: data.id, receiptNumber: data.receipt_number });
   }
 
-  const { data, error } = await withMissingColumnRetry<{ id: string; receipt_number: string }>(
+  // service_role 삽입(트리거는 전체 행 기준 MAX+1) + 접수번호 충돌(동시 제출) 시 새 번호로 재시도
+  const { data, error } = await insertApplicationWithReceiptRetry<{ id: string; receipt_number: string }>(
     payload, (r) => admin.from("applications").insert(r).select("id,receipt_number").single(),
   );
   if (error || !data) return NextResponse.json({ ok: false, error: error?.message || "저장 실패" }, { status: 500 });
