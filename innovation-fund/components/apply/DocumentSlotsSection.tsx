@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Upload, X, FileText, CheckCircle2 } from "lucide-react";
 import type { DocumentType, UploadedFile } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc } from "@/lib/upload";
+import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc, isDocSizeOk, docSizeMessage } from "@/lib/upload";
 
 export interface DocSlot {
   type: DocumentType;
@@ -40,6 +40,7 @@ export default function DocumentSlotsSection({ files, onChange, slots, allowExtr
 
   const upload = async (file: File, type: DocumentType, replace: boolean) => {
     if (!isAllowedDoc(file)) { alert(`${UPLOAD_GUIDE}\n(거부됨: ${file.name})`); return; }
+    if (!isDocSizeOk(file)) { alert(docSizeMessage(file)); return; }
     setBusy(type + (replace ? "" : "-extra"));
     try {
       const { data: { user } } = await supabase.auth.getUser();

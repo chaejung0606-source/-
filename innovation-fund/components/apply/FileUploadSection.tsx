@@ -4,7 +4,7 @@ import { Upload, X, FileText } from "lucide-react";
 import type { ApplicationType, DocumentType, UploadedFile } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc } from "@/lib/upload";
+import { ACCEPT_DOC, DOC_GUIDE as UPLOAD_GUIDE, isAllowedDoc, isDocSizeOk, docSizeMessage } from "@/lib/upload";
 
 interface Props {
   files: UploadedFile[];
@@ -54,6 +54,8 @@ export default function FileUploadSection({ files, onChange, applicationType }: 
     if (newFiles.length === 0) return;
     const bad = newFiles.find((f) => !isAllowedDoc(f));
     if (bad) { alert(`${UPLOAD_GUIDE}\n(거부됨: ${bad.name})`); return; }
+    const tooBig = newFiles.find((f) => !isDocSizeOk(f));
+    if (tooBig) { alert(docSizeMessage(tooBig)); return; }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
