@@ -4,7 +4,7 @@ import { Upload, X, FileText, Plus, Trash2 } from "lucide-react";
 import type { CostDetail, TransportItem, TransportMode, LodgingDetail } from "@/types";
 import { TRANSPORT_MODE_LABELS, calcSupportTotal } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc } from "@/lib/upload";
+import { ACCEPT_DOC, DOC_GUIDE, isAllowedDoc, isDocSizeOk, docSizeMessage } from "@/lib/upload";
 import MoneyInput from "@/components/common/MoneyInput";
 
 interface Props { value?: CostDetail; onChange: (v: CostDetail) => void; parts?: ("registration" | "transport" | "lodging")[]; showTotal?: boolean; }
@@ -37,6 +37,7 @@ export default function CostSection({ value, onChange, parts, showTotal }: Props
   // 공통: 증빙 파일 업로드 → { path, name }
   const uploadDoc = async (f: File): Promise<{ path: string; name: string } | null> => {
     if (!isAllowedDoc(f)) { alert(DOC_GUIDE); return null; }
+    if (!isDocSizeOk(f)) { alert(docSizeMessage(f)); return null; }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("로그인이 필요합니다."); return null; }
     const ext = f.name.includes(".") ? f.name.split(".").pop() : "";

@@ -11,7 +11,7 @@ import { currentUser } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toRow, insertApplicationWithReceiptRetry } from "@/lib/app-mapper";
 import { validateBasicFormat, formatPhone } from "@/lib/validation";
-import { ACCEPT_DOC, isAllowedDoc } from "@/lib/upload";
+import { ACCEPT_DOC, isAllowedDoc, isDocSizeOk, docSizeMessage } from "@/lib/upload";
 import BasicInfoSection from "./BasicInfoSection";
 import ConsentChecklist from "./ConsentChecklist";
 import EventLocationSection from "./EventLocationSection";
@@ -112,6 +112,8 @@ function FileField({ label, files, onChange, notice }: { label: string; files: U
     if (list.length === 0) return;
     const bad = list.find((f) => !isAllowedDoc(f));
     if (bad) { alert(`이미지(JPG·PNG·WEBP) 또는 PDF만 업로드할 수 있습니다.\n(거부됨: ${bad.name})`); return; }
+    const tooBig = list.find((f) => !isDocSizeOk(f));
+    if (tooBig) { alert(docSizeMessage(tooBig)); return; }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
