@@ -11,9 +11,22 @@ import { fetchPrograms, type Program } from "@/lib/programs";
 import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 
 // 신청 건의 프로그램명 추출
-const progNameOf = (a: Application): string =>
-  a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName
-  || a.staffDetail?.programName || a.clubDetail?.clubName || a.formAnswers?.programName || "";
+// 신청 유형 버튼 순서 (지원금 3종 → 우수성과 3종 → 소학회 → 학생활동)
+const TYPE_ORDER: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "club", "activity"];
+const GRADE_SUBTYPE_LABEL: Record<string, string> = { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" };
+// 신청의 '하위 선택' 표기 — 프로그램형은 프로그램명, 성적우수는 세부유형(+전공/과정), 자격증은 자격증명
+const progNameOf = (a: Application): string => {
+  if (a.applicationType === "grade" && a.gradeDetail?.subType) {
+    const base = GRADE_SUBTYPE_LABEL[a.gradeDetail.subType] || "";
+    const extra = a.gradeDetail.subType === "microdegree"
+      ? (a.gradeDetail.mdProgramName || "")
+      : (a.gradeDetail.minorMajorName || "");
+    return extra ? `${base} · ${extra}` : base;
+  }
+  if (a.applicationType === "certificate") return a.certificateDetail?.certName || "";
+  return a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName
+    || a.staffDetail?.programName || a.clubDetail?.clubName || a.formAnswers?.programName || "";
+};
 
 // 신청목록 조건검색(필터) 상태 — 상세 진입 후 복귀·새로고침에도 유지되도록 sessionStorage에 보존.
 // (탭을 닫으면 자동 초기화되어 다른 세션에 남지 않음)
@@ -182,7 +195,7 @@ export default function ApplicationsPage() {
       if (dateFrom && a.applicationDate < dateFrom) return false;
       if (dateTo && a.applicationDate > dateTo) return false;
       if (roleFilter && !roleOf(a).includes(roleFilter)) return false;
-      if (progFilter && (progNameOf(a) || "(프로그램 미지정)") !== progFilter) return false;
+      if (progFilter && (progNameOf(a) || "(하위 선택 없음)") !== progFilter) return false;
       return true;
     });
   }, [apps, view, search, typeFilter, reviewFilter, payFilter, dateFrom, dateTo, roleFilter, progFilter, me, nameToId, allAssigned]);
@@ -192,10 +205,22 @@ export default function ApplicationsPage() {
     () => Array.from(new Set(visibleApps.map(roleOf).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [visibleApps],
   );
-  // 하위 프로그램 드롭다운 목록 (현재 표시 대상 신청 건들의 프로그램명)
+  // 신청 유형 탭 기준 목록(권한·활성/취소만 반영) — 유형 버튼 카운트·하위선택 목록의 기준
+  const typeBase = useMemo(
+    () => visibleApps.filter((a) => (view === "active" ? !a.canceled : a.canceled)),
+    [visibleApps, view],
+  );
+  const typeCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    typeBase.forEach((a) => { m[a.applicationType] = (m[a.applicationType] || 0) + 1; });
+    return m;
+  }, [typeBase]);
+  // 하위 선택 드롭다운 목록 — 선택된 신청 유형의 하위선택(프로그램·세부유형·자격증)만 표시
   const progOptions = useMemo(
-    () => Array.from(new Set(visibleApps.map((a) => progNameOf(a) || "(프로그램 미지정)"))).sort((a, b) => a.localeCompare(b, "ko")),
-    [visibleApps],
+    () => Array.from(new Set(
+      typeBase.filter((a) => !typeFilter || a.applicationType === typeFilter).map((a) => progNameOf(a) || "(하위 선택 없음)"),
+    )).sort((a, b) => a.localeCompare(b, "ko")),
+    [typeBase, typeFilter],
   );
 
   const toggleSelect = (id: string) => {
@@ -421,17 +446,31 @@ export default function ApplicationsPage() {
 
       {/* 필터 */}
       <div className="card mb-3">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        {/* 신청 유형 버튼(탭) — 클릭 시 해당 유형 목록만 표시 */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => { setTypeFilter(""); setProgFilter(""); }}
+            className={`px-3 h-9 rounded-xl text-sm font-medium transition-all ${typeFilter === "" ? "btn-primary" : "btn-secondary"}`}
+          >
+            전체 <span className="opacity-70">{typeBase.length}</span>
+          </button>
+          {TYPE_ORDER.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => { setTypeFilter(k); setProgFilter(""); }}
+              className={`px-3 h-9 rounded-xl text-sm font-medium transition-all ${typeFilter === k ? "btn-primary" : "btn-secondary"}`}
+            >
+              {APPLICATION_TYPE_LABELS[k]} <span className="opacity-70">{typeCounts[k] || 0}</span>
+            </button>
+          ))}
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input className="input-field pl-9" placeholder="이름·학번·프로그램명 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="input-field pl-9" placeholder="이름·학번·하위선택 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select className="input-field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as ApplicationType | "")}>
-            <option value="">신청 유형 전체</option>
-            {(Object.keys(APPLICATION_TYPE_LABELS) as ApplicationType[]).map((k) => (
-              <option key={k} value={k}>{APPLICATION_TYPE_LABELS[k]}</option>
-            ))}
-          </select>
           <select className="input-field" value={reviewFilter} onChange={(e) => setReviewFilter(e.target.value as ReviewStatus | "")}>
             <option value="">검토 상태 전체</option>
             {statusCfg.review.map((o) => (
@@ -446,10 +485,10 @@ export default function ApplicationsPage() {
           </select>
         </div>
         <div className="flex gap-3 items-center flex-wrap">
-          {/* 하위 프로그램 드롭다운 — 현재 표시 대상 신청들의 프로그램명 목록 */}
-          <span className="text-sm text-gray-500">프로그램:</span>
+          {/* 하위 선택 드롭다운 — 선택한 신청 유형의 하위선택(프로그램·세부유형·자격증)만 표시 */}
+          <span className="text-sm text-gray-500">하위 선택:</span>
           <select className="input-field w-auto max-w-[240px]" value={progFilter} onChange={(e) => setProgFilter(e.target.value)}>
-            <option value="">프로그램 전체</option>
+            <option value="">{typeFilter ? `${APPLICATION_TYPE_LABELS[typeFilter as ApplicationType]} 전체` : "하위 선택 전체"}</option>
             {progOptions.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
           <span className="text-sm text-gray-500 ml-2">신청일:</span>
@@ -493,7 +532,6 @@ export default function ApplicationsPage() {
               <th className="text-right whitespace-nowrap">산정 금액</th>
               <th className="text-center whitespace-nowrap">검토 상태</th>
               <th className="text-center whitespace-nowrap">지급 상태</th>
-              <th className="text-center whitespace-nowrap">단계</th>
               {view === "canceled" && <th className="whitespace-nowrap">취소 일시 / IP</th>}
               <th className="whitespace-nowrap">첨부</th>
               <th className="text-center whitespace-nowrap">상세</th>
@@ -531,10 +569,6 @@ export default function ApplicationsPage() {
                 <td className="text-right font-mono text-[#4f8cff]">{app.calculatedAmount.toLocaleString()}</td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "review", app.reviewStatus).badge}`}>{statusMeta(statusCfg, "review", app.reviewStatus).label}</span></td>
                 <td className="text-center"><span className={`badge ${statusMeta(statusCfg, "payment", app.paymentStatus).badge}`}>{statusMeta(statusCfg, "payment", app.paymentStatus).label}</span></td>
-                <td className="text-center text-xs whitespace-nowrap">
-                  {effStage(app) === "expense" ? <span className="badge bg-teal-100 text-teal-700">지출관리자</span> : <span className="badge bg-indigo-100 text-indigo-700">프로그램검토</span>}
-                  {app.handoffNote && <span title={app.handoffNote} className="ml-1 text-amber-500 cursor-help">⚠</span>}
-                </td>
                 {view === "canceled" && (
                   <td className="text-xs whitespace-nowrap text-gray-600">
                     {app.canceledAt ? new Date(app.canceledAt).toLocaleString("ko-KR") : "-"}
