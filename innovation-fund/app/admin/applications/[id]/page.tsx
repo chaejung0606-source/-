@@ -263,7 +263,8 @@ export default function ApplicationDetailPage() {
         // 부전공/복수전공 — 신청자가 입력한 전공·교과목 내역·자격 확인을 모두 표시
         rows.push(
           ["전공명", g.minorMajorName || "-"],
-          ["미래융합가상학과 이수(예정)자", g.minorIsMirae ? "확인함" : "미확인"],
+          // 미래융합가상학과 자격 확인 체크박스 폐지(v1.1.207) — 기존 신청(확인함)만 표시
+          ...(g.minorIsMirae ? [["미래융합가상학과 이수(예정)자", "확인함"] as [string, string]] : []),
           ["이수 교과목 내역", (g.minorCourses || []).length
             ? (g.minorCourses || []).map((c) =>
                 `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
