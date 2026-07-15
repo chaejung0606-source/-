@@ -410,6 +410,37 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     }
   };
 
+  // 부전공/복수전공 성적우수 — 지원 자격 요건 검증 (2단계 '다음'과 최종 제출에서 공통 사용)
+  const gradeMinorReasons = (): string[] => {
+    const reasons: string[] = [];
+    const reqCredits = gradeDetail.subType === "minor" ? 21 : 36;
+    const courses = gradeDetail.minorCourses || [];
+    // MD 학점 인정: 2025 MD 전 학점 인정 / 2026 개편 MD는 '학점 불인정' 체크한 과목만 제외
+    const netCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0)
+      - courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+    const hasMd = courses.some((c) => c.mdProgramId);
+    const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
+    const mdYears = gradeDetail.minorMdYears || {};
+    if (!gradeDetail.minorMajorName) reasons.push("• 부전공/복수전공 전공명을 선택해야 합니다.");
+    if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
+    if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과정을 1개 이상 지정해야 합니다.");
+    if (!gradeDetail.minorGradDate) reasons.push("• 졸업(예정) 시기를 선택해야 합니다.");
+    if (usedMdIds.some((id) => !mdYears[id])) reasons.push("• 이수 MD의 발급 학년도를 선택해야 합니다.");
+    else if (gradeDetail.minorGradDate && usedMdIds.length > 0 && !usedMdIds.some((id) => isMdYearRecognized(gradeDetail.minorGradDate, mdYears[id])))
+      reasons.push("• 2027년 8월 졸업(예정)자부터는 2026학년도 개편 MD만 인정됩니다. (2025학년도 발급 MD 불인정)");
+    // 2026 개편 MD: MD별 12학점 중 6학점만 인정 → 불인정(체크)이 부족해 인정 학점이 6을 초과하면 자격 미충족
+    const md2026Over = usedMdIds.filter((id) => mdYears[id] === "2026").some((id) => {
+      const cs = courses.filter((c) => c.mdProgramId === id);
+      const tot = cs.reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      const ex = cs.filter((c) => c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+      return tot - ex > 6;
+    });
+    if (md2026Over) reasons.push("• 2026학년도 개편 MD는 12학점 중 6학점만 인정됩니다. 초과분(6학점)을 ‘학점 불인정’으로 체크해야 합니다.");
+    if (courses.length === 0) reasons.push("• 이수 교과목 내역을 입력해야 합니다.");
+    else if (netCredits < reqCredits) reasons.push(`• MD 학점 불인정 제외 인정 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
+    return reasons;
+  };
+
   // 2단계(신청 내용) 필수·형식 검증
   const validateStep2 = (): string[] => {
     const e: string[] = [];
@@ -454,13 +485,12 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       else if (!/^\d{4}-\d{2}-\d{2}$/.test(certDetail.acquisitionDate)) e.push("• 취득일은 YYYY-MM-DD 형식으로 입력해주세요.");
     }
     if (applicationType === "grade") {
-      // 성적 우수: 핵심 선택 항목 필수 (세부 이수조건은 제출 시 추가 검증)
       if (gradeDetail.subType === "microdegree") {
         if (!gradeDetail.mdDepartment) e.push("• 마이크로디그리 학과를 선택해주세요.");
         if (!gradeDetail.mdProgramId) e.push("• 마이크로디그리 과정을 선택해주세요.");
       } else {
-        if (!gradeDetail.minorMajorName) e.push("• 부전공/복수전공 전공명을 선택해주세요.");
-        if (!(gradeDetail.gpa > 0)) e.push("• 평점 평균을 입력해주세요.");
+        // 부전공/복수전공: 지원 자격 요건을 모두 충족해야 다음 단계로 진행 가능
+        e.push(...gradeMinorReasons());
       }
     }
     if (applicationType === "contest") {
@@ -521,26 +551,9 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
         return;
       }
     }
-    // 부전공/복수전공 자격 검증
+    // 부전공/복수전공 자격 검증 (2단계에서 이미 막지만 최종 제출에서도 재확인)
     if (applicationType === "grade" && (gradeDetail.subType === "minor" || gradeDetail.subType === "double")) {
-      const reasons: string[] = [];
-      const reqCredits = gradeDetail.subType === "minor" ? 21 : 36;
-      const courses = gradeDetail.minorCourses || [];
-      // MD 학점 인정: 2025학년도 MD는 전 학점 인정 / 2026 개편 MD는 신청자가 '학점 불인정' 체크한 과목만 제외
-      const netCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0)
-        - courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
-      const hasMd = courses.some((c) => c.mdProgramId);
-      const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
-      const mdYears = gradeDetail.minorMdYears || {};
-      if (!gradeDetail.minorMajorName) reasons.push("• 부전공/복수전공 전공명을 선택해야 합니다.");
-      if (gradeDetail.gpa < 3.0) reasons.push("• 평점 평균이 3.0 이상이어야 합니다.");
-      if (!hasMd) reasons.push("• 이수한 마이크로디그리(MD) 과정을 1개 이상 지정해야 합니다.");
-      if (!gradeDetail.minorGradDate) reasons.push("• 졸업(예정) 시기를 선택해야 합니다.");
-      if (usedMdIds.some((id) => !mdYears[id])) reasons.push("• 이수 MD의 발급 학년도를 선택해야 합니다.");
-      else if (gradeDetail.minorGradDate && usedMdIds.length > 0 && !usedMdIds.some((id) => isMdYearRecognized(gradeDetail.minorGradDate, mdYears[id])))
-        reasons.push("• 2027년 8월 졸업(예정)자부터는 2026학년도 개편 MD만 인정됩니다. (2025학년도 발급 MD 불인정)");
-      if (courses.length === 0) reasons.push("• 이수 교과목 내역을 입력해야 합니다.");
-      else if (netCredits < reqCredits) reasons.push(`• MD 학점 불인정 제외 인정 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
+      const reasons = gradeMinorReasons();
       if (reasons.length > 0) {
         alert("지원 자격을 충족하지 않아 제출할 수 없습니다.\n\n" + reasons.join("\n"));
         return;

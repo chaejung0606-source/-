@@ -260,6 +260,17 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const needs2026Md = !!values.minorGradDate && values.minorGradDate >= MD_2026_REQUIRED_FROM;
         const hasRecognizedMd = usedMdIds.some((id) => isMdYearRecognized(values.minorGradDate, mdYears[id]));
 
+        // 2026 개편 MD: MD별 이수 12학점 중 6학점만 인정 → '학점 불인정'을 6학점만큼 체크하지 않으면(인정 학점 6 초과) 자격 미충족
+        const md2026Credits = (id: string) => {
+          const cs = courses.filter((c) => c.mdProgramId === id);
+          const tot = cs.reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          const ex = cs.filter((c) => c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
+          return { tot, ex, recognized: tot - ex };
+        };
+        const md2026Ids = usedMdIds.filter((id) => mdYears[id] === "2026");
+        const has2026Md = md2026Ids.length > 0;
+        const md2026Ok = md2026Ids.every((id) => md2026Credits(id).recognized <= 6);
+
         // 졸업(예정) 시기 옵션 — 현재 달(YYYY-MM) 기준으로 지난 시기만 자동 제외 (당월·이후는 표시). (졸업월: 2·8월)
         const gradNow = new Date();
         const curYm = gradNow.getFullYear() * 100 + (gradNow.getMonth() + 1);
@@ -309,6 +320,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               ? "인정되는 MD 이수 — 2027년 8월 졸업(예정)자부터 2026학년도 개편 MD만 인정 (2025학년도 MD 불인정)"
               : "인정되는 MD 이수 — 2027년 2월 졸업(예정)자까지 2025학년도 발급 MD 인정",
           },
+          ...(has2026Md ? [{ ok: md2026Ok, label: "2026 개편 MD는 12학점 중 6학점만 인정 — 초과분(6학점)을 '학점 불인정'으로 체크" }] : []),
           { ok: netCredits >= reqCredits, label: `MD 학점 불인정 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
           { ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" },
         ];
@@ -451,6 +463,9 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                 const p = getProgramById(id);
                 const yr = mdYears[id] || "";
                 const recognized = isMdYearRecognized(values.minorGradDate, yr);
+                const cr = md2026Credits(id);
+                const need = Math.max(0, cr.tot - 6);        // 6학점만 인정 → 초과분 불인정 필요
+                const short = yr === "2026" && cr.recognized > 6;
                 return (
                   <div key={id} className="grid grid-cols-12 gap-2 items-center">
                     <div className="col-span-12 sm:col-span-6 text-sm font-medium">{p?.name || id}</div>
@@ -464,6 +479,11 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                         : recognized ? <span className="text-green-700">인정</span>
                         : <span className="text-red-600">불인정</span>}
                     </div>
+                    {yr === "2026" && (
+                      <div className={`col-span-12 text-[11px] ${short ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                        2026 개편 MD는 <b>12학점 중 6학점만 인정</b> — 초과 {need}학점을 위 교과목에서 ‘학점 불인정’으로 체크하세요. (현재 인정 {cr.recognized}학점{short ? " · 6학점 초과!" : " · OK"})
+                      </div>
+                    )}
                   </div>
                 );
               })}
