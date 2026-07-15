@@ -11,18 +11,14 @@ import { fetchPrograms, type Program } from "@/lib/programs";
 import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 
 // 신청 건의 프로그램명 추출
-// 신청 유형 버튼 순서 (지원금 3종 → 우수성과 3종 → 소학회 → 학생활동)
-const TYPE_ORDER: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "club", "activity"];
+// 신청 유형 버튼 — 현재 신청 가능한 유형(신청 화면 기준: PICK_TYPES_FUND)만 표시.
+// 신청 화면에서 제거된 레거시 유형(소학회·학생활동지원비)은 기존 신청 건이 있을 때만 뒤에 표시.
+const CURRENT_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+const LEGACY_TYPES: ApplicationType[] = ["club", "activity"];
 const GRADE_SUBTYPE_LABEL: Record<string, string> = { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" };
-// 신청의 '하위 선택' 표기 — 프로그램형은 프로그램명, 성적우수는 세부유형(+전공/과정), 자격증은 자격증명
+// 신청의 '하위 선택' 표기 — 프로그램형은 프로그램명, 성적우수는 세부유형(마이크로디그리·부전공·복수전공), 자격증은 자격증명
 const progNameOf = (a: Application): string => {
-  if (a.applicationType === "grade" && a.gradeDetail?.subType) {
-    const base = GRADE_SUBTYPE_LABEL[a.gradeDetail.subType] || "";
-    const extra = a.gradeDetail.subType === "microdegree"
-      ? (a.gradeDetail.mdProgramName || "")
-      : (a.gradeDetail.minorMajorName || "");
-    return extra ? `${base} · ${extra}` : base;
-  }
+  if (a.applicationType === "grade") return GRADE_SUBTYPE_LABEL[a.gradeDetail?.subType || ""] || "";
   if (a.applicationType === "certificate") return a.certificateDetail?.certName || "";
   return a.programDetail?.programName || a.laborDetail?.programName || a.activityDetail?.activityName
     || a.staffDetail?.programName || a.clubDetail?.clubName || a.formAnswers?.programName || "";
@@ -215,13 +211,14 @@ export default function ApplicationsPage() {
     typeBase.forEach((a) => { m[a.applicationType] = (m[a.applicationType] || 0) + 1; });
     return m;
   }, [typeBase]);
-  // 하위 선택 드롭다운 목록 — 선택된 신청 유형의 하위선택(프로그램·세부유형·자격증)만 표시
-  const progOptions = useMemo(
-    () => Array.from(new Set(
+  // 하위 선택 드롭다운 목록 — 선택된 신청 유형의 하위선택(프로그램·세부유형·자격증)만 표시.
+  // 성적우수는 고정 3옵션(마이크로디그리·부전공·복수전공).
+  const progOptions = useMemo(() => {
+    if (typeFilter === "grade") return ["마이크로디그리", "부전공", "복수전공"];
+    return Array.from(new Set(
       typeBase.filter((a) => !typeFilter || a.applicationType === typeFilter).map((a) => progNameOf(a) || "(하위 선택 없음)"),
-    )).sort((a, b) => a.localeCompare(b, "ko")),
-    [typeBase, typeFilter],
-  );
+    )).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [typeBase, typeFilter]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -455,7 +452,7 @@ export default function ApplicationsPage() {
           >
             전체 <span className="opacity-70">{typeBase.length}</span>
           </button>
-          {TYPE_ORDER.map((k) => (
+          {[...CURRENT_TYPES, ...LEGACY_TYPES.filter((k) => (typeCounts[k] || 0) > 0)].map((k) => (
             <button
               key={k}
               type="button"

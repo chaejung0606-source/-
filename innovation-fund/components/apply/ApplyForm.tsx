@@ -436,6 +436,14 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       return tot - ex > 6;
     });
     if (md2026Over) reasons.push("• 2026학년도 개편 MD는 12학점 중 6학점만 인정됩니다. 초과분(6학점)을 ‘학점 불인정’으로 체크해야 합니다.");
+    // 2026 개편 MD 구성조건 — 단독 MD 신청과 동일 적용 (과정별 총 과목 수·기초 한도, 예: 초급 MD = 기초 2 + 초급 2)
+    const md2026CompBad = usedMdIds.filter((id) => mdYears[id] === "2026").some((id) => {
+      const p = getProgramById(id);
+      const cs = courses.filter((c) => c.mdProgramId === id);
+      const baseCount = cs.filter((c) => !!p && p.baseCourses.includes(c.name)).length;
+      return !p || cs.length !== p.requiredCount || baseCount > p.baseMaxCount;
+    });
+    if (md2026CompBad) reasons.push("• 2026학년도 개편 MD의 구성조건을 충족해야 합니다. (과정별 총 과목 수·기초 과목 한도 — 예: 초급 MD = 기초 2 + 초급 2, 총 4과목)");
     if (courses.length === 0) reasons.push("• 이수 교과목 내역을 입력해야 합니다.");
     else if (netCredits < reqCredits) reasons.push(`• MD 학점 불인정 제외 인정 학점이 ${reqCredits}학점 이상이어야 합니다. (현재 ${netCredits}학점)`);
     return reasons;

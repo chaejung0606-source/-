@@ -256,7 +256,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const mdYears = values.minorMdYears || {};
         const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
         const allYearsSelected = usedMdIds.length > 0 && usedMdIds.every((id) => !!mdYears[id]);
-        // 졸업(예정) 시기 기준 인정되는 MD가 1개 이상인가 (세부지침 2026-07-07 개정)
+        // 졸업(예정) 시기 기준 인정되는 MD가 1개 이상인가
         const needs2026Md = !!values.minorGradDate && values.minorGradDate >= MD_2026_REQUIRED_FROM;
         const hasRecognizedMd = usedMdIds.some((id) => isMdYearRecognized(values.minorGradDate, mdYears[id]));
 
@@ -270,6 +270,15 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const md2026Ids = usedMdIds.filter((id) => mdYears[id] === "2026");
         const has2026Md = md2026Ids.length > 0;
         const md2026Ok = md2026Ids.every((id) => md2026Credits(id).recognized <= 6);
+        // 2026 개편 MD 구성조건 — 단독 마이크로디그리 신청과 동일 적용 (예: 초급 MD = 기초 2 + 초급 2 · 총 4과목, 기초 한도)
+        const md2026Comp = (id: string) => {
+          const p = getProgramById(id);
+          const cs = courses.filter((c) => c.mdProgramId === id);
+          const baseCount = cs.filter((c) => !!p && p.baseCourses.includes(c.name)).length;
+          const ok = !!p && cs.length === p.requiredCount && baseCount <= p.baseMaxCount;
+          return { p, count: cs.length, baseCount, ok };
+        };
+        const md2026CompOk = md2026Ids.every((id) => md2026Comp(id).ok);
 
         // 졸업(예정) 시기 옵션 — 현재 달(YYYY-MM) 기준으로 지난 시기만 자동 제외 (당월·이후는 표시). (졸업월: 2·8월)
         const gradNow = new Date();
@@ -320,7 +329,10 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               ? "인정되는 MD 이수 — 2027년 8월 졸업(예정)자부터 2026학년도 개편 MD만 인정 (2025학년도 MD 불인정)"
               : "인정되는 MD 이수 — 2027년 2월 졸업(예정)자까지 2025학년도 발급 MD 인정",
           },
-          ...(has2026Md ? [{ ok: md2026Ok, label: "2026 개편 MD는 12학점 중 6학점만 인정 — 초과분(6학점)을 '학점 불인정'으로 체크" }] : []),
+          ...(has2026Md ? [
+            { ok: md2026Ok, label: "2026 개편 MD는 12학점 중 6학점만 인정 — 초과분(6학점)을 '학점 불인정'으로 체크" },
+            { ok: md2026CompOk, label: "2026 개편 MD 구성조건 충족 — 과정별 총 과목 수·기초(전공) 한도 (예: 초급 MD = 기초 2 + 초급 2)" },
+          ] : []),
           { ok: netCredits >= reqCredits, label: `MD 학점 불인정 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
           { ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" },
         ];
@@ -328,7 +340,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         return (
         <div className="space-y-4">
           <div className="rounded-2xl p-3 text-sm text-blue-700 space-y-1" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)" }}>
-            <p className="font-semibold">{isMinor ? "부전공" : "복수전공"} 성적우수 지원 조건 (세부지침 제7조)</p>
+            <p className="font-semibold">{isMinor ? "부전공" : "복수전공"} 성적우수 지원 조건</p>
             <p>• 미래융합가상학과 {isMinor ? "부전공" : "복수전공"} 이수(예정)자</p>
             <p>• 이수 교과목 평점 평균 3.0 이상 (4.5 만점)</p>
             <p>• 마이크로디그리(MD) 1개 이상 이수</p>
@@ -484,6 +496,11 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                         2026 개편 MD는 <b>12학점 중 6학점만 인정</b> — 초과 {need}학점을 위 교과목에서 ‘학점 불인정’으로 체크하세요. (현재 인정 {cr.recognized}학점{short ? " · 6학점 초과!" : " · OK"})
                       </div>
                     )}
+                    {yr === "2026" && (() => { const comp = md2026Comp(id); return (
+                      <div className={`col-span-12 text-[11px] ${comp.ok ? "text-gray-500" : "text-red-600 font-medium"}`}>
+                        구성조건: {comp.p?.rule || "과정별 이수과목 기준"} — 현재 {comp.count}과목(기초 {comp.baseCount}과목){comp.ok ? " · OK" : " · 미충족"}
+                      </div>
+                    ); })()}
                   </div>
                 );
               })}
