@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield, CalendarClock } from "lucide-react";
 import type { ApplicationType } from "@/types";
@@ -106,7 +106,16 @@ export default function Home() {
 
   // 홈 팝업 공지 (여러 개·기간·닫기 옵션)
   type Popup = { id: string; enabled: boolean; title: string; content: string; startDate?: string; endDate?: string };
-  const [popupQueue, setPopupQueue] = useState<Popup[]>([]);
+  // 팝업 소스를 분리 보관하고(관리자 공지 / 마감 임박) 고정 순서로 합쳐서 표시 →
+  // 소스마다 로드 시점이 달라도 순서가 흔들리지 않고, 하나 닫으면 다음이 곧바로 이어서 표시됨.
+  const [adminPopups, setAdminPopups] = useState<Popup[]>([]);
+  const [deadlinePopup, setDeadlinePopup] = useState<Popup | null>(null);
+  const [closedIds, setClosedIds] = useState<string[]>([]);
+  // 표시 순서: 관리자 공지 먼저 → 마감 임박 안내 (닫은 항목 제외)
+  const popupQueue = useMemo(
+    () => [...adminPopups, ...(deadlinePopup ? [deadlinePopup] : [])].filter((p) => !closedIds.includes(p.id)),
+    [adminPopups, deadlinePopup, closedIds],
+  );
   useEffect(() => {
     fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => {
       const today = kstToday();
@@ -120,7 +129,7 @@ export default function Home() {
         if (dismiss === "never" || dismiss === today) return false;
         return true;
       });
-      setPopupQueue(active);
+      setAdminPopups(active);
     }).catch(() => {});
   }, []);
   const closePopup = (id: string, mode: "close" | "today" | "never") => {
@@ -130,7 +139,7 @@ export default function Home() {
         localStorage.setItem(`popupDismiss:${id}`, v);
       } catch { /* noop */ }
     }
-    setPopupQueue((q) => q.filter((p) => p.id !== id));
+    setClosedIds((s) => (s.includes(id) ? s : [...s, id]));
   };
 
   // 신청 마감 임박 팝업 — 종료일 3일 전부터, 마감 임박 항목을 팝업 1개로 종합 안내 (자동 생성)
@@ -158,11 +167,11 @@ export default function Home() {
       .sort((a, b) => a.end.localeCompare(b.end))
       .map((it) => `• [${it.phase}] ${it.name} — ${it.end} 마감${dday(it.end) === 0 ? " (오늘 마감!)" : ` (D-${dday(it.end)})`}`);
     deadlineShown.current = true;
-    setPopupQueue((q) => [{
+    setDeadlinePopup({
       id, enabled: true,
       title: "⏰ 신청 마감 임박 안내",
       content: `신청 종료가 3일 이내로 다가온 항목입니다. 마감 전에 신청을 완료해주세요.\n\n${lines.join("\n")}`,
-    }, ...q]);
+    });
   }, [programs, typePeriods]);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));

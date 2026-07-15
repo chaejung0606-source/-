@@ -5,10 +5,10 @@ import {
   MD_DEPARTMENTS, getProgramsByDept, getProgramById,
   GRADE_OPTIONS, GRADE_TO_POINT, MD_PROGRAMS, validateMD, type GradeValue,
 } from "@/lib/md-courses";
-import { MD_2026_REQUIRED_FROM } from "@/types";
+import { isMdYearRecognized, MD_2026_REQUIRED_FROM } from "@/types";
 
 interface MDCourseGrade { name: string; grade: string; isBase: boolean; }
-interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; isMd?: boolean; excluded?: boolean; custom?: boolean; }
+interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; custom?: boolean; }
 // 교과목 드롭다운에서 '직접입력'을 나타내는 특수값
 const CUSTOM_COURSE = "__custom__";
 interface GradeDetail {
@@ -235,14 +235,8 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const reqCredits = isMinor ? 21 : 36;
         const courses = values.minorCourses || [];
         const courseOptions = coursesForMajor(values.minorMajorName);
-        const needs2026Md = !!values.minorGradDate && values.minorGradDate >= MD_2026_REQUIRED_FROM;
-        // 졸업(예정) 시기가 2027-08 이전(2027년 2월 이전 포함·미선택)이면 구(2025학년도) MD 방식:
-        //  MD 과정명(2026 개편 카탈로그) 선택 없이 'MD 이수과목 여부'만 선택하며, 전 학점 인정(불인정 없음).
-        const isOldMd = !values.minorGradDate || values.minorGradDate < MD_2026_REQUIRED_FROM;
-        const courseIsMd = (c: MinorCourse) => (isOldMd ? !!c.isMd : !!c.mdProgramId);
-
         const mdPrograms = programsForMajor(values.minorMajorName);
-        // 과목이 선택한 MD 과정에 포함되는지 검증 (2026 개편 MD만 해당)
+        // 과목이 선택한 MD 과정에 포함되는지 검증
         const inMd = (c: MinorCourse): boolean => {
           if (!c.mdProgramId) return true;
           const p = getProgramById(c.mdProgramId);
@@ -250,16 +244,21 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         };
 
         const totalCredits = courses.reduce((s, c) => s + (Number(c.credits) || 0), 0);
-        // 2026 개편 MD(졸업 2027-08~): 이수학점 12학점 중 절반(6학점)만 인정 → MD 과목 학점의 절반을 자동 불인정.
-        // 구(2025) MD(졸업 2027-02 이전)는 전 학점 인정.
-        const mdCredits = isOldMd ? 0 : courses.filter((c) => c.mdProgramId).reduce((s, c) => s + (Number(c.credits) || 0), 0);
-        const mdExcluded = isOldMd ? 0 : Math.floor(mdCredits / 2);
+        // 학점 불인정(MD) 과목의 학점 제외
+        const mdExcluded = courses.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
         const netCredits = totalCredits - mdExcluded;
         const autoGpa = calcMinorGpa(courses);
-        const hasMd = courses.some(courseIsMd);
-        const mismatch = isOldMd ? false : courses.some((c) => !inMd(c));
-        // 2027-08~는 2026 개편(총장명의) MD 카탈로그에서만 선택하므로 MD 1개 이상이면 인정 (발급 학년도 선택 폐지)
-        const hasRecognizedMd = hasMd;
+        const mdNames = Array.from(new Set(courses.filter((c) => c.mdProgramId).map((c) => getProgramById(c.mdProgramId!)?.name).filter(Boolean) as string[]));
+        const hasMd = mdNames.length > 0;
+        const mismatch = courses.some((c) => !inMd(c));
+
+        // 이수한 MD 과정(중복 제거) — 발급 학년도 선택 대상
+        const mdYears = values.minorMdYears || {};
+        const usedMdIds = Array.from(new Set(courses.map((c) => c.mdProgramId).filter(Boolean) as string[]));
+        const allYearsSelected = usedMdIds.length > 0 && usedMdIds.every((id) => !!mdYears[id]);
+        // 졸업(예정) 시기 기준 인정되는 MD가 1개 이상인가 (세부지침 2026-07-07 개정)
+        const needs2026Md = !!values.minorGradDate && values.minorGradDate >= MD_2026_REQUIRED_FROM;
+        const hasRecognizedMd = usedMdIds.some((id) => isMdYearRecognized(values.minorGradDate, mdYears[id]));
 
         // 졸업(예정) 시기 옵션 — 현재 달(YYYY-MM) 기준으로 지난 시기만 자동 제외 (당월·이후는 표시). (졸업월: 2·8월)
         const gradNow = new Date();
@@ -269,40 +268,29 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const gradMonthsFor = (y: string) => gradOpts.filter((o) => String(o.y) === String(y)).map((o) => o.m);
 
         // 변경 시 평점평균·인정학점·MD 정보 자동 반영
-        // - 구(2025) MD: 전 학점 인정 / 2026 개편 MD: MD 학점의 절반 자동 불인정
-        // 저장 파생값 재계산 — 졸업 시기(신/구 MD)와 과목 목록으로부터 인정학점·MD명 계산
-        const recompute = (cs: MinorCourse[], old: boolean, gradDate: string, patch: Partial<GradeDetail> = {}): GradeDetail => {
+        // - 사용하지 않는 MD의 발급 학년도 정리
+        // - 2025학년도 MD는 불인정 학점이 없으므로 해당 과목의 '학점 불인정' 자동 해제
+        const apply = (cs: MinorCourse[], patch: Partial<GradeDetail> = {}) => {
+          const ids = Array.from(new Set(cs.map((c) => c.mdProgramId).filter(Boolean) as string[]));
+          const yearsRaw = (patch.minorMdYears ?? mdYears) as Record<string, string>;
+          const years: Record<string, string> = {};
+          ids.forEach((id) => { if (yearsRaw[id]) years[id] = yearsRaw[id]; });
+          cs = cs.map((c) => (c.mdProgramId && years[c.mdProgramId] === "2025" && c.excluded ? { ...c, excluded: false } : c));
           const tot = cs.reduce((s, c) => s + (Number(c.credits) || 0), 0);
-          if (old) {
-            const has = cs.some((c) => !!c.isMd);
-            return {
-              ...values, ...patch, minorGradDate: gradDate, minorCourses: cs, minorMdYears: {},
-              gpa: calcMinorGpa(cs),
-              minorMajorCredits: tot,                 // 구 MD: 전 학점 인정
-              minorMdCompleted: has,
-              // 구 MD 과정명은 신청자가 직접 입력(아래 'MD 과정명' 란) → 기존 입력값 보존
-              minorMdName: patch.minorMdName ?? values.minorMdName ?? "",
-            };
-          }
-          // 2026 개편 MD: MD 과목 학점의 절반을 자동 불인정 (12학점 중 6학점만 인정)
-          const mdCr = cs.filter((c) => c.mdProgramId).reduce((s, c) => s + (Number(c.credits) || 0), 0);
-          const exCr = Math.floor(mdCr / 2);
+          const exCr = cs.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
           const names = Array.from(new Set(cs.filter((c) => c.mdProgramId).map((c) => getProgramById(c.mdProgramId!)?.name).filter(Boolean) as string[]));
-          return {
-            ...values, ...patch, minorGradDate: gradDate, minorCourses: cs, minorMdYears: {},
+          onChange({
+            ...values, ...patch, minorCourses: cs, minorMdYears: years,
             gpa: calcMinorGpa(cs),
             minorMajorCredits: tot - exCr,
             minorMdCompleted: names.length > 0,
             minorMdName: names.join(", "),
-          };
+          });
         };
-        const apply = (cs: MinorCourse[], patch: Partial<GradeDetail> = {}) =>
-          onChange(recompute(cs, isOldMd, values.minorGradDate || "", patch));
-        // 졸업 시기 변경 — 신/구 MD 전환 시 인정학점·MD명도 새 기준으로 다시 계산
-        const setGradDate = (gradDate: string) =>
-          onChange(recompute(courses, !gradDate || gradDate < MD_2026_REQUIRED_FROM, gradDate));
+        // MD 발급 학년도 선택
+        const setMdYear = (id: string, year: string) => apply(courses, { minorMdYears: { ...mdYears, [id]: year } });
         // 새로 추가하는 과목이 맨 위로 오도록 prepend (학점 기본 3)
-        const addCourse = () => apply([{ name: "", credits: 3, grade: "A+", mdProgramId: "", isMd: false, excluded: false }, ...courses]);
+        const addCourse = () => apply([{ name: "", credits: 3, grade: "A+", mdProgramId: "", excluded: false }, ...courses]);
         // 이미 선택된 교과목은 다른 행의 드롭다운에서 제외(중복 추가 방지)
         const usedNames = new Set(courses.map((c) => c.name).filter(Boolean));
         const setCourse = (i: number, patch: Partial<MinorCourse>) =>
@@ -314,11 +302,15 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
         const conditions = [
           { ok: autoGpa >= 3.0, label: "이수 교과목 평점 평균 3.0 이상 (4.5 만점)" },
           { ok: !!values.minorGradDate, label: "졸업(예정) 시기 선택" },
-          { ok: hasMd, label: needs2026Md ? "2026학년도 개편(총장명의) MD 1개 이상 이수 (이수 12학점 중 6학점만 인정)" : "마이크로디그리(MD) 1개 이상 이수 (2025학년도 발급 MD · 전 학점 인정)" },
-          { ok: netCredits >= reqCredits, label: isOldMd ? `인정 이수 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` : `MD 절반 불인정 반영 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
-          ...(isOldMd
-            ? [{ ok: !hasMd || !!values.minorMdName?.trim(), label: "이수한 MD 과정명 입력" }]
-            : [{ ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" }]),
+          { ok: hasMd && allYearsSelected, label: "마이크로디그리(MD) 1개 이상 이수 + 발급 학년도 선택" },
+          {
+            ok: hasRecognizedMd,
+            label: needs2026Md
+              ? "인정되는 MD 이수 — 2027년 8월 졸업(예정)자부터 2026학년도 개편 MD만 인정 (2025학년도 MD 불인정)"
+              : "인정되는 MD 이수 — 2027년 2월 졸업(예정)자까지 2025학년도 발급 MD 인정",
+          },
+          { ok: netCredits >= reqCredits, label: `MD 학점 불인정 제외 인정 학점 ${reqCredits}학점 이상 (현재 ${netCredits}학점)` },
+          { ok: !mismatch, label: "MD 이수과목이 선택한 MD 과정에 포함됨" },
         ];
         const allOk = conditions.every((c) => c.ok);
         return (
@@ -340,18 +332,18 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               <select className="input-field" value={values.minorGradDate ? values.minorGradDate.slice(0, 4) : ""}
                 onChange={(e) => {
                   const y = e.target.value;
-                  if (!y) { setGradDate(""); return; }
+                  if (!y) { set("minorGradDate", ""); return; }
                   const ms = gradMonthsFor(y);
                   const cur = values.minorGradDate?.slice(5);
                   const m = cur && ms.includes(cur) ? cur : ms[0] || "02";
-                  setGradDate(`${y}-${m}`);
+                  set("minorGradDate", `${y}-${m}`);
                 }}>
                 <option value="">졸업 연도</option>
                 {gradYearOpts.map((y) => <option key={y} value={y}>{y}년</option>)}
               </select>
               <select className="input-field" value={values.minorGradDate ? values.minorGradDate.slice(5) : ""}
                 disabled={!values.minorGradDate}
-                onChange={(e) => setGradDate(`${values.minorGradDate.slice(0, 4)}-${e.target.value}`)}>
+                onChange={(e) => set("minorGradDate", `${values.minorGradDate.slice(0, 4)}-${e.target.value}`)}>
                 {!values.minorGradDate && <option value="">월</option>}
                 {gradMonthsFor(values.minorGradDate ? values.minorGradDate.slice(0, 4) : "").map((m) => (
                   <option key={m} value={m}>{m === "02" ? "2월" : "8월"}</option>
@@ -359,7 +351,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               </select>
             </div>
             {needs2026Md && (
-              <p className="text-xs text-amber-700 mt-1">※ 2027년 8월 졸업(예정)자부터는 <b>2026학년도 개편(총장명의) MD</b>를 이수해야 하며, MD 이수학점 <b>12학점 중 6학점만 인정</b>됩니다.</p>
+              <p className="text-xs text-amber-700 mt-1">※ 2027년 8월 졸업(예정)자부터는 <b>2026학년도 개편 MD만 인정</b>됩니다. (2025학년도 발급 MD 불인정)</p>
             )}
           </div>
 
@@ -389,11 +381,8 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
               <button type="button" onClick={addCourse} disabled={!values.minorMajorName} className="btn-secondary text-sm !h-9 flex items-center gap-1 disabled:opacity-50">+ 과목 추가</button>
             </div>
             <p className="text-[11px] text-amber-700">
-              {isOldMd ? (
-                <>※ MD 이수과목이면 <b>「MD 이수과목」</b>을 선택하세요. <b>2027년 2월 졸업(예정)자까지는 2025학년도 발급 MD로 전 학점이 인정</b>됩니다. (2026학년도 개편 MD 과정명 선택은 2027년 8월 졸업(예정)자부터 적용)</>
-              ) : (
-                <>※ MD 이수과목이면 「MD 과정」을 선택하세요. <b>2026학년도 개편(총장명의) MD는 이수학점(12학점) 중 절반(6학점)만 인정</b>되므로 불인정 과목을 체크하면 해당 학점이 인정 학점에서 제외됩니다. (선택한 MD 과정에 포함된 교과목인지 자동 확인)</>
-              )}
+              ※ MD 이수과목이면 「MD 과정」을 선택하세요. <b>2025학년도 발급 MD는 전 학점이 인정</b>되고,
+              <b> 2026학년도 개편(총장명의) MD는 이수학점(12학점) 중 절반(6학점)만 인정</b>되므로 불인정 과목을 체크하면 해당 학점이 인정 학점에서 제외됩니다. (선택한 MD 과정에 포함된 교과목인지 자동 확인)
             </p>
             {!values.minorMajorName ? (
               <p className="text-sm text-gray-400">먼저 전공을 선택하면 해당 전공 교과목을 추가할 수 있습니다.</p>
@@ -424,34 +413,25 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                       <input className="input-field !min-h-[38px] !text-sm" placeholder="교과목명을 직접 입력하세요" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })} />
                     )}
                     <div className="grid grid-cols-12 gap-2 items-center">
-                      {isOldMd ? (
-                        // 구(2025학년도) MD: 과정명 선택 없이 'MD 이수과목 여부'만 (전 학점 인정)
-                        <>
-                          <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.isMd ? "md" : ""} onChange={(e) => setCourse(i, { isMd: e.target.value === "md" })}>
-                            <option value="">MD 이수과목 아님</option>
-                            <option value="md">MD 이수과목</option>
-                          </select>
-                          {c.isMd ? (
-                            <div className="col-span-4 sm:col-span-5 flex items-center text-xs text-green-700 rounded-lg px-2 py-1.5" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                              2025학년도 MD · 전 학점 인정
-                            </div>
-                          ) : <div className="col-span-4 sm:col-span-5" />}
-                        </>
-                      ) : (
-                        <>
-                          <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.mdProgramId || ""} onChange={(e) => setCourse(i, { mdProgramId: e.target.value })}>
-                            <option value="">MD 이수과목 아님</option>
-                            {mdPrograms.map((p) => <option key={p.id} value={p.id}>MD: {p.level} · {p.name}</option>)}
-                          </select>
-                          {c.mdProgramId ? (
-                            <div className="col-span-4 sm:col-span-5 flex items-center text-xs text-amber-700 rounded-lg px-2 py-1.5" style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)" }}>
-                              2026 개편 MD · 학점 절반만 인정
-                            </div>
-                          ) : <div className="col-span-4 sm:col-span-5" />}
-                        </>
-                      )}
+                      <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.mdProgramId || ""} onChange={(e) => setCourse(i, { mdProgramId: e.target.value, excluded: e.target.value ? c.excluded : false })}>
+                        <option value="">MD 이수과목 아님</option>
+                        {mdPrograms.map((p) => <option key={p.id} value={p.id}>MD: {p.level} · {p.name}</option>)}
+                      </select>
+                      {c.mdProgramId ? (
+                        mdYears[c.mdProgramId] === "2025" ? (
+                          // 2025학년도 발급 MD: 불인정 학점 없음 (전 학점 인정)
+                          <div className="col-span-4 sm:col-span-5 flex items-center text-xs text-green-700 rounded-lg px-2 py-1.5" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            2025학년도 MD · 전 학점 인정
+                          </div>
+                        ) : (
+                        <label className="col-span-4 sm:col-span-5 flex items-center gap-1.5 text-sm cursor-pointer rounded-lg px-2 py-1.5" style={{ background: c.excluded ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.5)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                          <input type="checkbox" checked={!!c.excluded} onChange={(e) => setCourse(i, { excluded: e.target.checked })} className="w-4 h-4 accent-red-500" />
+                          학점 불인정
+                        </label>
+                        )
+                      ) : <div className="col-span-4 sm:col-span-5" />}
                     </div>
-                    {!isOldMd && c.mdProgramId && c.name && !ok && (
+                    {c.mdProgramId && c.name && !ok && (
                       <p className="text-xs text-red-600">⚠️ 선택한 MD 과정에 포함되지 않은 교과목입니다. MD 과정 또는 교과목을 다시 확인해주세요.</p>
                     )}
                   </div>
@@ -462,32 +442,50 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
             <p className="text-[11px] text-gray-400">※ 평점평균은 입력한 평점·학점으로 자동 계산됩니다. (가/부 과목은 평점평균에서 제외)</p>
           </div>
 
-          {/* 이수한 MD 과정명 — 구(2025학년도) MD 방식: 신청자가 직접 입력 (이수 교과목 내역 아래) */}
-          {isOldMd && (
-            <div>
-              <label className="label">이수한 MD 과정명 {hasMd && <span className="text-red-500">*</span>}</label>
-              <input
-                className="input-field"
-                value={values.minorMdName || ""}
-                onChange={(e) => set("minorMdName", e.target.value)}
-                placeholder="예: 정보보호 마이크로디그리 (여러 개면 쉼표로 구분)"
-              />
-              <p className="text-[11px] text-gray-500 mt-1">※ 위 이수 교과목에서 「MD 이수과목」으로 표시한 과목이 속한 MD 과정명을 적어주세요. (MD 이수증은 서류 업로드 단계에서 제출)</p>
+          {/* 이수 MD 발급 학년도 — 졸업 시기에 따라 인정 여부 판정 */}
+          {usedMdIds.length > 0 && (
+            <div className="rounded-2xl p-4 space-y-2.5" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}>
+              <label className="label !mb-0">이수 MD 발급 학년도 <span className="text-red-500">*</span></label>
+              <p className="text-[11px] text-gray-500">이수한 마이크로디그리(MD)를 발급받은 학년도를 선택하세요. 2026학년도부터는 개편된 총장명의 MD만 발급됩니다.</p>
+              {usedMdIds.map((id) => {
+                const p = getProgramById(id);
+                const yr = mdYears[id] || "";
+                const recognized = isMdYearRecognized(values.minorGradDate, yr);
+                return (
+                  <div key={id} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-12 sm:col-span-6 text-sm font-medium">{p?.name || id}</div>
+                    <select className="input-field !min-h-[40px] col-span-8 sm:col-span-4" value={yr} onChange={(e) => setMdYear(id, e.target.value)}>
+                      <option value="">발급 학년도 선택</option>
+                      <option value="2025">2025학년도</option>
+                      <option value="2026">2026학년도(개편·총장명의)</option>
+                    </select>
+                    <div className="col-span-4 sm:col-span-2 text-xs font-semibold text-center">
+                      {!yr || !values.minorGradDate ? <span className="text-gray-400">-</span>
+                        : recognized ? <span className="text-green-700">인정</span>
+                        : <span className="text-red-600">불인정</span>}
+                    </div>
+                  </div>
+                );
+              })}
+              {needs2026Md && hasMd && allYearsSelected && !hasRecognizedMd && (
+                <div className="rounded-xl p-3 text-sm text-red-700 flex items-start gap-2" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>2027년 8월 졸업(예정)자부터는 <b>2026학년도 개편 MD만 인정</b>됩니다. 2025학년도 발급 MD만 보유한 경우 신청이 불가합니다.</span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* 학점 요약 — 구 MD는 불인정이 없으므로 '총 이수 / 인정' 2칸만 */}
-          <div className={`grid ${isOldMd ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
+          {/* 학점 요약 */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(255,255,255,0.7)" }}>
               <div className="text-[11px] text-gray-500">총 이수 학점</div>
               <div className="font-bold text-gray-700">{totalCredits}학점</div>
             </div>
-            {!isOldMd && (
-              <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(251,191,36,0.12)" }}>
-                <div className="text-[11px] text-amber-700">MD 절반 불인정</div>
-                <div className="font-bold text-amber-700">-{mdExcluded}학점</div>
-              </div>
-            )}
+            <div className="rounded-xl p-2.5 text-center" style={{ background: "rgba(251,191,36,0.12)" }}>
+              <div className="text-[11px] text-amber-700">MD 학점 불인정</div>
+              <div className="font-bold text-amber-700">-{mdExcluded}학점</div>
+            </div>
             <div className="rounded-xl p-2.5 text-center" style={{ background: netCredits >= reqCredits ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)" }}>
               <div className="text-[11px] text-gray-500">인정 학점 (기준 {reqCredits})</div>
               <div className={`font-bold ${netCredits >= reqCredits ? "text-green-700" : "text-red-600"}`}>{netCredits}학점</div>
