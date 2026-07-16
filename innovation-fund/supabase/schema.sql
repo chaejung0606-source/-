@@ -293,3 +293,18 @@ CREATE POLICY "own files read" ON storage.objects
 --  (b) Auth 역할: 관리자 계정의 user_metadata에 role='admin' 부여 후,
 --      서버에서 JWT의 role을 확인. 클라이언트엔 절대 권한 부여하지 않음.
 -- =====================================================================
+
+-- ── 일일 방문자 집계 (visit_stats) ──────────────────────────────
+-- 상세·설치 안내: supabase/visit-stats.sql (동일 내용). 서버 API(service_role)만 접근.
+CREATE TABLE IF NOT EXISTS visit_stats (
+  date  DATE PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0
+);
+ALTER TABLE visit_stats ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION bump_visit(d DATE)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  INSERT INTO visit_stats(date, count) VALUES (d, 1)
+  ON CONFLICT (date) DO UPDATE SET count = visit_stats.count + 1;
+$$;
+REVOKE ALL ON FUNCTION bump_visit(DATE) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bump_visit(DATE) TO service_role;

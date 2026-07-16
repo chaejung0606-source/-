@@ -12,6 +12,7 @@ import TopNav from "@/components/home/TopNav";
 import FundCalendar, { collectFundEvents } from "@/components/home/FundCalendar";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import FooterWalkers from "@/components/home/FooterWalkers";
+import VisitorStat from "@/components/home/VisitorStat";
 import { supabase } from "@/lib/supabase";
 import { logout } from "@/lib/auth";
 
@@ -450,6 +451,7 @@ export default function Home() {
               <p className="text-xs text-gray-400 mt-2">
                 {site.footer.version ?? DEFAULT_SITE_CONFIG.footer.version} · 최종 업데이트: {site.footer.updateDate ?? DEFAULT_SITE_CONFIG.footer.updateDate}
               </p>
+              <div className="mt-3"><VisitorStat /></div>
             </div>
 
             {/* 우측: 사업단 가로형 로고 (오른쪽 정렬) */}
