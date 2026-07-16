@@ -9,6 +9,7 @@ import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, FUND_CATEGORY_LABELS
 import { fetchPrograms, audienceOf, type Program } from "@/lib/programs";
 import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 import { buildExportName } from "@/lib/export-settings";
+import { CAMPUSES } from "@/lib/departments";
 
 // 지정 키: "프로그램id::단계(pre|fund)" — 단계별로 따로 지정
 const DESIG_PHASES = [["pre", "지원신청"], ["fund", "지원금 신청"]] as const;
@@ -21,7 +22,7 @@ const parseDesigKey = (k: string): { programId: string; phase: "pre" | "fund" } 
 
 interface Applicant {
   id: string; student_id: string; name: string;
-  department?: string; phone?: string; email?: string; university?: string;
+  department?: string; phone?: string; email?: string; university?: string; campus?: string;
   designated_programs?: string[];
   academic_status?: string; previous_student_ids?: string[];
 }
@@ -65,6 +66,7 @@ export default function ApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [progFilter, setProgFilter] = useState<string>("all");   // 학생 검색을 프로그램별로 필터
+  const [campusFilter, setCampusFilter] = useState<string>("all"); // 캠퍼스별 필터 (모든 학생은 강원대)
   const [eligSearch, setEligSearch] = useState("");
   const [eligProgram, setEligProgram] = useState<string>("all");
   const [view, setView] = useState<"students" | "eligible" | "virtual">("students");
@@ -110,8 +112,10 @@ export default function ApplicantsPage() {
 
   // 학생 검색: 학번/이름 + 프로그램별 필터
   const filtered = useMemo(
-    () => list.filter((a) => matchTerms(a, search) && (progFilter === "all" || programNamesOf(a).has(progFilter))),
-    [list, search, progFilter, appsByStudent, progNameById]
+    () => list.filter((a) => matchTerms(a, search)
+      && (progFilter === "all" || programNamesOf(a).has(progFilter))
+      && (campusFilter === "all" || (a.campus || "") === campusFilter)),
+    [list, search, progFilter, campusFilter, appsByStudent, progNameById]
   );
 
   // 학생 검색용 프로그램 선택지 (프로그램 목록 + 신청 데이터에 등장한 프로그램)
@@ -267,6 +271,10 @@ export default function ApplicantsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input className="input-field pl-9 w-72" placeholder="학번/이름 검색 (여러 명은 띄어쓰기·쉼표로 구분)" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
+                <select className="input-field !w-auto text-sm" value={campusFilter} onChange={(e) => setCampusFilter(e.target.value)} title="캠퍼스별로 학생 조회">
+                  <option value="all">전체 캠퍼스</option>
+                  {CAMPUSES.map((c) => <option key={c} value={c}>{c} 캠퍼스</option>)}
+                </select>
                 <select className="input-field !w-auto text-sm" value={progFilter} onChange={(e) => setProgFilter(e.target.value)} title="프로그램별로 학생 검색">
                   <option value="all">전체 프로그램</option>
                   {studentProgramOptions.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -279,7 +287,7 @@ export default function ApplicantsPage() {
             {/* 검색 결과 · 선택 학생에게 알림 보내기 */}
             <div className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-gray-100">
               <div className="flex items-center gap-3 text-xs text-gray-400">
-                <span>{filtered.length}명{progFilter !== "all" ? ` · ${progFilter}` : ""}</span>
+                <span>{filtered.length}명{campusFilter !== "all" ? ` · ${campusFilter} 캠퍼스` : ""}{progFilter !== "all" ? ` · ${progFilter}` : ""}</span>
                 {selected.size > 0 && <span className="text-indigo-600 font-semibold">선택 {selected.size}명</span>}
                 {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="text-gray-400 hover:text-rose-500">선택 해제</button>}
               </div>
@@ -303,7 +311,7 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">학번</th>
                   <th className="whitespace-nowrap">이름</th>
                   <th className="whitespace-nowrap">학적상태</th>
-                  <th className="whitespace-nowrap">소속</th>
+                  <th className="whitespace-nowrap">소속(캠퍼스)</th>
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
                   <th className="whitespace-nowrap">비밀번호</th>
@@ -328,7 +336,7 @@ export default function ApplicantsPage() {
                     </td>
                     <td className="font-medium whitespace-nowrap">{a.name || "-"}</td>
                     <td className="whitespace-nowrap"><span className="badge bg-indigo-50 text-indigo-600">{a.academic_status || "재학생"}</span></td>
-                    <td className="text-gray-600 whitespace-nowrap">{a.university || "-"}</td>
+                    <td className="text-gray-600 whitespace-nowrap">{a.campus ? `${a.campus} 캠퍼스` : "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
                     <td className="text-gray-400">•••••• (비공개)</td>
