@@ -213,7 +213,7 @@ function ApplyInner() {
           <div className="ml-auto flex items-center gap-2 text-sm">
             <span className="text-gray-500 hidden sm:inline mr-1">{userName}님</span>
             {isAdmin ? (
-              <Link href="/admin" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><Shield className="w-4 h-4" /> 관리자 페이지</Link>
+              <Link href="/admin/applications" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><Shield className="w-4 h-4" /> 관리자 페이지</Link>
             ) : (
               <Link href="/mypage" className="glass-pill px-3 h-9 flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700"><User className="w-4 h-4" /> 마이페이지</Link>
             )}
