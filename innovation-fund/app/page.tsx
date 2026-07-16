@@ -110,11 +110,16 @@ export default function Home() {
   // 소스마다 로드 시점이 달라도 순서가 흔들리지 않고, 하나 닫으면 다음이 곧바로 이어서 표시됨.
   const [adminPopups, setAdminPopups] = useState<Popup[]>([]);
   const [deadlinePopup, setDeadlinePopup] = useState<Popup | null>(null);
+  const [supplementPopup, setSupplementPopup] = useState<Popup | null>(null);
   const [closedIds, setClosedIds] = useState<string[]>([]);
-  // 표시 순서: 관리자 공지 먼저 → 마감 임박 안내 (닫은 항목 제외)
+  // 표시 순서: ① 보완요청 안내 → ② 신청 마감 임박 → ③ 관리자 생성 공지 (닫은 항목 제외)
   const popupQueue = useMemo(
-    () => [...adminPopups, ...(deadlinePopup ? [deadlinePopup] : [])].filter((p) => !closedIds.includes(p.id)),
-    [adminPopups, deadlinePopup, closedIds],
+    () => [
+      ...(supplementPopup ? [supplementPopup] : []),
+      ...(deadlinePopup ? [deadlinePopup] : []),
+      ...adminPopups,
+    ].filter((p) => !closedIds.includes(p.id)),
+    [supplementPopup, deadlinePopup, adminPopups, closedIds],
   );
   useEffect(() => {
     fetch("/api/popup", { cache: "no-store" }).then((r) => r.json()).then((d) => {
@@ -173,6 +178,36 @@ export default function Home() {
       content: `신청 종료가 3일 이내로 다가온 항목입니다. 마감 전에 신청을 완료해주세요.\n\n${lines.join("\n")}`,
     });
   }, [programs, typePeriods]);
+  // 보완요청 안내 팝업 — 로그인한 신청자에게, 관리자가 저장한 '신청자 안내 메모' 중 가장 최근 보완요청 건을 안내
+  const supplementShown = useRef(false);
+  useEffect(() => {
+    if (supplementShown.current) return;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data.user?.id;
+      if (!uid) return;
+      const { data: rows } = await supabase.from("applications").select("*").eq("applicant_id", uid).eq("review_status", "supplement");
+      const supp = (rows || []).filter((r) => String((r as { admin_memo?: string }).admin_memo || "").trim());
+      if (!supp.length) return;
+      // 가장 최근 저장(수정일 → 생성일 순)
+      supp.sort((a, b) => String((b as { updated_at?: string; created_at?: string }).updated_at || (b as { created_at?: string }).created_at || "")
+        .localeCompare(String((a as { updated_at?: string; created_at?: string }).updated_at || (a as { created_at?: string }).created_at || "")));
+      const r = supp[0] as { id: string; admin_memo?: string; application_type?: string };
+      const memo = String(r.admin_memo || "").trim();
+      const typeLabel = APPLICATION_TYPE_LABELS[r.application_type as ApplicationType] || "신청";
+      const id = `supplement:${r.id}:${memo.length}`; // 메모가 바뀌면 다시 안내
+      const today = kstToday();
+      let dismiss = "";
+      try { dismiss = localStorage.getItem(`popupDismiss:${id}`) || ""; } catch { /* noop */ }
+      if (dismiss === "never" || dismiss === today) return;
+      supplementShown.current = true;
+      setSupplementPopup({
+        id, enabled: true,
+        title: "📌 보완 요청 안내",
+        content: `제출하신 ‘${typeLabel}’ 신청에 보완 요청이 있습니다.\n마이페이지 ‘신청 내역’에서 아래 안내를 확인하고 수정 후 다시 제출해주세요.\n\n${memo}`,
+      });
+    }).catch(() => { /* 비로그인·조회 실패 시 표시 안 함 */ });
+  }, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setLoggedIn(!!data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(!!session?.user));
