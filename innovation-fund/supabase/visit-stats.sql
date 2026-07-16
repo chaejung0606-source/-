@@ -23,11 +23,3 @@ $$;
 -- 익명/로그인 사용자의 직접 호출 차단, 서버(service_role)만 실행
 REVOKE ALL ON FUNCTION bump_visit(DATE) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION bump_visit(DATE) TO service_role;
-
--- ── (선택) 이전 방문 기록 반영 ──────────────────────────────────
--- 이 플랫폼은 지금까지 방문자를 집계하지 않았으므로 자동 불러올 과거 로그가 없습니다.
--- 과거 누적 방문수를 알고 있다면(예: Vercel Analytics 대시보드 수치), 아래 12345를 그 값으로 바꿔
--- 함께 실행하세요. '누적'에만 합산되고(오늘/최근 7일 추세에는 영향 없음), 다시 실행하면 값이 덮어써집니다.
--- 시작값이 없으면 아래 한 줄은 지우고 실행하세요(누적은 0부터 시작).
-INSERT INTO visit_stats(date, count) VALUES (DATE '2000-01-01', 12345)
-  ON CONFLICT (date) DO UPDATE SET count = EXCLUDED.count;
