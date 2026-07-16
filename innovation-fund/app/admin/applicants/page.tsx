@@ -69,7 +69,7 @@ export default function ApplicantsPage() {
   const [campusFilter, setCampusFilter] = useState<string>("all"); // 캠퍼스별 필터 (모든 학생은 강원대)
   const [eligSearch, setEligSearch] = useState("");
   const [eligProgram, setEligProgram] = useState<string>("all");
-  const [view, setView] = useState<"students" | "eligible" | "virtual">("students");
+  const [view, setView] = useState<"students" | "proxy" | "eligible" | "virtual">("students");
   const [designateModal, setDesignateModal] = useState<Applicant | null>(null);
   const [infoModal, setInfoModal] = useState<Applicant | null>(null);
   const [notifyOpen, setNotifyOpen] = useState(false);          // 선택 학생에게 알림 보내기 모달
@@ -256,13 +256,14 @@ export default function ApplicantsPage() {
       {/* 보기 전환 */}
       <div className="flex gap-2 mb-4 flex-wrap">
         <button onClick={() => setView("students")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "students" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>학생 검색</button>
+        <button onClick={() => setView("proxy")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "proxy" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>대리 신청</button>
         <button onClick={() => setView("eligible")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "eligible" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>프로그램별 신청 가능 학생</button>
         <button onClick={() => setView("virtual")} className={`px-4 py-2 rounded-2xl text-sm font-semibold transition ${view === "virtual" ? "bg-indigo-500 text-white" : "bg-white/60 text-gray-600"}`}>가상학과 학생</button>
       </div>
 
       {view === "virtual" ? (
         <VirtualStudentsPanel />
-      ) : view === "students" ? (
+      ) : (view === "students" || view === "proxy") ? (
         <>
           <div className="card mb-4 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -314,16 +315,15 @@ export default function ApplicantsPage() {
                   <th className="whitespace-nowrap">소속(캠퍼스)</th>
                   <th className="whitespace-nowrap">학과</th>
                   <th className="whitespace-nowrap">연락처</th>
-                  <th className="whitespace-nowrap">비밀번호</th>
                   <th className="text-center whitespace-nowrap">신청정보</th>
                   <th className="text-center whitespace-nowrap">지정 프로그램</th>
-                  <th className="text-center whitespace-nowrap">대리 신청 (참여지원비)</th>
+                  {view === "proxy" && <th className="text-center whitespace-nowrap">대리 신청 (참여지원비)</th>}
                   <th className="text-center whitespace-nowrap">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={13} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
+                  <tr><td colSpan={view === "proxy" ? 12 : 11} className="text-center py-12 text-gray-400">검색 결과가 없습니다.</td></tr>
                 ) : filtered.map((a, idx) => (
                   <tr key={a.id} className={selected.has(a.id) ? "bg-indigo-50/40" : ""}>
                     <td className="text-center"><input type="checkbox" className="w-4 h-4 align-middle" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} /></td>
@@ -336,12 +336,11 @@ export default function ApplicantsPage() {
                     </td>
                     <td className="font-medium whitespace-nowrap">{a.name || "-"}</td>
                     <td className="whitespace-nowrap"><span className="badge bg-indigo-50 text-indigo-600">{a.academic_status || "재학생"}</span></td>
-                    <td className="text-gray-600 whitespace-nowrap">{a.campus ? `${a.campus} 캠퍼스` : "-"}</td>
+                    <td className="text-gray-600 whitespace-nowrap">{a.campus || "-"}</td>
                     <td className="text-gray-600 max-w-[140px] truncate">{a.department || "-"}</td>
                     <td className="text-gray-600 whitespace-nowrap">{a.phone || "-"}</td>
-                    <td className="text-gray-400">•••••• (비공개)</td>
                     <td className="text-center">
-                      {(() => { const n = appsOf(a).length; return (
+                      {(() => { const n = appsOf(a).filter((x) => !x.canceled).length; return (
                         <button onClick={() => setInfoModal(a)} title="이 학생의 신청 내역 보기"
                           className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-white/70 text-indigo-600 border-indigo-100 hover:bg-indigo-50 inline-flex items-center gap-1">
                           <FileText className="w-3.5 h-3.5" /> 신청정보{n > 0 ? ` ${n}` : ""}
@@ -358,6 +357,7 @@ export default function ApplicantsPage() {
                         {(a.designated_programs?.length || 0) > 0 ? `지정 ${a.designated_programs!.length}개` : "지정"}
                       </button>
                     </td>
+                    {view === "proxy" && (
                     <td className="text-center whitespace-nowrap">
                       <div className="inline-flex gap-1.5">
                         <Link href={`/apply?adminFor=${a.id}&mode=pre`} className="px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 inline-flex items-center gap-1" title="이 신청자 명의로 프로그램 참여지원비 지원신청 작성">
@@ -368,6 +368,7 @@ export default function ApplicantsPage() {
                         </Link>
                       </div>
                     </td>
+                    )}
                     <td className="text-center">
                       <button onClick={() => resetPw(a)} className="text-indigo-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
                         <KeyRound className="w-3.5 h-3.5" /> 비밀번호 재설정
