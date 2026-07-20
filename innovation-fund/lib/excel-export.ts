@@ -85,3 +85,29 @@ export function exportToExcel(apps: Application[], filename?: string): void {
   const fname = filename || `혁신인재지원금_신청내역_${today}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
+
+// 연락처 추출 — 문자발송/주소록 업로드 양식(시트명 'sheet', 헤더 '이름[선택입력]'·'전화번호[필수입력]')으로 출력.
+// 전화번호 기준 중복 제거(동일인이 여러 건 신청해도 1행). 전화번호가 없는 건은 제외.
+export function exportContacts(apps: Application[], filename?: string): void {
+  const header = ["이름[선택입력]", "전화번호[필수입력]"];
+  const seen = new Set<string>();
+  const data: string[][] = [header];
+  for (const app of apps) {
+    const phone = String(app.phone || "").trim();
+    if (!phone) continue;
+    const key = phone.replace(/[^0-9]/g, "");
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    data.push([String(app.name || "").trim(), phone]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{ wch: 14 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "sheet");
+  const today = format(new Date(), "yyyyMMdd");
+  const fname = filename || `연락처_${today}.xls`;
+  // 양식 파일(.xls)과 동일한 형식으로 저장
+  XLSX.writeFile(wb, fname, fname.toLowerCase().endsWith(".xls") ? { bookType: "biff8" } : undefined);
+}

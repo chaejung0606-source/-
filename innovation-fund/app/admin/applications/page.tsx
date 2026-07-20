@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Download, Search, FileText, Lock, Send, Undo2 } from "lucide-react";
+import { Download, Search, FileText, Lock, Send, Undo2, Contact } from "lucide-react";
 import type { Application, ApplicationType, ReviewStatus, PaymentStatus } from "@/types";
 import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -248,6 +248,17 @@ export default function ApplicationsPage() {
     exportToExcel(sel, buildExportName("listSelected", { 날짜: today10() }) + ".xlsx");
   };
 
+  // 연락처 추출 — 현재 조회된 목록의 이름·전화번호를 문자발송/주소록 업로드 양식(.xls)으로.
+  // 선택된 항목이 있으면 선택 건만, 없으면 조회된 전체를 대상으로.
+  const exportContactList = async () => {
+    const base = selected.size > 0 ? filtered.filter((a) => selected.has(a.id)) : filtered;
+    if (base.length === 0) { alert("조회된 신청이 없습니다."); return; }
+    const withPhone = base.filter((a) => String(a.phone || "").trim());
+    if (withPhone.length === 0) { alert("연락처(전화번호)가 있는 신청이 없습니다."); return; }
+    const { exportContacts } = await import("@/lib/excel-export");
+    exportContacts(base, `연락처_${today10()}.xls`);
+  };
+
   // 선택 항목의 지출자료 / 심의요청서 내보내기
   // 단건: 개별 인쇄 창(PDF로 저장) / 여러 건: 일괄 창에서 건별 PDF를 ZIP으로 다운로드
   // (건마다 window.open을 반복하면 브라우저 팝업 차단으로 첫 건만 열리므로 창은 1개만 연다)
@@ -437,6 +448,9 @@ export default function ApplicationsPage() {
           </button>
           <button onClick={exportSelected} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" /> 선택 목록 다운로드{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+          <button onClick={exportContactList} className="btn-secondary flex items-center gap-2 text-sm" title="조회된 목록(선택 시 선택 건)의 이름·전화번호를 문자발송 양식으로 추출">
+            <Contact className="w-4 h-4" /> 연락처 추출{selected.size > 0 ? ` (${selected.size})` : ""}
           </button>
         </div>
       </div>
