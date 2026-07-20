@@ -273,12 +273,19 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     minorGradDate: "", minorMdYears: {},
   });
 
-  // 서류 개별 업로드 슬롯을 쓰는 유형(성적·경진대회·자격증). 부전공·복수전공은 MD 이수증 슬롯 추가.
+  // 서류 개별 업로드 슬롯을 쓰는 유형(성적·경진대회·자격증).
+  // 성적우수는 MD가 관련된 하위유형(마이크로디그리·부전공·복수전공) 모두 MD 이수증 슬롯 추가.
+  const mdProofSlot: DocSlot = {
+    type: "completion_proof",
+    label: "MD 이수증 또는 MD 이수신청서",
+    required: true,
+    notice: gradeDetail.subType === "microdegree"
+      ? "이수한 마이크로디그리(MD) 이수증 또는 MD 이수신청서를 제출해야 합니다."
+      : "부전공·복수전공 성적우수 지원은 이수한 마이크로디그리(MD) 이수증 또는 MD 이수신청서를 제출해야 합니다.",
+  };
   const docSlots: DocSlot[] | null =
     applicationType === "grade"
-      ? ((gradeDetail.subType === "minor" || gradeDetail.subType === "double")
-          ? [...GRADE_SLOTS, { type: "completion_proof", label: "마이크로디그리(MD) 이수증", required: true, notice: "부전공·복수전공 성적우수 지원은 이수한 마이크로디그리(MD) 이수증(또는 이수 확인 서류)을 제출해야 합니다." }]
-          : GRADE_SLOTS)
+      ? [...GRADE_SLOTS, mdProofSlot]
       : applicationType === "contest" ? CONTEST_SLOTS
       : applicationType === "certificate" ? CERT_SLOTS : null;
   const [contestDetail, setContestDetail] = useState({

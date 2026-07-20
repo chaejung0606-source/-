@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Save, Plus, Trash2, ChevronUp, ChevronDown, Globe, BookOpen, GraduationCap, MessageCircle, Mail, Phone, Award, FileText, Link as LinkIcon } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { DEFAULT_SITE_CONFIG, fetchSiteConfig, type SiteConfig, type SiteLink, type FooterItem } from "@/lib/site-config";
-import type { PopupItem } from "@/app/api/popup/route";
+import type { PopupItem, PopupAttachment } from "@/app/api/popup/route";
 import FileStoragePanel from "@/components/admin/FileStoragePanel";
 import GuidePanel from "@/components/admin/GuidePanel";
 
@@ -30,8 +30,28 @@ export default function SiteSettingsPage() {
   useEffect(() => { fetchSiteConfig().then(setConfig); }, []);
   useEffect(() => { fetch("/api/popup").then((r) => r.json()).then((d) => setPopups(Array.isArray(d.popups) ? d.popups : [])).catch(() => {}); }, []);
   const updatePopup = (id: string, patch: Partial<PopupItem>) => setPopups((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  const addPopup = () => setPopups((ps) => [...ps, { id: newId(), enabled: true, title: "", content: "", startDate: "", endDate: "" }]);
+  const addPopup = () => setPopups((ps) => [...ps, { id: newId(), enabled: true, title: "", content: "", startDate: "", endDate: "", attachments: [] }]);
   const removePopup = (id: string) => setPopups((ps) => ps.filter((p) => p.id !== id));
+
+  // 팝업 첨부(이미지·파일) 업로드 → site/ 경로에 저장 후 attachments에 추가
+  const [popupUploadingId, setPopupUploadingId] = useState<string | null>(null);
+  const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "gif"];
+  const uploadPopupFile = async (popupId: string, file: File) => {
+    setPopupUploadingId(popupId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/site-upload", { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({ ok: false }));
+      if (!j.ok) { alert("업로드 실패: " + (j.error || res.status)); return; }
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const kind: PopupAttachment["kind"] = (file.type.startsWith("image/") || IMAGE_EXT.includes(ext)) ? "image" : "file";
+      const att: PopupAttachment = { url: `/api/site-file?path=${encodeURIComponent(j.path)}`, name: j.name, kind };
+      setPopups((ps) => ps.map((p) => (p.id === popupId ? { ...p, attachments: [...(p.attachments || []), att] } : p)));
+    } finally { setPopupUploadingId(null); }
+  };
+  const removePopupAttachment = (popupId: string, idx: number) =>
+    setPopups((ps) => ps.map((p) => (p.id === popupId ? { ...p, attachments: (p.attachments || []).filter((_, i) => i !== idx) } : p)));
   const savePopup = async () => {
     const res = await fetch("/api/popup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ popups }) });
     const j = await res.json().catch(() => ({ ok: false }));
@@ -211,6 +231,29 @@ export default function SiteSettingsPage() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <div><label className="label">표시 시작일 <span className="text-gray-400 font-normal">(비우면 제한 없음)</span></label><input type="date" className="input-field" value={p.startDate || ""} onChange={(e) => updatePopup(p.id, { startDate: e.target.value })} /></div>
                 <div><label className="label">표시 종료일 <span className="text-gray-400 font-normal">(비우면 제한 없음)</span></label><input type="date" className="input-field" value={p.endDate || ""} onChange={(e) => updatePopup(p.id, { endDate: e.target.value })} /></div>
+              </div>
+              <div>
+                <label className="label">첨부 (이미지·파일)</label>
+                <p className="text-[12px] text-gray-400 mb-2">이미지는 팝업에 바로 표시되고, 그 외 파일(PDF·문서 등)은 다운로드 버튼으로 표시됩니다.</p>
+                {(p.attachments && p.attachments.length > 0) && (
+                  <ul className="space-y-1.5 mb-2">
+                    {p.attachments.map((att, i) => (
+                      <li key={i} className="flex items-center gap-2 text-sm bg-white/60 rounded-lg px-3 py-2">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 shrink-0">{att.kind === "image" ? "이미지" : "파일"}</span>
+                        {att.kind === "image" && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={att.url} alt="" className="w-9 h-9 rounded object-cover border border-gray-200 shrink-0" />
+                        )}
+                        <span className="truncate flex-1" title={att.name}>{att.name}</span>
+                        <button onClick={() => removePopupAttachment(p.id, i)} className="text-gray-300 hover:text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <label className={`inline-flex text-xs px-2.5 py-1.5 rounded-lg border cursor-pointer ${popupUploadingId === p.id ? "opacity-60 pointer-events-none" : "bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100"}`}>
+                  {popupUploadingId === p.id ? "업로드 중..." : "📎 첨부 추가(이미지·PDF·문서)"}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPopupFile(p.id, f); e.target.value = ""; }} />
+                </label>
               </div>
             </div>
           ))}

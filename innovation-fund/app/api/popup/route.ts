@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 
 const KEY = "popup";
 
+// 팝업 첨부: kind="image"는 팝업 안에 바로 표시, kind="file"은 다운로드 버튼으로 표시
+export interface PopupAttachment {
+  url: string;   // /api/site-file?path=... (같은 출처 스트리밍)
+  name: string;  // 표시용 원본 파일명
+  kind: "image" | "file";
+}
+
 export interface PopupItem {
   id: string;
   enabled: boolean;
@@ -13,6 +20,20 @@ export interface PopupItem {
   content: string;
   startDate?: string; // YYYY-MM-DD (포함). 비우면 제한 없음
   endDate?: string;   // YYYY-MM-DD (포함). 비우면 제한 없음
+  attachments?: PopupAttachment[]; // 팝업에 표시할 이미지 / 다운로드 파일
+}
+
+function normalizeAttachments(value: unknown): PopupAttachment[] {
+  if (!Array.isArray(value)) return [];
+  return (value as unknown[])
+    .map((a) => {
+      const o = (a || {}) as Record<string, unknown>;
+      const url = String(o.url || "");
+      if (!url) return null;
+      const kind = o.kind === "image" ? "image" : "file";
+      return { url, name: String(o.name || "첨부파일"), kind } as PopupAttachment;
+    })
+    .filter(Boolean) as PopupAttachment[];
 }
 
 // 구버전 단일 팝업 {enabled,title,content} → 신버전 {popups:[...]} 로 정규화
@@ -29,6 +50,7 @@ function normalize(value: unknown): { popups: PopupItem[] } {
           content: String(o.content || ""),
           startDate: o.startDate ? String(o.startDate) : "",
           endDate: o.endDate ? String(o.endDate) : "",
+          attachments: normalizeAttachments(o.attachments),
         };
       }),
     };
@@ -43,6 +65,7 @@ function normalize(value: unknown): { popups: PopupItem[] } {
         content: String(v.content || ""),
         startDate: "",
         endDate: "",
+        attachments: [],
       }],
     };
   }
