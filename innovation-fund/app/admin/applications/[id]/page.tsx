@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
 import type { Application, ReviewStatus, PaymentStatus } from "@/types";
-import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal } from "@/types";
+import { APPLICATION_TYPE_LABELS, APPLICATION_PHASE_LABELS, TRANSPORT_MODE_LABELS, CLUB_FIELD_LABELS, calcSupportTotal, DOCUMENT_TYPE_LABELS } from "@/types";
 import AdminLayout from "@/components/admin/AdminLayout";
 import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
@@ -469,23 +469,41 @@ export default function ApplicationDetailPage() {
               </div>
             );
             const sub = (t: string) => <h3 className="text-sm font-bold text-indigo-700 mt-5 mb-2 pb-1 border-b border-indigo-100">{t}</h3>;
-            // 첨부 썸네일 — 서명처럼 인라인 표시, 클릭하면 미리보기 창
+            // 파일이 어떤 '서류 업로드 항목'에서 올라온 것인지 라벨 도출.
+            // 우선순위: ① 스키마 폼 파일명 접두 `{항목라벨} · ` → ② 서류 슬롯 유형 라벨(DOCUMENT_TYPE_LABELS)
+            const slotLabelOf = (f: (typeof app.files)[number]): string => {
+              const sep = f.name.indexOf(" · ");
+              if (sep > 0) return f.name.slice(0, sep).trim();
+              if (f.type && f.type !== "other") return DOCUMENT_TYPE_LABELS[f.type] || "";
+              return f.type === "other" ? "기타 자료" : "";
+            };
+            // 파일명에서 항목 접두를 뗀 실제 파일명(표시용)
+            const displayName = (f: (typeof app.files)[number]): string => {
+              const sep = f.name.indexOf(" · ");
+              return sep > 0 ? f.name.slice(sep + 3).trim() : f.name;
+            };
+            // 첨부 썸네일 — 서명처럼 인라인 표시, 클릭하면 미리보기 창. 상단에 '어떤 서류 항목'인지 배지 표시
             const fileThumb = (f: (typeof app.files)[number]) => {
               const isImage = f.url?.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(f.name);
+              const slot = slotLabelOf(f);
+              const nm = displayName(f);
               return (
-                <button key={f.id} type="button" onClick={() => setFileWin({ name: f.name, url: f.url })}
-                  title="클릭하면 미리보기 창이 열립니다"
+                <button key={f.id} type="button" onClick={() => setFileWin({ name: nm, url: f.url })}
+                  title={`[${slot || "서류"}] ${nm} — 클릭하면 미리보기 창이 열립니다`}
                   className="rounded-xl overflow-hidden text-left border border-gray-200 bg-white hover:ring-2 hover:ring-indigo-300 transition" style={{ width: 176 }}>
+                  {slot && (
+                    <div className="px-2 py-1 bg-indigo-50 border-b border-indigo-100 text-[11px] font-semibold text-indigo-700 truncate" title={slot}>📄 {slot}</div>
+                  )}
                   {f.url && isImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={f.url} alt={f.name} className="h-28 w-full object-contain bg-white" />
+                    <img src={f.url} alt={nm} className="h-28 w-full object-contain bg-white" />
                   ) : (
                     <div className="h-28 w-full flex flex-col items-center justify-center gap-1 text-gray-400">
                       <FileText className="w-6 h-6 text-indigo-400" />
                       <span className="text-indigo-600 text-[11px] underline">{f.url ? "클릭하여 미리보기" : "미리보기 없음"}</span>
                     </div>
                   )}
-                  <div className="px-2 py-1 text-[11px] text-gray-600 truncate border-t border-gray-100">{f.name}</div>
+                  <div className="px-2 py-1 text-[11px] text-gray-600 truncate border-t border-gray-100" title={nm}>{nm}</div>
                 </button>
               );
             };

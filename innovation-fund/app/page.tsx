@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield, CalendarClock } from "lucide-react";
+import { FileText, Award, BookOpen, ChevronRight, CheckCircle, AlertCircle, MessageCircle, Globe, GraduationCap, Mail, Phone, MapPin, User, Home as HomeIcon, LogOut, Link2, Shield, CalendarClock, Download } from "lucide-react";
 import type { ApplicationType } from "@/types";
 import { APPLICATION_TYPE_LABELS, categoryOfType, PICK_TYPES_FUND, PICK_TYPES_PRE } from "@/types";
 import { fetchSiteConfig, DEFAULT_SITE_CONFIG, type SiteConfig } from "@/lib/site-config";
@@ -105,7 +105,8 @@ export default function Home() {
   };
 
   // 홈 팝업 공지 (여러 개·기간·닫기 옵션)
-  type Popup = { id: string; enabled: boolean; title: string; content: string; startDate?: string; endDate?: string };
+  type PopupAttachment = { url: string; name: string; kind: "image" | "file" };
+  type Popup = { id: string; enabled: boolean; title: string; content: string; startDate?: string; endDate?: string; attachments?: PopupAttachment[] };
   // 팝업 소스를 분리 보관하고(관리자 공지 / 마감 임박) 고정 순서로 합쳐서 표시 →
   // 소스마다 로드 시점이 달라도 순서가 흔들리지 않고, 하나 닫으면 다음이 곧바로 이어서 표시됨.
   const [adminPopups, setAdminPopups] = useState<Popup[]>([]);
@@ -126,7 +127,7 @@ export default function Home() {
       const today = kstToday();
       const list: Popup[] = Array.isArray(d?.popups) ? d.popups : [];
       const active = list.filter((p) => {
-        if (!p.enabled || !(p.title || p.content)) return false;
+        if (!p.enabled || !(p.title || p.content || (p.attachments && p.attachments.length))) return false;
         if (p.startDate && today < p.startDate) return false;
         if (p.endDate && today > p.endDate) return false;
         let dismiss = "";
@@ -242,7 +243,31 @@ export default function Home() {
               <button onClick={() => closePopup(popup.id, "close")} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
               {popupQueue.length > 1 && <span className="text-[11px] text-gray-400">공지 1 / {popupQueue.length}</span>}
               {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
-              <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>
+              {popup.content && <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>}
+              {popup.attachments && popup.attachments.length > 0 && (
+                <div className="mt-3 space-y-2 max-h-[52vh] overflow-y-auto">
+                  {popup.attachments.filter((a) => a.kind === "image").map((a, i) => (
+                    // 이미지: 팝업 안에 바로 표시 (클릭 시 원본 새 탭)
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <a key={`img-${i}`} href={a.url} target="_blank" rel="noopener noreferrer" className="block">
+                      <img src={a.url} alt={a.name} className="w-full rounded-xl border border-gray-200" />
+                    </a>
+                  ))}
+                  {popup.attachments.filter((a) => a.kind === "file").map((a, i) => (
+                    // 파일: 다운로드 버튼
+                    <a
+                      key={`file-${i}`}
+                      href={`${a.url}&download=1&name=${encodeURIComponent(a.name)}`}
+                      download={a.name}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-indigo-100 bg-indigo-50/60 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition"
+                    >
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span className="truncate flex-1">{a.name}</span>
+                      <span className="text-[11px] text-indigo-400 shrink-0">다운로드</span>
+                    </a>
+                  ))}
+                </div>
+              )}
               <button onClick={() => closePopup(popup.id, "close")} className="btn-primary w-full mt-5">확인</button>
               <div className="flex items-center justify-between mt-3 text-xs">
                 <button onClick={() => closePopup(popup.id, "today")} className="text-gray-500 hover:text-gray-700 underline">오늘 하루만 보기</button>
