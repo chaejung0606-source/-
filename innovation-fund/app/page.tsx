@@ -239,11 +239,13 @@ export default function Home() {
         return (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
             <div className="modal-backdrop absolute inset-0" onClick={() => closePopup(popup.id, "close")} />
-            <div className="modal relative w-full max-w-md p-6">
+            {/* 너비는 내용 길이에 맞춰 자동조절(w-fit) — 짧은 공지는 좁게, 긴 문장은 넓게.
+                뷰포트(92vw)·가독성 상한(38rem) 이내로 제한하고 최소 폭을 두어 너무 좁아지지 않게. */}
+            <div className="modal relative w-fit min-w-[min(92vw,300px)] max-w-[min(92vw,38rem)] p-6">
               <button onClick={() => closePopup(popup.id, "close")} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
               {popupQueue.length > 1 && <span className="text-[11px] text-gray-400">공지 1 / {popupQueue.length}</span>}
               {popup.title && <h2 className="text-lg font-bold holo-text mb-3 pr-6">{popup.title}</h2>}
-              {popup.content && <p className="text-sm text-gray-700 whitespace-pre-line">{popup.content}</p>}
+              {popup.content && <p className="text-sm text-gray-700 whitespace-pre-line break-words">{popup.content}</p>}
               {popup.attachments && popup.attachments.length > 0 && (
                 <div className="mt-3 space-y-2 max-h-[52vh] overflow-y-auto">
                   {popup.attachments.filter((a) => a.kind === "image").map((a, i) => (
