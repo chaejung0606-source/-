@@ -277,11 +277,11 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   // 성적우수는 MD가 관련된 하위유형(마이크로디그리·부전공·복수전공) 모두 MD 이수증 슬롯 추가.
   const mdProofSlot: DocSlot = {
     type: "completion_proof",
-    label: "마이크로디그리(MD) 이수증",
+    label: "MD 이수증 또는 MD 이수신청서",
     required: true,
     notice: gradeDetail.subType === "microdegree"
-      ? "이수한 마이크로디그리(MD) 이수증(또는 이수 확인 서류)을 제출해야 합니다."
-      : "부전공·복수전공 성적우수 지원은 이수한 마이크로디그리(MD) 이수증(또는 이수 확인 서류)을 제출해야 합니다.",
+      ? "이수한 마이크로디그리(MD) 이수증 또는 MD 이수신청서를 제출해야 합니다."
+      : "부전공·복수전공 성적우수 지원은 이수한 마이크로디그리(MD) 이수증 또는 MD 이수신청서를 제출해야 합니다.",
   };
   const docSlots: DocSlot[] | null =
     applicationType === "grade"
