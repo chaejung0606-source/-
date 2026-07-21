@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2, Download } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Save, Check, Plus, Trash2, Download, Copy } from "lucide-react";
 import type { FormSchema, FormField, FormStep, FormFieldType } from "@/lib/form-schema";
 import { FIELD_TYPE_LABELS, STANDARD_TYPES, WORKLOG_GROUPS, newSchemaId, DEFAULT_CONSENT_INTRO, DEFAULT_CONSENT_PRIVACY, DEFAULT_CONSENT_TRUTH, DEFAULT_CONSENT_ACCOUNT } from "@/lib/form-schema";
 import TableField, { defaultTableCells } from "./TableField";
@@ -354,6 +354,25 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
     if (s.id !== sid) return s; const a = [...s.fields]; const i = a.findIndex((f) => f.id === fid); const j = i + dir;
     if (i < 0 || j < 0 || j >= a.length) return s; [a[i], a[j]] = [a[j], a[i]]; return { ...s, fields: a };
   }));
+  // 항목 복제 — 옵션·조건부질문·표 셀 등 중첩값까지 깊은 복사하고 새 ID를 부여해 바로 아래에 삽입
+  const cloneField = (f: FormField): FormField => {
+    const c: FormField = JSON.parse(JSON.stringify(f));
+    c.id = newSchemaId("f");
+    if (c.branches) {
+      for (const opt of Object.keys(c.branches)) {
+        c.branches[opt] = (c.branches[opt] || []).map((sf) => ({ ...sf, id: newSchemaId("sf") }));
+      }
+    }
+    return c;
+  };
+  const duplicateField = (sid: string, fid: string) => mutSteps((st) => st.map((s) => {
+    if (s.id !== sid) return s;
+    const i = s.fields.findIndex((f) => f.id === fid);
+    if (i < 0) return s;
+    const a = [...s.fields];
+    a.splice(i + 1, 0, cloneField(s.fields[i]));
+    return { ...s, fields: a };
+  }));
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
@@ -613,6 +632,7 @@ export default function SchemaForm({ schema, editable = false, accent = "#6366f1
                 <button onClick={() => moveField(cur.id, f.id, -1)} disabled={fi === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
                 <button onClick={() => moveField(cur.id, f.id, 1)} disabled={fi === cur.fields.length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
                 <label className="flex items-center gap-1 text-xs text-gray-600"><input type="checkbox" checked={!!f.required} onChange={(e) => updField(cur.id, f.id, { required: e.target.checked })} /> 필수</label>
+                <button onClick={() => duplicateField(cur.id, f.id)} className="text-gray-400 hover:text-indigo-600 flex items-center gap-1 text-xs" title="이 항목과 똑같은 항목을 바로 아래에 추가"><Copy className="w-4 h-4" /> 복제</button>
                 <button onClick={() => removeField(cur.id, f.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
