@@ -6,7 +6,7 @@ import { APPLICATION_TYPE_LABELS } from "@/types";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { fetchSiteContent, htmlFromContent, type TypeContent } from "@/lib/site-content";
 
-const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+const TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "etc"];
 
 export default function ContentPanel() {
   const [content, setContent] = useState<Record<string, TypeContent>>({});

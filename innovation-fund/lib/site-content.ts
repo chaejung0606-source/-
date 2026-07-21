@@ -76,6 +76,14 @@ export const DEFAULT_CONTENT: Record<ApplicationType, TypeContent> = {
       { heading: "작성 유의사항", items: ["근로시간은 수업시간과 겹치지 않아야 함", "근로일시: 평일 09:00~18:00 사이", "본인 명의 통장"] },
     ],
   },
+  etc: {
+    intro: "위 유형에 속하지 않는 기타 사업단 지원 프로그램에 참여하는 학생에게 지급합니다. 세부 지원 범위·기준은 프로그램별 안내를 확인하세요.",
+    showPrograms: true,
+    sections: [
+      { heading: "지원 범위", items: ["사업단이 별도로 운영·승인한 기타 프로그램"] },
+      { heading: "유의사항", items: ["프로그램별 신청서 양식·증빙 요건을 따릅니다", "다른 유형과 중복 계상 불가"] },
+    ],
+  },
   activity: {
     intro: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 학생 활동을 지원합니다.",
     showPrograms: true,

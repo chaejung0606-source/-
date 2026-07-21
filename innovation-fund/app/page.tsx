@@ -27,11 +27,12 @@ const typeMeta: Record<ApplicationType, { icon: string; desc: string; note?: str
   grade: { icon: "🎓", desc: "마이크로디그리(30만원) · 부전공(100만원) · 복수전공(150만원)", note: "평점 평균 3.0 이상" },
   contest: { icon: "🏆", desc: "사업단 분야 관련 경진대회 입상자", note: "A규모·B규모 / 개인·팀 별 차등 지급" },
   certificate: { icon: "📜", desc: "미래융합가상학과 학생 대상 자격증 취득 지원", note: "난이도 상(70만원) · 중(40만원) · 하(10만원)" },
+  etc: { icon: "🗂️", desc: "위 유형에 속하지 않는 기타 사업단 지원 프로그램" },
   activity: { icon: "🎒", desc: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원" },
   club: { icon: "🧑‍💻", desc: "첨단 ICT 분야(보안·클라우드·블록체인 등) 소학회(동아리) 활동 지원", note: "소학회별 최소 6명 · 회장 혁신인재지원금" },
 };
 
-const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+const ALL_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "etc"];
 
 const steps = ["모집 공고 및 안내", "신청 및 접수", "검토 및 심의", "대상 확정 및 통보", "지원금 지급"];
 
@@ -92,7 +93,7 @@ export default function Home() {
   useEffect(() => { fetchTypePeriods().then(setTypePeriods).catch(() => {}); }, []);
   // 유형별 안내: 프로그램 기반(근로·참여지원비·진행요원비)은 활성 프로그램명, 그 외(성적·경진·자격증)는 설명
   const typeInfo = (type: ApplicationType, mode: ApplyPhase): string => {
-    if (type === "labor" || type === "program" || type === "staff") {
+    if (type === "labor" || type === "program" || type === "staff" || type === "etc") {
       const names = filterActiveByType(programs, type, categoryOfType(type), undefined, mode).map((p) => p.name);
       return names.length ? names.join(" · ") : "현재 모집(신청 가능) 중인 프로그램이 없습니다 — 모집 시기는 공지를 확인하세요";
     }

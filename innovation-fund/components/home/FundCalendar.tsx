@@ -39,7 +39,9 @@ interface Marker { ev: FundEvent; kind: "start" | "end" | "both"; occStart: stri
 function typeLabelOf(p: Program): string {
   if (p.category === "labor") return APPLICATION_TYPE_LABELS.labor;
   if (p.category === "activity") return APPLICATION_TYPE_LABELS.activity;
-  return p.programType === "staff" ? APPLICATION_TYPE_LABELS.staff : APPLICATION_TYPE_LABELS.program;
+  if (p.programType === "staff") return APPLICATION_TYPE_LABELS.staff;
+  if (p.programType === "etc") return APPLICATION_TYPE_LABELS.etc;
+  return APPLICATION_TYPE_LABELS.program;
 }
 
 // 캘린더·마감 임박 팝업 공용 — 기간 이벤트 + 상시 신청 가능 목록 수집

@@ -130,7 +130,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   // 프로그램별 보고서 입력값 (관리자가 설정한 항목)
   const [reportEntries, setReportEntries] = useState<ReportEntry[]>([]);
   const selectedProgramId =
-    applicationType === "program" ? programDetail.programId :
+    (applicationType === "program" || applicationType === "etc") ? programDetail.programId :
     applicationType === "labor" ? laborDetail.programId :
     applicationType === "activity" ? activityDetail.programId :
     undefined;
@@ -216,7 +216,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       phone: prefill.phone || b.phone,
       email: prefill.email || b.email,
     }));
-    if (applicationType === "program" && prefill.programDetail) {
+    if ((applicationType === "program" || applicationType === "etc") && prefill.programDetail) {
       const d = prefill.programDetail;
       setProgramDetail((p) => ({
         ...p,
@@ -361,7 +361,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
 
   const getRequestAmount = (): number => {
     if (isPre) return 0;
-    if (applicationType === "program") return calcSupportTotal(costDetail);
+    if (applicationType === "program" || applicationType === "etc") return calcSupportTotal(costDetail);
     if (applicationType === "activity") return activityDetail.requestAmount;
     if (applicationType === "club") return clubDetail.requestAmount || 0;
     return getCalculatedAmount();
@@ -376,7 +376,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
     bankInfo: { bankName: basicInfo.bankName, accountNumber: basicInfo.accountNumber, accountHolder: basicInfo.accountHolder },
     applicationPhase: mode,
     applicationType,
-    programDetail: applicationType === "program" ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
+    programDetail: (applicationType === "program" || applicationType === "etc") ? { ...programDetail, requestAmount: calcSupportTotal(costDetail), costDetail, reportEntries } : undefined,
     staffDetail: applicationType === "staff" ? { ...staffDetail, calculatedAmount: getCalculatedAmount(), costDetail } : undefined,
     laborDetail: applicationType === "labor" ? { ...laborDetail, calculatedAmount: getCalculatedAmount(), reportEntries } : undefined,
     activityDetail: applicationType === "activity" ? { ...activityDetail, costDetail, reportEntries } : undefined,
@@ -459,7 +459,7 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
   // 2단계(신청 내용) 필수·형식 검증
   const validateStep2 = (): string[] => {
     const e: string[] = [];
-    if (applicationType === "program") {
+    if (applicationType === "program" || applicationType === "etc") {
       if (!programDetail.programName) e.push("• 신청 가능한 프로그램을 선택해주세요.");
     }
     if (applicationType === "staff") {
@@ -734,8 +734,8 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       )}
 
       {/* 2단계: 유형별 상세 */}
-      {step === 2 && applicationType === "program" && (
-        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre}
+      {step === 2 && (applicationType === "program" || applicationType === "etc") && (
+        <ProgramDetailSection values={programDetail} onChange={setProgramDetail} preOnly={isPre} progType={applicationType}
           ai={adminApplicantId ? { programName: programDetail.programName, applicantName: basicInfo.name, department: basicInfo.department, grade: basicInfo.grade } : null} />
       )}
       {step === 2 && applicationType === "staff" && (
@@ -764,10 +764,10 @@ export default function ApplyForm({ applicationType, mode = "fund", prefill = nu
       {step === 2 && applicationType === "club" && (
         <ClubDetailSection values={clubDetail} onChange={setClubDetail} preOnly={isPre} />
       )}
-      {step === 2 && !isPre && (applicationType === "program" || applicationType === "staff" || applicationType === "activity") && (
+      {step === 2 && !isPre && (applicationType === "program" || applicationType === "staff" || applicationType === "activity" || applicationType === "etc") && (
         <CostSection value={costDetail} onChange={setCostDetail} />
       )}
-      {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity") && (
+      {step === 2 && (applicationType === "program" || applicationType === "labor" || applicationType === "activity" || applicationType === "etc") && (
         <ReportSection programId={selectedProgramId} phase={mode} value={reportEntries} onChange={setReportEntries}
           ai={adminApplicantId ? { programName: programDetail.programName || laborDetail.programName || activityDetail.activityName, applicantName: basicInfo.name, department: basicInfo.department, grade: basicInfo.grade } : null} />
       )}

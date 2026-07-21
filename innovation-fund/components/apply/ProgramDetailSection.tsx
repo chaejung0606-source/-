@@ -12,7 +12,7 @@ interface ProgramDetail {
   programId: string; eventLocation?: EventLocation;
 }
 
-interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; preOnly?: boolean; ai?: { programName?: string; applicantName?: string; department?: string; grade?: string } | null; }
+interface Props { values: ProgramDetail; onChange: (v: ProgramDetail) => void; preOnly?: boolean; progType?: string; ai?: { programName?: string; applicantName?: string; department?: string; grade?: string } | null; }
 
 const PROGRAM_TYPES = ["교과", "비교과", "실험실습", "현장실습", "인턴십", "기업체 연계 방문·프로젝트", "학회 참석", "기타"];
 
@@ -34,9 +34,9 @@ function SmartDate({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-export default function ProgramDetailSection({ values, onChange, preOnly = false, ai = null }: Props) {
+export default function ProgramDetailSection({ values, onChange, preOnly = false, progType = "program", ai = null }: Props) {
   const [programs, setPrograms] = useState<Program[]>([]);
-  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, "program", "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly]);
+  useEffect(() => { fetchPrograms().then((all) => setPrograms(filterActiveByType(all, progType, "innovation", undefined, preOnly ? "pre" : "fund"))); }, [preOnly, progType]);
 
   const set = (patch: Partial<ProgramDetail>) => onChange({ ...values, ...patch });
   const isConference = values.programType === "학회 참석";
