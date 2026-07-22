@@ -25,6 +25,7 @@ const TYPE_SPECIFIC: Record<ApplicationType, DocumentType[]> = {
   contest: ["award_certificate", "contest_notice", "achievement_proof"],
   certificate: ["certificate_copy", "achievement_proof"],
   labor: ["work_log", "achievement_proof"],
+  etc: ["participation_proof", "achievement_proof"],
   activity: ["participation_proof", "achievement_proof"],
   club: ["participation_proof", "achievement_proof"],
 };
@@ -37,6 +38,7 @@ const DOC_GUIDE: Record<ApplicationType, string[]> = {
   contest: ["신분증 사본", "통장 사본", "재학증명서", "상장 사본", "대회 공고문", "기타 수상 증빙"],
   certificate: ["신분증 사본", "통장 사본", "재학증명서", "자격증 사본", "취득 증빙자료"],
   labor: ["신분증 사본", "통장 사본", "재학증명서", "근무상황부 (지도교수·담당자 확인)"],
+  etc: ["신분증 사본", "통장 사본", "재학증명서", "참여·활동 증빙자료 (해당 시)"],
   activity: ["신분증 사본", "통장 사본", "재학증명서", "활동 계획서/결과보고서", "지출 증빙(영수증 등)"],
   club: ["소학회 지원 신청서", "학기별 활동 계획서", "구성원 명단", "활동 증빙자료 (해당 시)", "지출 증빙(영수증 등, 지원금 신청 시)"],
 };

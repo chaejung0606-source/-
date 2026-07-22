@@ -5,6 +5,7 @@ export type ApplicationType =
   | "contest"      // 경진대회 입상 우수성과 지원금 (혁신인재지원금)
   | "certificate"  // 자격증 취득 우수성과 지원금 (혁신인재지원금)
   | "labor"        // 근로장학금
+  | "etc"          // 기타 (혁신인재지원금 — 프로그램 참여형과 동일 흐름)
   | "activity"     // 학생활동지원비
   | "club";        // 첨단 ICT 소학회 활동 지원
 
@@ -20,7 +21,7 @@ export const FUND_CATEGORY_LABELS: Record<FundCategory, string> = {
 // 카테고리별 신청 유형
 export const CATEGORY_TYPES: Record<FundCategory, ApplicationType[]> = {
   labor: ["labor"],
-  innovation: ["program", "staff", "grade", "contest", "certificate"],
+  innovation: ["program", "staff", "grade", "contest", "certificate", "etc"],
   activity: ["activity", "club"],
 };
 
@@ -45,9 +46,9 @@ export const PRE_CATEGORY_TYPE: Record<FundCategory, ApplicationType> = {
 
 // 지원금 종류 선택(평탄화): 혁신인재지원금 그룹 대신 유형을 개별 카드로 노출
 // (소학회는 독립 메뉴로 분리 — 지원신청/지원금신청 하위 목록에는 포함하지 않음)
-export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+export const PICK_TYPES_FUND: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "etc"];
 // 지원신청(활동 전) 가능 유형
-export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff"];
+export const PICK_TYPES_PRE: ApplicationType[] = ["labor", "program", "staff", "etc"];
 
 export type GradeSubType = "microdegree" | "minor" | "double";
 export type ContestScale = "A" | "B";
@@ -517,6 +518,7 @@ export const APPLICATION_TYPE_LABELS: Record<ApplicationType, string> = {
   contest: "경진대회 입상 우수성과 지원금",
   certificate: "자격증 취득 우수성과 지원금",
   labor: "근로장학금",
+  etc: "기타",
   activity: "학생활동지원비",
   club: "첨단 ICT 소학회",
 };

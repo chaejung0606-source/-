@@ -20,12 +20,13 @@ const typeDescriptions: Record<ApplicationType, string> = {
   contest: "사업단 분야와 관련된 경진대회에서 입상한 학생",
   certificate: "미래융합가상학과 학생 중 자격증을 취득한 학생",
   labor: "사업단 프로그램에 근로학생으로 참여 (근무상황부 기준 지급)",
+  etc: "위 유형에 속하지 않는 기타 사업단 지원 프로그램에 참여하는 학생",
   activity: "학생 자치·동아리 활동, 학술 행사·학회 참가 등 지원",
   club: "첨단 ICT 분야(보안·클라우드·블록체인 등) 소학회(동아리) 활동 지원",
 };
 
 const typeIcons: Record<ApplicationType, string> = {
-  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", activity: "🎒", club: "🧑‍💻",
+  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", etc: "🗂️", activity: "🎒", club: "🧑‍💻",
 };
 
 const categoryIcons: Record<FundCategory, string> = { labor: "🛠️", innovation: "🚀", activity: "🎒" };
@@ -60,7 +61,7 @@ function ApplyInner() {
   }, []);
   // 스키마(관리자 폼) 기반 신청 적용 대상: 근로장학금 전체 + 혁신인재지원금의 프로그램 참여지원비(program)·진행요원비(staff)
   // (성적/경진대회/자격증은 기존 고정 양식 유지)
-  const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff")) || selectedType === "club";
+  const schemaTypeOk = category === "labor" || (category === "innovation" && (selectedType === "program" || selectedType === "staff" || selectedType === "etc")) || selectedType === "club";
   const schemaPrograms = (schemaTypeOk && category ? programs.filter((p) => p.category === category && programMatchesType(p, selectedType || "") && isProgramActive(p, undefined, mode) && (mode === "pre" ? programForms[p.id]?.pre : programForms[p.id]?.fund)) : []);
   const schemaProgram = schemaPrograms.find((p) => p.id === schemaProgramId);
   const activeSchema: FormSchema | undefined = schemaProgram ? (mode === "pre" ? programForms[schemaProgram.id]?.pre : programForms[schemaProgram.id]?.fund) : undefined;
@@ -72,7 +73,7 @@ function ApplyInner() {
   const [skipPre, setSkipPre] = useState(false);
 
   // 지원금 신청 자격은 프로그램별 ‘신청대상’으로 판정한다(지원신청 승인 전제 없음).
-  const requiresPre = (t: ApplicationType) => (["labor", "program", "activity"] as ApplicationType[]).includes(t);
+  const requiresPre = (t: ApplicationType) => (["labor", "program", "activity", "etc"] as ApplicationType[]).includes(t);
 
   // 임시저장 이어쓰기
   const [draftApp, setDraftApp] = useState<Application | null>(null);

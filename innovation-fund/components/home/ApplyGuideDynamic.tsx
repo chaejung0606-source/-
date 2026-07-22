@@ -16,6 +16,7 @@ const PHASES: { phase: "pre" | "fund"; label: string; types: { t: ApplicationTyp
       { t: "labor", desc: "사업단 프로그램에 근로학생으로 참여" },
       { t: "program", desc: "교과·비교과, 현장실습, 인턴십, 학회 참석 등" },
       { t: "staff", desc: "사업단 프로그램 운영 보조(진행요원)" },
+      { t: "etc", desc: "위 유형에 속하지 않는 기타 지원 프로그램" },
     ],
   },
   {
@@ -24,6 +25,7 @@ const PHASES: { phase: "pre" | "fund"; label: string; types: { t: ApplicationTyp
       { t: "labor", desc: "근무상황부 기준 근로장학금" },
       { t: "program", desc: "교과·비교과·현장실습·인턴십·학회 등" },
       { t: "staff", desc: "프로그램 진행요원" },
+      { t: "etc", desc: "위 유형에 속하지 않는 기타 지원 프로그램" },
       { t: "club", desc: "첨단 ICT 소학회(동아리) 활동" },
     ],
   },

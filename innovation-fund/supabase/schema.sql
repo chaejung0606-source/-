@@ -83,9 +83,9 @@ CREATE TABLE IF NOT EXISTS applications (
   -- 신청 단계 (지원신청: pre / 지원금 신청: fund)
   application_phase TEXT DEFAULT 'fund' CHECK (application_phase IN ('pre','fund')),
 
-  -- 신청 유형 (근로장학금/학생활동지원비/소학회 포함)
+  -- 신청 유형 (근로장학금/학생활동지원비/소학회/기타 포함)
   application_type TEXT NOT NULL CHECK (application_type IN
-    ('program','staff','grade','contest','certificate','labor','activity','club')),
+    ('program','staff','grade','contest','certificate','labor','etc','activity','club')),
 
   -- 유형별 상세 (JSONB)
   program_detail JSONB,

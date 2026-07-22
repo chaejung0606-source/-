@@ -10,10 +10,10 @@ import ContentPanel from "@/components/admin/ContentPanel";
 import CertificatesPanel from "@/components/admin/CertificatesPanel";
 
 // 첫 선택에서 구분하는 지원금 종류: 근로장학금 / 프로그램 참여지원비 / 진행요원비 (소학회는 서비스 제외)
-type ProgKind = "labor" | "program" | "staff" | "club";
-const KINDS: ProgKind[] = ["labor", "program", "staff"];
-const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비", club: "소학회" };
-const kindOf = (p: Program): ProgKind => p.programType === "club" ? "club" : (p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : "program"));
+type ProgKind = "labor" | "program" | "staff" | "etc" | "club";
+const KINDS: ProgKind[] = ["labor", "program", "staff", "etc"];
+const KIND_LABELS: Record<ProgKind, string> = { labor: "근로장학금", program: "프로그램 참여지원비", staff: "진행요원비", etc: "기타", club: "소학회" };
+const kindOf = (p: Program): ProgKind => p.programType === "club" ? "club" : (p.category === "labor" ? "labor" : (p.programType === "staff" ? "staff" : (p.programType === "etc" ? "etc" : "program")));
 const categoryOfKind = (k: ProgKind): FundCategory => (k === "labor" ? "labor" : k === "club" ? "activity" : "innovation");
 const inKind = (p: Program, k: ProgKind) => kindOf(p) === k;
 const today = () => new Date().toISOString().split("T")[0];
@@ -131,7 +131,7 @@ export default function ProgramsAdminPage() {
   const setPeriod = (t: string, k: "start" | "end", v: string) => { setPeriods((p) => ({ ...p, [t]: { ...p[t], [k]: v } })); setPeriodsSaved(false); };
   const add = (kind: ProgKind) => {
     const category = categoryOfKind(kind);
-    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(kind === "club" ? { programType: "club" as const } : category === "innovation" ? { programType: (kind === "staff" ? "staff" : "program") as "program" | "staff" } : {}) };
+    const np: Program = { id: newProgramId(), category, name: "", roles: [], reportFields: [], applyStart: today(), applyEnd: today(), note: "", ...(kind === "club" ? { programType: "club" as const } : category === "innovation" ? { programType: (kind === "staff" ? "staff" : kind === "etc" ? "etc" : "program") as "program" | "staff" | "etc" } : {}) };
     setList((l) => [...l, np]);
     setSelectedKind(kind);
     setSelectedId(np.id);

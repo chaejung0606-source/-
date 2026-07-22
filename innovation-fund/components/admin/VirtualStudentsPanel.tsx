@@ -10,7 +10,7 @@ export interface VStudent {
   grade?: string; gpa?: number; credits?: number; phone?: string; email?: string;
 }
 
-const ALL_TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate", "labor", "activity"];
+const ALL_TYPES: ApplicationType[] = ["program", "staff", "grade", "contest", "certificate", "labor", "etc", "activity"];
 
 const matchTerms = (s: VStudent, q: string) => {
   const terms = q.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);

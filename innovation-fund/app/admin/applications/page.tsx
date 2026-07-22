@@ -13,7 +13,7 @@ import { isGateUnlocked, unlockGate } from "@/lib/pw-gate";
 // 신청 건의 프로그램명 추출
 // 신청 유형 버튼 — 현재 신청 가능한 유형(신청 화면 기준: PICK_TYPES_FUND)만 표시.
 // 신청 화면에서 제거된 레거시 유형(소학회·학생활동지원비)은 기존 신청 건이 있을 때만 뒤에 표시.
-const CURRENT_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate"];
+const CURRENT_TYPES: ApplicationType[] = ["labor", "program", "staff", "grade", "contest", "certificate", "etc"];
 const LEGACY_TYPES: ApplicationType[] = ["club", "activity"];
 const GRADE_SUBTYPE_LABEL: Record<string, string> = { microdegree: "마이크로디그리", minor: "부전공", double: "복수전공" };
 // 신청의 '하위 선택' 표기 — 프로그램형은 프로그램명, 성적우수는 세부유형(마이크로디그리·부전공·복수전공), 자격증은 자격증명

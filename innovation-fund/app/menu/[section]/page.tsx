@@ -9,7 +9,7 @@ import TopNav from "@/components/home/TopNav";
 import TypeCriteria from "@/components/home/TypeCriteria";
 
 const ICONS: Record<ApplicationType, string> = {
-  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", activity: "🎒", club: "🧑‍💻",
+  program: "📋", staff: "👥", grade: "🎓", contest: "🏆", certificate: "📜", labor: "🛠️", etc: "🗂️", activity: "🎒", club: "🧑‍💻",
 };
 
 type SectionKey = "pre" | "fund" | "club";
