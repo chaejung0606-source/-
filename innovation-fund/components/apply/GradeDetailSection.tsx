@@ -3,12 +3,12 @@ import { useMemo } from "react";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 import {
   MD_DEPARTMENTS, getProgramsByDept, getProgramById,
-  GRADE_OPTIONS, GRADE_TO_POINT, MD_PROGRAMS, validateMD, type GradeValue,
+  GRADE_OPTIONS, GRADE_TO_POINT, MD_PROGRAMS, validateMD, TERM_OPTIONS, type GradeValue,
 } from "@/lib/md-courses";
 import { isMdYearRecognized, MD_2026_REQUIRED_FROM } from "@/types";
 
-interface MDCourseGrade { name: string; grade: string; isBase: boolean; }
-interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; custom?: boolean; }
+interface MDCourseGrade { name: string; grade: string; isBase: boolean; year?: string; term?: string; }
+interface MinorCourse { name: string; credits: number; grade: string; mdProgramId?: string; excluded?: boolean; custom?: boolean; year?: string; term?: string; }
 // 교과목 드롭다운에서 '직접입력'을 나타내는 특수값
 const CUSTOM_COURSE = "__custom__";
 interface GradeDetail {
@@ -33,6 +33,8 @@ const MINOR_MAJORS = ["클라우드융합학과", "사이버보안융합학과",
 const GRADE_SELECT_OPTIONS = [...GRADE_OPTIONS, "가"];
 // 학점 선택지 — 기본값 3학점(첫 번째)
 const CREDIT_OPTIONS = [3, 2, 1];
+// 이수 학년도 선택지 — 올해+1 ~ 올해-7 (내림차순)
+const COURSE_YEARS = Array.from({ length: 9 }, (_, i) => new Date().getFullYear() + 1 - i);
 
 // 전공명 → MD 카탈로그 학과(트랙 포함) 매칭
 function programsForMajor(major: string) {
@@ -88,7 +90,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
     if (exists) {
       next = values.mdCourses.filter((c) => c.name !== name);
     } else {
-      next = [...values.mdCourses, { name, grade: "A+", isBase }];
+      next = [...values.mdCourses, { name, grade: "A+", isBase, year: "", term: "" }];
     }
     const v = program ? validateMD(program, next.map((c) => ({ ...c, grade: c.grade as GradeValue }))) : { gpa: 0 };
     onChange({ ...values, mdCourses: next, gpa: v.gpa });
@@ -101,6 +103,11 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
     onChange({ ...values, mdCourses: next, gpa: v.gpa });
   };
 
+  // 이수 학년도/학기 변경 (평점에는 영향 없음)
+  const setCourseMeta = (name: string, patch: Partial<MDCourseGrade>) => {
+    onChange({ ...values, mdCourses: values.mdCourses.map((c) => (c.name === name ? { ...c, ...patch } : c)) });
+  };
+
   const validation = useMemo(() => {
     if (!program) return null;
     return validateMD(program, values.mdCourses.map((c) => ({ ...c, grade: c.grade as GradeValue })));
@@ -108,6 +115,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
 
   const isChecked = (name: string) => values.mdCourses.some((c) => c.name === name);
   const gradeOf = (name: string) => values.mdCourses.find((c) => c.name === name)?.grade || "A+";
+  const metaOf = (name: string) => values.mdCourses.find((c) => c.name === name);
 
   return (
     <div className="card space-y-5">
@@ -181,7 +189,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                   <div className="text-xs font-bold text-gray-500 mb-1.5">기초(전공) 과목 — 최대 {program.baseMaxCount}과목 인정</div>
                   <div className="space-y-1.5">
                     {program.baseCourses.map((name) => (
-                      <CourseRow key={name} name={name} checked={isChecked(name)} grade={gradeOf(name)} onToggle={() => toggleCourse(name, true)} onGrade={(g) => setGrade(name, g)} />
+                      <CourseRow key={name} name={name} checked={isChecked(name)} grade={gradeOf(name)} year={metaOf(name)?.year || ""} term={metaOf(name)?.term || ""} onToggle={() => toggleCourse(name, true)} onGrade={(g) => setGrade(name, g)} onMeta={(p) => setCourseMeta(name, p)} />
                     ))}
                   </div>
                 </div>
@@ -191,7 +199,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                 <div className="text-xs font-bold text-gray-500 mb-1.5">{program.level} 과목</div>
                 <div className="space-y-1.5">
                   {program.mainCourses.map((name) => (
-                    <CourseRow key={name} name={name} checked={isChecked(name)} grade={gradeOf(name)} onToggle={() => toggleCourse(name, false)} onGrade={(g) => setGrade(name, g)} />
+                    <CourseRow key={name} name={name} checked={isChecked(name)} grade={gradeOf(name)} year={metaOf(name)?.year || ""} term={metaOf(name)?.term || ""} onToggle={() => toggleCourse(name, false)} onGrade={(g) => setGrade(name, g)} onMeta={(p) => setCourseMeta(name, p)} />
                   ))}
                 </div>
               </div>
@@ -436,6 +444,17 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                     {c.custom && (
                       <input className="input-field !min-h-[38px] !text-sm" placeholder="교과목명을 직접 입력하세요" value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })} />
                     )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-500 shrink-0">이수 시기</span>
+                      <select className="input-field !min-h-[36px] !text-xs !w-auto" value={c.year || ""} onChange={(e) => setCourse(i, { year: e.target.value })}>
+                        <option value="">학년도</option>
+                        {COURSE_YEARS.map((y) => <option key={y} value={String(y)}>{y}학년도</option>)}
+                      </select>
+                      <select className="input-field !min-h-[36px] !text-xs !w-auto" value={c.term || ""} onChange={(e) => setCourse(i, { term: e.target.value })}>
+                        <option value="">학기</option>
+                        {TERM_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
                     <div className="grid grid-cols-12 gap-2 items-center">
                       <select className="input-field !min-h-[38px] !text-sm col-span-8 sm:col-span-7" value={c.mdProgramId || ""} onChange={(e) => setCourse(i, { mdProgramId: e.target.value, excluded: e.target.value ? c.excluded : false })}>
                         <option value="">MD 이수과목 아님</option>
@@ -551,20 +570,36 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
   );
 }
 
-function CourseRow({ name, checked, grade, onToggle, onGrade }: {
-  name: string; checked: boolean; grade: string;
-  onToggle: () => void; onGrade: (g: string) => void;
+function CourseRow({ name, checked, grade, year, term, onToggle, onGrade, onMeta }: {
+  name: string; checked: boolean; grade: string; year: string; term: string;
+  onToggle: () => void; onGrade: (g: string) => void; onMeta: (patch: { year?: string; term?: string }) => void;
 }) {
+  const selStyle = { background: "rgba(255,255,255,0.8)", border: "1px solid rgba(99,102,241,0.3)" };
   return (
-    <div className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-all ${checked ? "" : "opacity-80"}`} style={{ background: checked ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.6)" }}>
-      <label className="flex items-center gap-2 flex-1 cursor-pointer">
-        <input type="checkbox" checked={checked} onChange={onToggle} className="w-4 h-4 accent-indigo-600" />
-        <span className="text-sm font-medium">{name}</span>
-      </label>
+    <div className={`rounded-xl px-3 py-2 transition-all ${checked ? "" : "opacity-80"}`} style={{ background: checked ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.6)" }}>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2 flex-1 cursor-pointer">
+          <input type="checkbox" checked={checked} onChange={onToggle} className="w-4 h-4 accent-indigo-600" />
+          <span className="text-sm font-medium">{name}</span>
+        </label>
+        {checked && (
+          <select value={grade} onChange={(e) => onGrade(e.target.value)} className="rounded-lg px-2 py-1 text-sm font-medium" style={selStyle}>
+            {GRADE_SELECT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        )}
+      </div>
       {checked && (
-        <select value={grade} onChange={(e) => onGrade(e.target.value)} className="rounded-lg px-2 py-1 text-sm font-medium" style={{ background: "rgba(255,255,255,0.8)", border: "1px solid rgba(99,102,241,0.3)" }}>
-          {GRADE_SELECT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
+        <div className="flex items-center gap-2 mt-2 pl-6">
+          <span className="text-[11px] text-gray-500 shrink-0">이수 시기</span>
+          <select value={year} onChange={(e) => onMeta({ year: e.target.value })} className="rounded-lg px-2 py-1 text-xs" style={selStyle}>
+            <option value="">학년도</option>
+            {COURSE_YEARS.map((y) => <option key={y} value={String(y)}>{y}학년도</option>)}
+          </select>
+          <select value={term} onChange={(e) => onMeta({ term: e.target.value })} className="rounded-lg px-2 py-1 text-xs" style={selStyle}>
+            <option value="">학기</option>
+            {TERM_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
       )}
     </div>
   );

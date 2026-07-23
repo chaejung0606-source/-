@@ -139,6 +139,33 @@ export interface CourseGrade {
   isBase: boolean; // 기초(전공) 과목 여부
 }
 
+// === 이수 학기 옵션 + 날짜(학년도·학기) 기준 정렬 ===
+export const TERM_OPTIONS = ["1학기", "여름계절", "2학기", "겨울계절"] as const;
+const TERM_ORDER: Record<string, number> = { "1학기": 1, "여름계절": 2, "2학기": 3, "겨울계절": 4 };
+// 학년도·학기를 하나의 정렬 키(오름차순)로. 미입력 항목은 맨 뒤로.
+export function courseSortKey(year?: string, term?: string): number {
+  const y = parseInt(year || "", 10);
+  const yr = Number.isNaN(y) ? 999999 : y;      // 학년도 미입력 → 뒤로
+  const t = TERM_ORDER[term || ""] || 9;         // 학기 미입력 → 그 학년도 안에서 뒤로
+  return yr * 10 + t;
+}
+// 학년도→학기 순으로 정렬(안정 정렬: 동일 키는 원래 순서 유지, 미입력은 뒤로)
+export function sortCoursesByTerm<T extends { year?: string; term?: string }>(list: T[]): T[] {
+  return list
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => {
+      const ka = courseSortKey(a.c.year, a.c.term);
+      const kb = courseSortKey(b.c.year, b.c.term);
+      return ka !== kb ? ka - kb : a.i - b.i;
+    })
+    .map((x) => x.c);
+}
+// "2025 · 1학기" 형태의 표시 라벨(둘 다 없으면 빈 문자열)
+export function termLabel(year?: string, term?: string): string {
+  const parts = [year ? `${year}학년도` : "", term || ""].filter(Boolean);
+  return parts.join(" ");
+}
+
 export interface MDValidation {
   ok: boolean;
   gpa: number;

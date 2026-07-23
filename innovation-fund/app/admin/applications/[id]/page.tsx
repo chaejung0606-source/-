@@ -10,7 +10,7 @@ import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
-import { getProgramById } from "@/lib/md-courses";
+import { getProgramById, sortCoursesByTerm, termLabel } from "@/lib/md-courses";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -270,7 +270,7 @@ export default function ApplicationDetailPage() {
           ["학과", g.mdDepartment || "-"],
           ["MD 과정명", g.mdProgramName || g.courseName || "-"],
           ["이수 교과목·성적", (g.mdCourses || []).length
-            ? (g.mdCourses || []).map((c) => `${c.name} — ${c.grade}${c.isBase ? " (기초/전공)" : ""}`).join("\n")
+            ? sortCoursesByTerm(g.mdCourses || []).map((c) => { const t = termLabel(c.year, c.term); return `${t ? `[${t}] ` : ""}${c.name} — ${c.grade}${c.isBase ? " (기초/전공)" : ""}`; }).join("\n")
             : (g.courseName || "-")],
           ["평점 평균", String(g.gpa)],
         );
@@ -281,9 +281,10 @@ export default function ApplicationDetailPage() {
           // 미래융합가상학과 자격 확인 체크박스 폐지(v1.1.207) — 기존 신청(확인함)만 표시
           ...(g.minorIsMirae ? [["미래융합가상학과 이수(예정)자", "확인함"] as [string, string]] : []),
           ["이수 교과목 내역", (g.minorCourses || []).length
-            ? (g.minorCourses || []).map((c) =>
-                `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
-              ).join("\n")
+            ? sortCoursesByTerm(g.minorCourses || []).map((c) => {
+                const t = termLabel(c.year, c.term);
+                return `${t ? `[${t}] ` : ""}${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`;
+              }).join("\n")
             : "-"],
           ["인정 이수 학점", `${g.minorMajorCredits ?? g.credits}학점 (기준 ${g.subType === "minor" ? 21 : 36}학점)`],
           ["평점 평균", `${g.gpa} / 4.5`],
