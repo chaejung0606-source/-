@@ -151,9 +151,11 @@ export function validateMD(program: MDProgram, selected: CourseGrade[]): MDValid
   const count = selected.length;
   const baseCount = selected.filter((c) => c.isBase).length;
 
-  // 평점 평균 계산
-  const gpa = count > 0
-    ? Math.round((selected.reduce((s, c) => s + GRADE_TO_POINT[c.grade], 0) / count) * 100) / 100
+  // 평점 평균 계산 — '가/부'(Pass/Fail) 과목은 평점 산정에서 제외.
+  // (이수 과목 수/기초 과목 수에는 그대로 포함)
+  const graded = selected.filter((c) => (c.grade as string) in GRADE_TO_POINT);
+  const gpa = graded.length > 0
+    ? Math.round((graded.reduce((s, c) => s + GRADE_TO_POINT[c.grade], 0) / graded.length) * 100) / 100
     : 0;
 
   if (count !== program.requiredCount) {
@@ -162,7 +164,8 @@ export function validateMD(program: MDProgram, selected: CourseGrade[]): MDValid
   if (program.baseMaxCount > 0 && baseCount > program.baseMaxCount) {
     reasons.push(`기초(전공) 과목은 최대 ${program.baseMaxCount}과목까지만 인정됩니다. (현재 ${baseCount}과목)`);
   }
-  if (count === program.requiredCount && gpa < 3.0) {
+  // 평점 요건은 점수가 매겨진(가/부 제외) 과목이 하나라도 있을 때만 판정
+  if (count === program.requiredCount && graded.length > 0 && gpa < 3.0) {
     reasons.push(`평점 평균이 3.0 미만입니다. (현재 ${gpa.toFixed(2)}) 성적 우수 지원금은 평점 3.0 이상이어야 합니다.`);
   }
 

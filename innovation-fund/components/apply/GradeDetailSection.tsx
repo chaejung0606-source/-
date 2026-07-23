@@ -29,8 +29,8 @@ const GRAD_YEARS = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() 
 
 // 부전공/복수전공 전공 (3개)
 const MINOR_MAJORS = ["클라우드융합학과", "사이버보안융합학과", "블록체인융합학과"];
-// 평점 선택지 (가/부 포함 — 가/부는 평점평균 계산에서 제외)
-const MINOR_GRADE_OPTIONS = [...GRADE_OPTIONS, "가", "부"];
+// 평점 선택지 (가/부 포함 — 가/부는 평점평균 계산에서 제외). MD 단독·부전공·복수전공 공통.
+const GRADE_SELECT_OPTIONS = [...GRADE_OPTIONS, "가", "부"];
 // 학점 선택지 — 기본값 3학점(첫 번째)
 const CREDIT_OPTIONS = [3, 2, 1];
 
@@ -429,7 +429,7 @@ export default function GradeDetailSection({ values, onChange, calculatedAmount 
                         {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n}학점</option>)}
                       </select>
                       <select className="input-field !min-h-[40px] col-span-5 sm:col-span-3" value={c.grade || "A+"} onChange={(e) => setCourse(i, { grade: e.target.value })}>
-                        {MINOR_GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+                        {GRADE_SELECT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
                       </select>
                       <button type="button" onClick={() => removeCourse(i)} className="btn-danger !h-9 !px-2 col-span-2 sm:col-span-1 flex items-center justify-center">✕</button>
                     </div>
@@ -563,7 +563,7 @@ function CourseRow({ name, checked, grade, onToggle, onGrade }: {
       </label>
       {checked && (
         <select value={grade} onChange={(e) => onGrade(e.target.value)} className="rounded-lg px-2 py-1 text-sm font-medium" style={{ background: "rgba(255,255,255,0.8)", border: "1px solid rgba(99,102,241,0.3)" }}>
-          {GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+          {GRADE_SELECT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
       )}
     </div>
