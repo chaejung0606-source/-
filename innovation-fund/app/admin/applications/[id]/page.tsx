@@ -795,7 +795,9 @@ export default function ApplicationDetailPage() {
 
         </div>
 
-        <div className="space-y-4">
+        {/* 상태 관리 등 우측 칼럼 — 긴 신청 내용을 아래로 스크롤해도 함께 따라오도록 sticky.
+            칼럼이 화면보다 길면 칼럼 내부에서 스크롤(메모·저장 버튼까지 항상 접근 가능). */}
+        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h2 className="section-title mb-0">상태 관리</h2>
