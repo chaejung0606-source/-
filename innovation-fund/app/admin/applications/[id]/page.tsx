@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Save, RefreshCw } from "lucide-react";
@@ -10,7 +10,7 @@ import DraggableWindow from "@/components/admin/DraggableWindow";
 import { type StatusConfig, type StatusOpt, DEFAULT_STATUS_CONFIG, BADGE_PRESETS, newStatusKey } from "@/lib/status-config";
 import { maskAccountNumber, maskResidentNumber } from "@/lib/mask";
 import { parseTableGrid } from "@/components/apply/TableField";
-import { getProgramById } from "@/lib/md-courses";
+import { getProgramById, sortCoursesByTerm, termLabel } from "@/lib/md-courses";
 
 export default function ApplicationDetailPage() {
   const params = useParams();
@@ -61,8 +61,23 @@ export default function ApplicationDetailPage() {
     } finally { setCfgSaving(false); }
   };
 
-  // 첨부파일 미리보기 — 이동 가능한 임시 팝업창
-  const [fileWin, setFileWin] = useState<{ name: string; url?: string } | null>(null);
+  // 첨부파일 미리보기 — 이동 가능한 임시 팝업창(여러 개 동시에 열어 나란히 비교 가능)
+  const [fileWins, setFileWins] = useState<{ id: number; name: string; url?: string }[]>([]);
+  const fileWinSeq = useRef(0);
+  const openFileWin = (name: string, url?: string) => {
+    setFileWins((ws) => {
+      // 같은 파일이 이미 열려 있으면 중복 생성하지 않음
+      if (ws.some((w) => w.name === name && w.url === url)) return ws;
+      return [...ws, { id: ++fileWinSeq.current, name, url }];
+    });
+  };
+  const closeFileWin = (id: number) => setFileWins((ws) => ws.filter((w) => w.id !== id));
+  // 클릭한 창을 맨 앞으로(배열 끝 = DOM 최상단) — 겹쳐 있어도 원하는 창을 앞으로 가져와 비교
+  const bringFileWinToFront = (id: number) => setFileWins((ws) => {
+    const idx = ws.findIndex((w) => w.id === id);
+    if (idx < 0 || idx === ws.length - 1) return ws;
+    return [...ws.slice(0, idx), ...ws.slice(idx + 1), ws[idx]];
+  });
 
   // 인쇄양식(첨부 삽입 포함) 미리보기 — 크기 조정·이동 가능한 작은 새 창
   const openPreview = (doc: string) => {
@@ -255,7 +270,7 @@ export default function ApplicationDetailPage() {
           ["학과", g.mdDepartment || "-"],
           ["MD 과정명", g.mdProgramName || g.courseName || "-"],
           ["이수 교과목·성적", (g.mdCourses || []).length
-            ? (g.mdCourses || []).map((c) => `${c.name} — ${c.grade}${c.isBase ? " (기초/전공)" : ""}`).join("\n")
+            ? sortCoursesByTerm(g.mdCourses || []).map((c) => { const t = termLabel(c.year, c.term); return `${t ? `[${t}] ` : ""}${c.name} — ${c.grade}${c.isBase ? " (기초/전공)" : ""}`; }).join("\n")
             : (g.courseName || "-")],
           ["평점 평균", String(g.gpa)],
         );
@@ -266,9 +281,10 @@ export default function ApplicationDetailPage() {
           // 미래융합가상학과 자격 확인 체크박스 폐지(v1.1.207) — 기존 신청(확인함)만 표시
           ...(g.minorIsMirae ? [["미래융합가상학과 이수(예정)자", "확인함"] as [string, string]] : []),
           ["이수 교과목 내역", (g.minorCourses || []).length
-            ? (g.minorCourses || []).map((c) =>
-                `${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`
-              ).join("\n")
+            ? sortCoursesByTerm(g.minorCourses || []).map((c) => {
+                const t = termLabel(c.year, c.term);
+                return `${t ? `[${t}] ` : ""}${c.name || "(과목명 없음)"} · ${c.credits}학점 · ${c.grade}${(c.mdProgramId || c.isMd) ? (c.excluded ? " · MD(학점 불인정)" : " · MD") : ""}`;
+              }).join("\n")
             : "-"],
           ["인정 이수 학점", `${g.minorMajorCredits ?? g.credits}학점 (기준 ${g.subType === "minor" ? 21 : 36}학점)`],
           ["평점 평균", `${g.gpa} / 4.5`],
@@ -488,7 +504,7 @@ export default function ApplicationDetailPage() {
               const slot = slotLabelOf(f);
               const nm = displayName(f);
               return (
-                <button key={f.id} type="button" onClick={() => setFileWin({ name: nm, url: f.url })}
+                <button key={f.id} type="button" onClick={() => openFileWin(nm, f.url)}
                   title={`[${slot || "서류"}] ${nm} — 클릭하면 미리보기 창이 열립니다`}
                   className="rounded-xl overflow-hidden text-left border border-gray-200 bg-white hover:ring-2 hover:ring-indigo-300 transition" style={{ width: 176 }}>
                   {slot && (
@@ -883,20 +899,27 @@ export default function ApplicationDetailPage() {
         </div>
       </div>
 
-      {fileWin && (
-        <DraggableWindow title={fileWin.name} onClose={() => setFileWin(null)}>
-          {fileWin.url ? (
-            (fileWin.url.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(fileWin.name)) ? (
+      {fileWins.map((fw, i) => (
+        // 여러 창을 겹치지 않게 계단식(cascade)으로 배치 — 나란히 놓고 비교 가능
+        <DraggableWindow
+          key={fw.id}
+          title={fw.name}
+          onClose={() => closeFileWin(fw.id)}
+          onFocus={() => bringFileWinToFront(fw.id)}
+          initial={{ x: 120 + (i % 6) * 40, y: 100 + (i % 6) * 36, w: 520, h: 560 }}
+        >
+          {fw.url ? (
+            (fw.url.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(fw.name)) ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={fileWin.url} alt={fileWin.name} className="max-w-full max-h-full object-contain" />
+              <img src={fw.url} alt={fw.name} className="max-w-full max-h-full object-contain" />
             ) : (
-              <iframe src={fileWin.url} title={fileWin.name} className="w-full h-full bg-white" style={{ border: "none" }} />
+              <iframe src={fw.url} title={fw.name} className="w-full h-full bg-white" style={{ border: "none" }} />
             )
           ) : (
             <span className="text-gray-400 text-sm">미리보기를 불러올 수 없습니다.</span>
           )}
         </DraggableWindow>
-      )}
+      ))}
     </AdminLayout>
   );
 }

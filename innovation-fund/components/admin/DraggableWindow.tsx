@@ -13,9 +13,10 @@ interface Props {
   onClose: () => void;
   children: React.ReactNode;
   initial?: { x: number; y: number; w: number; h: number };
+  onFocus?: () => void; // 창을 클릭하면 맨 앞으로 가져오기 위한 콜백(여러 창 동시 표시 시)
 }
 
-export default function DraggableWindow({ title, onClose, children, initial }: Props) {
+export default function DraggableWindow({ title, onClose, children, initial, onFocus }: Props) {
   const [pos, setPos] = useState({ x: initial?.x ?? 120, y: initial?.y ?? 120 });
   const [mounted, setMounted] = useState(false);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -53,6 +54,7 @@ export default function DraggableWindow({ title, onClose, children, initial }: P
 
   return createPortal(
     <div
+      onMouseDown={onFocus}
       className="fixed z-[2000] rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden flex flex-col"
       style={{ left: pos.x, top: pos.y, width: initial?.w ?? 520, height: initial?.h ?? 560, resize: "both", minWidth: 280, minHeight: 220 }}
     >

@@ -4,6 +4,7 @@ import {
   TRANSPORT_MODE_LABELS, calcSupportTotal,
 } from "@/types";
 import { EvidenceAttachment } from "./EvidenceAttachment";
+import { sortCoursesByTerm, termLabel } from "@/lib/md-courses";
 
 export function subTypeName(app: Application): string {
   if (app.gradeDetail) {
@@ -63,14 +64,14 @@ function typeDetailRows(app: Application): [string, string][] {
     const d = app.gradeDetail;
     const rows: [string, string][] = [];
     if (d.subType === "microdegree") {
-      rows.push(["학과", d.mdDepartment || "-"], ["MD 과정", d.mdProgramName || d.courseName], ["이수 교과목", (d.mdCourses || []).map((c) => `${c.name}(${c.grade})`).join(", ")], ["평점 평균", String(d.gpa)]);
+      rows.push(["학과", d.mdDepartment || "-"], ["MD 과정", d.mdProgramName || d.courseName], ["이수 교과목", sortCoursesByTerm(d.mdCourses || []).map((c) => { const t = termLabel(c.year, c.term); return `${t ? `[${t}] ` : ""}${c.name}(${c.grade})`; }).join(", ")], ["평점 평균", String(d.gpa)]);
     } else {
-      const mc = d.minorCourses || [];
+      const mc = sortCoursesByTerm(d.minorCourses || []);
       const total = mc.reduce((s, c) => s + (Number(c.credits) || 0), 0);
       const mdEx = mc.filter((c) => c.mdProgramId && c.excluded).reduce((s, c) => s + (Number(c.credits) || 0), 0);
       rows.push(["전공명", d.minorMajorName || "-"]);
       if (mc.length) {
-        rows.push(["이수 교과목", mc.map((c) => `${c.name}(${c.credits}학점, ${c.grade}${(c.mdProgramId || c.isMd) ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`).join(", ")]);
+        rows.push(["이수 교과목", mc.map((c) => { const t = termLabel(c.year, c.term); return `${t ? `[${t}] ` : ""}${c.name}(${c.credits}학점, ${c.grade}${(c.mdProgramId || c.isMd) ? ", MD" : ""}${c.excluded ? "·불인정" : ""})`; }).join(", ")]);
         rows.push(["총 이수 학점", `${total}학점`], ["MD 학점 불인정", `-${mdEx}학점`]);
       }
       rows.push(["인정 이수 학점", `${d.minorMajorCredits ?? (total - mdEx)}학점`], ["평점 평균", String(d.gpa)]);

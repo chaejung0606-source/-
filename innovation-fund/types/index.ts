@@ -340,6 +340,8 @@ export interface MDCourseGrade {
   name: string;
   grade: string;
   isBase: boolean;
+  year?: string;  // 이수 학년도 (예: "2025")
+  term?: string;  // 이수 학기 (1학기/여름계절/2학기/겨울계절)
 }
 
 // 부전공/복수전공 이수 교과목 항목
@@ -350,6 +352,8 @@ export interface MinorCourse {
   mdProgramId?: string;  // 이 과목이 이수한 MD 과정 id (2026 개편 MD 이수과목인 경우)
   isMd?: boolean;        // 구(2025학년도) MD 방식: 과정명 선택 없이 'MD 이수과목 여부'만 표시 (졸업 2027-08 이전)
   excluded?: boolean;    // MD 이수과목 중 학점 불인정 → 이수학점에서 제외 (2026 개편 MD만 해당)
+  year?: string;         // 이수 학년도 (예: "2025")
+  term?: string;         // 이수 학기 (1학기/여름계절/2학기/겨울계절)
 }
 
 export interface GradeDetail {
